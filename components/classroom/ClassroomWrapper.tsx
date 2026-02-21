@@ -197,10 +197,6 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   const isScreenDevice = device === 'screen';
   // navigator.mediaDevices is undefined on insecure (HTTP) contexts
   const isSecure = typeof window !== 'undefined' && (window.isSecureContext ?? location.protocol === 'https:');
-  // Only auto-enable audio on connect. Camera is off by default —
-  // users click the camera button when ready (avoids getUserMedia
-  // failures that can disconnect the room before it even starts).
-  const enableAudio = !isGhost && !isScreenDevice && isSecure;
 
   return (
     <LiveKitRoom
@@ -208,11 +204,16 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       serverUrl={livekitUrl}
       room={room}
       connect={true}
-      audio={enableAudio}
+      audio={false}
       video={false}
       onDisconnected={handleDisconnected}
       onError={(err) => {
         console.error('[LiveKitRoom] Error:', err);
+        // Don't disconnect/error for permission-denied — user just needs to click mic button
+        if (err?.message?.includes('Permission denied') || err?.message?.includes('NotAllowedError')) {
+          console.warn('[ClassroomWrapper] Media permission denied — user can enable mic/camera manually');
+          return;
+        }
         // Don't show fatal error for getUserMedia failures on HTTP
         if (err?.message?.includes('getUserMedia') || err?.message?.includes('mediaDevices')) {
           console.warn('[ClassroomWrapper] Media not available (HTTP context) — continuing without local tracks');
