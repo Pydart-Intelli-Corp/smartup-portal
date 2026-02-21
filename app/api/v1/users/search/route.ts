@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
-import { searchUsers, getUsersByRole, searchTeachersBySubject } from '@/lib/users';
+import { searchUsers, getUsersByRole, searchTeachersBySubject, searchCoordinatorsWithBatchCount } from '@/lib/users';
 import type { ApiResponse, PortalRole } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -42,6 +42,21 @@ export async function GET(request: NextRequest) {
           phone: u.phone,
           subjects: u.subjects || [],
           matchesSubject: u.matches_subject ?? false,
+        })) },
+      });
+    }
+
+    // When searching coordinators, include active batch count
+    if (role === 'coordinator') {
+      const users = await searchCoordinatorsWithBatchCount(q);
+      return NextResponse.json<ApiResponse>({
+        success: true,
+        data: { users: users.map(u => ({
+          email: u.email,
+          name: u.full_name,
+          role: u.portal_role,
+          phone: u.phone,
+          batchCount: u.batch_count ?? 0,
         })) },
       });
     }

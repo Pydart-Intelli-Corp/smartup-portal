@@ -111,6 +111,40 @@ export async function searchTeachersBySubject(
   return result.rows as (PortalUser & { subjects: string[] | null; matches_subject: boolean })[];
 }
 
+// ── Search coordinators with active batch count ─────────────
+// Returns coordinators with a count of their currently active
+// (scheduled or live) rooms so the operator can balance workload.
+
+export async function searchCoordinatorsWithBatchCount(
+  query: string
+): Promise<(PortalUser & { batch_count: number })[]> {
+  const params: unknown[] = [];
+  let whereParts = `u.is_active = TRUE AND u.portal_role = 'coordinator'`;
+
+  if (query) {
+    params.push(`%${query}%`);
+    whereParts += ` AND (u.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+  }
+
+  const sql = `
+    SELECT u.*,
+           COALESCE(rc.batch_count, 0)::int AS batch_count
+    FROM portal_users u
+    LEFT JOIN (
+      SELECT coordinator_email, COUNT(*) AS batch_count
+      FROM rooms
+      WHERE status IN ('scheduled', 'live')
+      GROUP BY coordinator_email
+    ) rc ON rc.coordinator_email = u.email
+    WHERE ${whereParts}
+    ORDER BY u.full_name
+    LIMIT 50
+  `;
+
+  const result = await db.query(sql, params);
+  return result.rows as (PortalUser & { batch_count: number })[];
+}
+
 // ── Deactivate user ─────────────────────────────────────────
 
 export async function deactivateUser(email: string): Promise<void> {

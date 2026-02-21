@@ -86,15 +86,15 @@ function UserSearchDropdown({
   excludeEmails = [],
   subject,
 }: {
-  role: 'teacher' | 'student';
+  role: 'teacher' | 'student' | 'coordinator';
   placeholder: string;
-  onSelect: (user: PortalUser & { subjects?: string[]; matchesSubject?: boolean }) => void;
+  onSelect: (user: PortalUser & { subjects?: string[]; matchesSubject?: boolean; batchCount?: number }) => void;
   excludeEmails?: string[];
   /** When role=teacher, filters/prioritizes by this subject */
   subject?: string;
 }) {
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<(PortalUser & { subjects?: string[]; matchesSubject?: boolean })[]>([]);
+  const [results, setResults] = useState<(PortalUser & { subjects?: string[]; matchesSubject?: boolean; batchCount?: number })[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -127,7 +127,7 @@ function UserSearchDropdown({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, open, role, subject]);
 
-  const handleSelect = (u: PortalUser & { subjects?: string[]; matchesSubject?: boolean }) => { onSelect(u); setQ(''); setOpen(false); setResults([]); };
+  const handleSelect = (u: PortalUser & { subjects?: string[]; matchesSubject?: boolean; batchCount?: number }) => { onSelect(u); setQ(''); setOpen(false); setResults([]); };
 
   return (
     <div ref={ref} className="relative">
@@ -146,12 +146,17 @@ function UserSearchDropdown({
             <button key={u.email} type="button" onMouseDown={() => handleSelect(u)}
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-700/50 transition-colors"
             >
-              <Avatar name={u.name} size={8} color={role === 'teacher' ? 'bg-emerald-600' : 'bg-violet-600'} />
+              <Avatar name={u.name} size={8} color={role === 'teacher' ? 'bg-emerald-600' : role === 'coordinator' ? 'bg-blue-600' : 'bg-violet-600'} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-white">{u.name}</p>
                   {u.matchesSubject && (
                     <span className="rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">✓ {subject}</span>
+                  )}
+                  {role === 'coordinator' && typeof u.batchCount === 'number' && (
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      u.batchCount === 0 ? 'bg-gray-700 text-gray-400' : u.batchCount <= 3 ? 'bg-blue-900/60 text-blue-400' : 'bg-amber-900/60 text-amber-400'
+                    }`}>{u.batchCount} batch{u.batchCount !== 1 ? 'es' : ''}</span>
                   )}
                 </div>
                 <p className="text-xs text-gray-400 truncate">{u.email}</p>
@@ -579,6 +584,39 @@ function AOPStudentsTab({ room, students, onRefresh }: { room: Room; students: A
   );
 }
 
+// ── 12-hour Time Picker ─────────────────────────────────────
+function TimePicker12({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  // value is 24h "HH:mm", we display as 12h with AM/PM
+  const [h24, min] = (value || '09:00').split(':').map(Number);
+  const period = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+
+  const update = (newH12: number, newMin: number, newPeriod: string) => {
+    let h = newH12;
+    if (newPeriod === 'AM') { if (h === 12) h = 0; }
+    else { if (h !== 12) h += 12; }
+    onChange(`${String(h).padStart(2, '0')}:${String(newMin).padStart(2, '0')}`);
+  };
+
+  const sel = 'rounded-lg border border-gray-700 bg-gray-800 px-2 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none disabled:opacity-50';
+
+  return (
+    <div className="mt-1 flex items-center gap-1.5">
+      <select value={h12} disabled={disabled} onChange={(e) => update(Number(e.target.value), min, period)} className={sel}>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <span className="text-gray-400 font-medium">:</span>
+      <select value={min} disabled={disabled} onChange={(e) => update(h12, Number(e.target.value), period)} className={sel}>
+        {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+      </select>
+      <select value={period} disabled={disabled} onChange={(e) => update(h12, min, e.target.value)} className={`${sel} font-medium`}>
+        <option>AM</option>
+        <option>PM</option>
+      </select>
+    </div>
+  );
+}
+
 function AOPEditRoomTab({ room, onSaved }: { room: Room; onSaved: () => void }) {
   const [form, setForm] = useState({
     room_name: room.room_name, subject: room.subject, grade: room.grade,
@@ -651,8 +689,7 @@ function AOPEditRoomTab({ room, onSaved }: { room: Room; onSaved: () => void }) 
         </div>
         <div>
           <label className="text-xs text-gray-400">Start Time</label>
-          <input type="time" value={form.start_time} disabled={!canEdit} onChange={(e) => f('start_time', e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none" />
+          <TimePicker12 value={form.start_time} disabled={!canEdit} onChange={(v) => f('start_time', v)} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -711,6 +748,7 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
     scheduled_date: toISTDateValue(new Date()), start_time: '09:00',
     duration_minutes: 60, max_participants: 50, notes_for_teacher: '',
     teacher_email: '', teacher_name: '',
+    coordinator_email: '', coordinator_name: '', coordinator_batch_count: 0,
   });
   const [students, setStudents] = useState<{ email: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -750,6 +788,7 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
           duration_minutes: form.duration_minutes, max_participants: form.max_participants,
           notes_for_teacher: form.notes_for_teacher || null,
           teacher_email: form.teacher_email,
+          coordinator_email: form.coordinator_email || null,
           students: students.map(s => ({ email: s.email, name: s.name })),
         }),
       });
@@ -825,8 +864,7 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
             <div>
               <label className="text-xs font-medium text-gray-400">Start Time <span className="text-red-400">*</span></label>
-              <input type="time" required value={form.start_time} onChange={(e) => f('start_time', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
+              <TimePicker12 value={form.start_time} onChange={(v) => f('start_time', v)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -868,6 +906,38 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
                   </div>
                 </div>
                 <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Assign Batch Coordinator (optional) ── */}
+          <div className="rounded-xl border border-blue-800/50 bg-blue-950/10 p-4">
+            <label className="text-xs font-medium text-blue-400 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" /> Batch Coordinator <span className="text-gray-600">(optional)</span>
+            </label>
+            <p className="mb-2 text-[10px] text-gray-500">Assign a coordinator to manage this room. Shows their active batch load.</p>
+            {!form.coordinator_email ? (
+              <UserSearchDropdown
+                role="coordinator"
+                placeholder="Search coordinator by name or email..."
+                onSelect={(u) => setForm((p) => ({ ...p, coordinator_email: u.email, coordinator_name: u.name, coordinator_batch_count: u.batchCount ?? 0 }))}
+                excludeEmails={[]}
+              />
+            ) : (
+              <div className="flex items-center justify-between rounded-lg border border-blue-800 bg-blue-950/30 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Avatar name={form.coordinator_name} size={7} color="bg-blue-600" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-blue-300">{form.coordinator_name}</p>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        form.coordinator_batch_count === 0 ? 'bg-gray-700 text-gray-400' : form.coordinator_batch_count <= 3 ? 'bg-blue-900/60 text-blue-400' : 'bg-amber-900/60 text-amber-400'
+                      }`}>{form.coordinator_batch_count} active batch{form.coordinator_batch_count !== 1 ? 'es' : ''}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{form.coordinator_email}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setForm((p) => ({ ...p, coordinator_email: '', coordinator_name: '', coordinator_batch_count: 0 }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
               </div>
             )}
           </div>

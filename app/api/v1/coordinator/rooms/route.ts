@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
     fee_paise = 0,
     notes_for_teacher,
     teacher_email,
+    coordinator_email: bodyCoordinatorEmail, // Optional: override coordinator
     students, // Optional: [{ email, name }]
   } = body;
 
@@ -169,6 +170,9 @@ export async function POST(req: NextRequest) {
 
   const roomId = generateRoomId();
 
+  // Determine coordinator: use body override if provided (academic_operator can assign), else logged-in user
+  const coordinatorEmail = bodyCoordinatorEmail || user.id;
+
   try {
     // Look up teacher name from portal_users if teacher_email provided
     let teacherName: string | null = null;
@@ -196,7 +200,7 @@ export async function POST(req: NextRequest) {
           subject,
           grade,
           section || null,
-          user.id,
+          coordinatorEmail,
           teacher_email || null,
           scheduledDate.toISOString(),
           dur,
