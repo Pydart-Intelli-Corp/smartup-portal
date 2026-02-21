@@ -88,7 +88,7 @@ export async function POST(
     // Log event
     await db.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
-       VALUES ($1, 'room_go_live', $2, $3)`,
+       VALUES ($1, 'room_started', $2, $3)`,
       [room_id, user.id, JSON.stringify({ started_by: user.name, role: user.role })]
     );
 
