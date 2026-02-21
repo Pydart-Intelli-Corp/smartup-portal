@@ -85,7 +85,15 @@ export default function StudentView({
   const [showCameraWarning, setShowCameraWarning] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Detect mobile/tablet device — rotation only applies to phones/tablets, never laptops/PCs
+  useEffect(() => {
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const mobileUA = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    setIsMobileDevice(isTouchDevice && mobileUA);
+  }, []);
 
   // Detect portrait orientation for CSS-based landscape rotation
   useEffect(() => {
@@ -97,8 +105,9 @@ export default function StudentView({
     return () => window.removeEventListener('resize', checkOrientation);
   }, []);
 
-  // Try Screen Orientation API lock (works on some Android browsers)
+  // Try Screen Orientation API lock (works on some Android browsers) — mobile only
   useEffect(() => {
+    if (!isMobileDevice) return;
     const lockLandscape = async () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,8 +202,9 @@ export default function StudentView({
   const isMicOn = localParticipant.isMicrophoneEnabled;
   const isCameraOn = localParticipant.isCameraEnabled;
 
-  // When screen share is active and device is portrait, force landscape via CSS transform
-  const forceRotate = hasScreenShare && isPortrait;
+  // When screen share is active and device is portrait mobile/tablet, force landscape via CSS transform
+  // Never rotate on laptops/PCs — only on actual mobile devices
+  const forceRotate = hasScreenShare && isPortrait && isMobileDevice;
 
   return (
     <div
