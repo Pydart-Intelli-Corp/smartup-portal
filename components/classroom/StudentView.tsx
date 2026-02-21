@@ -76,6 +76,7 @@ export default function StudentView({
   const [showCameraWarning, setShowCameraWarning] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Detect portrait orientation for CSS-based landscape rotation
   useEffect(() => {
@@ -105,6 +106,22 @@ export default function StudentView({
         (screen?.orientation as any)?.unlock?.();
       } catch { /* ignore */ }
     };
+  }, []);
+
+  // Detect virtual keyboard opening via visualViewport API
+  // In CSS-rotated mode the keyboard appears from the physical bottom
+  // (which is the visual right) — we shrink the view width to compensate
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vv = (window as any).visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      // Keyboard open = viewport height shrinks relative to window height
+      const diff = window.innerHeight - vv.height;
+      setKeyboardHeight(diff > 50 ? diff : 0);
+    };
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
   }, []);
 
   const { localParticipant } = useLocalParticipant();
@@ -179,7 +196,7 @@ export default function StudentView({
               position: 'fixed',
               top: 0,
               left: 0,
-              width: '100vh',
+              width: `calc(100vh - ${keyboardHeight}px)`,
               height: '100vw',
               transform: 'rotate(90deg)',
               transformOrigin: 'top left',
@@ -272,17 +289,19 @@ export default function StudentView({
             </div>
           )}
 
-          {/* Student self-cam PIP */}
+          {/* Student self-cam PIP — rotated -90° to correct for CSS landscape rotation */}
           {isCameraOn && (
             <div className="w-12 h-12 rounded-md overflow-hidden ring-1 ring-green-500/50 flex-shrink-0" title="You">
-              <VideoTile
-                participant={localParticipant}
-                size="small"
-                mirror={true}
-                showName={false}
-                showMicIndicator={false}
-                className="h-full w-full !rounded-none"
-              />
+              <div style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
+                <VideoTile
+                  participant={localParticipant}
+                  size="small"
+                  mirror={true}
+                  showName={false}
+                  showMicIndicator={false}
+                  className="h-full w-full !rounded-none"
+                />
+              </div>
             </div>
           )}
 

@@ -232,15 +232,20 @@ export default function TeacherView({
                 )}
               >
                 {students.map((student) => (
-                  <div key={student.identity} className="relative min-h-0 min-w-0">
-                    <VideoTile
-                      participant={student}
-                      size="large"
-                      showName={true}
-                      showMicIndicator={true}
-                      playAudio={true}
-                      className="!rounded-none border-gray-600"
-                    />
+                  <div key={student.identity} className="relative min-h-0 min-w-0 overflow-hidden">
+                    {/* Rotate 90° CW: student phone is portrait but CSS-forced landscape */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div style={{ transform: 'rotate(90deg)', width: '140%', height: '140%' }}>
+                        <VideoTile
+                          participant={student}
+                          size="large"
+                          showName={true}
+                          showMicIndicator={true}
+                          playAudio={true}
+                          className="!rounded-none border-gray-600"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
