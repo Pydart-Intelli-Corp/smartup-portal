@@ -205,7 +205,7 @@ export default function ControlBar({
 
       {/* End class confirmation */}
       {showEndConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
             <h3 className="mb-2 text-lg font-semibold text-white">End class for everyone?</h3>
             <p className="mb-4 text-sm text-gray-400">This will disconnect all students.</p>
@@ -231,7 +231,7 @@ export default function ControlBar({
 
       {/* Leave confirmation */}
       {showLeaveConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
             <h3 className="mb-2 text-lg font-semibold text-white">Leave this class?</h3>
             <p className="mb-4 text-sm text-gray-400">You can rejoin while the class is active.</p>

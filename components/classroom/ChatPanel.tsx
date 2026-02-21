@@ -41,17 +41,27 @@ export default function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const { localParticipant } = useLocalParticipant();
 
-  // Handle incoming messages
+  // Track processed message IDs to avoid duplicates from callback + message state
+  const processedIds = useRef(new Set<string>());
+
+  // Handle incoming messages via callback
   const onDataReceived = useCallback(
-    (msg: { payload: Uint8Array; from?: { identity: string } }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (msg: any) => {
       try {
-        const text = new TextDecoder().decode(msg.payload);
+        const payload = msg?.payload;
+        if (!payload) return;
+        const text = new TextDecoder().decode(payload);
         const data = JSON.parse(text) as {
           sender: string;
           text: string;
           role: string;
           timestamp: string;
         };
+        // De-duplicate using sender+timestamp+text
+        const dedupeKey = `${data.sender}_${data.timestamp}_${data.text}`;
+        if (processedIds.current.has(dedupeKey)) return;
+        processedIds.current.add(dedupeKey);
         setMessages((prev) => [
           ...prev,
           {
@@ -70,7 +80,40 @@ export default function ChatPanel({
     []
   );
 
-  useDataChannel('chat', onDataReceived);
+  // Use the hook's send function and message state — ensures topic consistency
+  const { send, message } = useDataChannel('chat', onDataReceived);
+
+  // Also process messages arriving via the hook's message observable (fallback path)
+  useEffect(() => {
+    if (!message) return;
+    try {
+      const payload = message.payload;
+      if (!payload) return;
+      const text = new TextDecoder().decode(payload);
+      const data = JSON.parse(text) as {
+        sender: string;
+        text: string;
+        role: string;
+        timestamp: string;
+      };
+      const dedupeKey = `${data.sender}_${data.timestamp}_${data.text}`;
+      if (processedIds.current.has(dedupeKey)) return;
+      processedIds.current.add(dedupeKey);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          sender: data.sender,
+          text: data.text,
+          role: data.role,
+          timestamp: data.timestamp,
+          isLocal: false,
+        },
+      ]);
+    } catch {
+      // ignore
+    }
+  }, [message]);
 
   // Auto-scroll to bottom on new message
   useEffect(() => {
@@ -90,12 +133,14 @@ export default function ChatPanel({
       timestamp: new Date().toISOString(),
     };
 
-    // Publish via data channel
     try {
       const bytes = new TextEncoder().encode(JSON.stringify(msg));
-      await localParticipant.publishData(bytes, { topic: 'chat', reliable: true });
+      // Use the hook's send function — automatically sets topic 'chat'
+      await send(bytes, { reliable: true });
 
       // Add to local messages
+      const dedupeKey = `${msg.sender}_${msg.timestamp}_${msg.text}`;
+      processedIds.current.add(dedupeKey);
       setMessages((prev) => [
         ...prev,
         {
