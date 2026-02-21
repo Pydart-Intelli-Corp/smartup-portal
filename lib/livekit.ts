@@ -10,9 +10,13 @@ import type { PortalRole } from '@/types';
  * LiveKit server utilities.
  * Uses LIVEKIT_API_KEY + LIVEKIT_API_SECRET from environment.
  * These are server-side only — never import this in client components.
+ *
+ * LIVEKIT_URL = direct HTTP URL for server-side API calls (e.g. http://76.13.244.54:7880)
+ * NEXT_PUBLIC_LIVEKIT_URL = client-facing WSS URL sent to browsers (e.g. wss://smartup.pydart.com)
  */
 
 const livekitHost =
+  process.env.LIVEKIT_URL ||
   process.env.NEXT_PUBLIC_LIVEKIT_URL?.replace('ws://', 'http://').replace('wss://', 'https://') ||
   'http://localhost:7880';
 const apiKey = process.env.LIVEKIT_API_KEY!;
