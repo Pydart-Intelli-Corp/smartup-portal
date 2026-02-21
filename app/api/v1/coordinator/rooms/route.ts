@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
         if (s.email && s.name) {
           await client.query(
             `INSERT INTO room_assignments (room_id, participant_type, participant_email, participant_name, payment_status)
-             VALUES ($1, 'student', $2, $3, 'pending')
+             VALUES ($1, 'student', $2, $3, 'unpaid')
              ON CONFLICT (room_id, participant_email) DO NOTHING`,
             [roomId, s.email, s.name]
           );
