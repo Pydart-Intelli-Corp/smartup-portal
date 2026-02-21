@@ -79,6 +79,38 @@ export async function searchUsers(
   return result.rows;
 }
 
+// ── Search teachers with subject priority ───────────────────
+// Returns all teachers matching query, with those who teach the
+// given subject sorted first. Includes subjects array from user_profiles.
+
+export async function searchTeachersBySubject(
+  query: string,
+  subject: string
+): Promise<(PortalUser & { subjects: string[] | null; matches_subject: boolean })[]> {
+  const params: unknown[] = [subject];
+  let whereParts = `u.is_active = TRUE AND u.portal_role = 'teacher'`;
+
+  if (query) {
+    params.push(`%${query}%`);
+    whereParts += ` AND (u.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+  }
+
+  const sql = `
+    SELECT u.*, p.subjects,
+           CASE WHEN p.subjects @> ARRAY[$1]::text[] THEN true ELSE false END AS matches_subject
+    FROM portal_users u
+    LEFT JOIN user_profiles p ON p.email = u.email
+    WHERE ${whereParts}
+    ORDER BY
+      CASE WHEN p.subjects @> ARRAY[$1]::text[] THEN 0 ELSE 1 END,
+      u.full_name
+    LIMIT 50
+  `;
+
+  const result = await db.query(sql, params);
+  return result.rows as (PortalUser & { subjects: string[] | null; matches_subject: boolean })[];
+}
+
 // ── Deactivate user ─────────────────────────────────────────
 
 export async function deactivateUser(email: string): Promise<void> {

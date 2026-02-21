@@ -84,14 +84,17 @@ function UserSearchDropdown({
   placeholder,
   onSelect,
   excludeEmails = [],
+  subject,
 }: {
   role: 'teacher' | 'student';
   placeholder: string;
-  onSelect: (user: PortalUser) => void;
+  onSelect: (user: PortalUser & { subjects?: string[]; matchesSubject?: boolean }) => void;
   excludeEmails?: string[];
+  /** When role=teacher, filters/prioritizes by this subject */
+  subject?: string;
 }) {
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<PortalUser[]>([]);
+  const [results, setResults] = useState<(PortalUser & { subjects?: string[]; matchesSubject?: boolean })[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -105,36 +108,26 @@ function UserSearchDropdown({
   }, []);
 
   useEffect(() => {
-    if (q.length < 1) {
-      const timer = setTimeout(async () => {
-        if (open) {
-          setSearching(true);
-          try {
-            const res = await fetch(`/api/v1/users/search?role=${role}`);
-            const data = await res.json();
-            if (data.success) {
-              setResults((data.data?.users || []).filter((u: PortalUser) => !excludeEmails.includes(u.email)));
-            }
-          } finally { setSearching(false); }
-        }
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-    const timer = setTimeout(async () => {
+    const doSearch = async () => {
+      if (!open && q.length < 1) return;
       setSearching(true);
       try {
-        const res = await fetch(`/api/v1/users/search?q=${encodeURIComponent(q)}&role=${role}`);
+        let url = `/api/v1/users/search?role=${role}`;
+        if (q) url += `&q=${encodeURIComponent(q)}`;
+        if (subject && role === 'teacher') url += `&subject=${encodeURIComponent(subject)}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setResults((data.data?.users || []).filter((u: PortalUser) => !excludeEmails.includes(u.email)));
         }
       } finally { setSearching(false); }
-    }, 250);
+    };
+    const timer = setTimeout(doSearch, q.length >= 1 ? 250 : 0);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, open, role]);
+  }, [q, open, role, subject]);
 
-  const handleSelect = (u: PortalUser) => { onSelect(u); setQ(''); setOpen(false); setResults([]); };
+  const handleSelect = (u: PortalUser & { subjects?: string[]; matchesSubject?: boolean }) => { onSelect(u); setQ(''); setOpen(false); setResults([]); };
 
   return (
     <div ref={ref} className="relative">
@@ -154,9 +147,21 @@ function UserSearchDropdown({
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-700/50 transition-colors"
             >
               <Avatar name={u.name} size={8} color={role === 'teacher' ? 'bg-emerald-600' : 'bg-violet-600'} />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-white">{u.name}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-white">{u.name}</p>
+                  {u.matchesSubject && (
+                    <span className="rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">✓ {subject}</span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                {u.subjects && u.subjects.length > 0 && (
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {u.subjects.map((s: string) => (
+                      <span key={s} className={`rounded px-1 py-0.5 text-[9px] font-medium ${s === subject ? 'bg-emerald-900/50 text-emerald-400' : 'bg-gray-700 text-gray-400'}`}>{s}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </button>
           ))}
@@ -670,7 +675,7 @@ function AOPEditRoomTab({ room, onSaved }: { room: Room; onSaved: () => void }) 
         </label>
         {canEdit ? (
           <div className="mt-1">
-            <UserSearchDropdown role="teacher" placeholder="Search and select teacher..." onSelect={(u) => setForm((p) => ({ ...p, teacher_email: u.email, teacher_name: u.name }))} excludeEmails={[]} />
+            <UserSearchDropdown role="teacher" placeholder="Search and select teacher..." subject={form.subject} onSelect={(u) => setForm((p) => ({ ...p, teacher_email: u.email, teacher_name: u.name }))} excludeEmails={[]} />
             {form.teacher_email && (
               <div className="mt-2 flex items-center justify-between rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm">
                 <span className="text-emerald-300">{form.teacher_name || form.teacher_email}</span>
@@ -707,6 +712,7 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
     duration_minutes: 60, max_participants: 50, notes_for_teacher: '',
     teacher_email: '', teacher_name: '',
   });
+  const [students, setStudents] = useState<{ email: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const subjects = ['Mathematics', 'Science', 'Physics', 'Chemistry', 'Biology', 'English', 'Hindi', 'Social Science', 'Computer Science', 'Economics', 'Commerce', 'Accountancy', 'History', 'Geography'];
@@ -714,15 +720,38 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const durations = [30, 45, 60, 90, 120];
   const f = (key: string, val: string | number) => setForm((p) => ({ ...p, [key]: val }));
 
+  // Auto-generate room name based on subject + grade
+  useEffect(() => {
+    const autoName = `${form.grade} ${form.subject}`;
+    if (!form.room_name || subjects.some(s => grades.some(g => form.room_name === `${g} ${s}`))) {
+      setForm(p => ({ ...p, room_name: autoName }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.subject, form.grade]);
+
+  // Clear teacher when subject changes (teacher may not teach new subject)
+  const handleSubjectChange = (newSubject: string) => {
+    f('subject', newSubject);
+    // Don't clear teacher — just let them re-pick if needed
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.scheduled_date || !form.start_time) { setError('Date and time are required'); return; }
+    if (!form.teacher_email) { setError('Please assign a teacher — this field is required'); return; }
     setError(''); setSubmitting(true);
     try {
       const scheduledStart = istToUTCISO(form.scheduled_date, form.start_time);
       const res = await fetch('/api/v1/coordinator/rooms', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room_name: form.room_name, subject: form.subject, grade: form.grade, section: form.section || null, scheduled_start: scheduledStart, duration_minutes: form.duration_minutes, max_participants: form.max_participants, notes_for_teacher: form.notes_for_teacher || null, teacher_email: form.teacher_email || null }),
+        body: JSON.stringify({
+          room_name: form.room_name, subject: form.subject, grade: form.grade,
+          section: form.section || null, scheduled_start: scheduledStart,
+          duration_minutes: form.duration_minutes, max_participants: form.max_participants,
+          notes_for_teacher: form.notes_for_teacher || null,
+          teacher_email: form.teacher_email,
+          students: students.map(s => ({ email: s.email, name: s.name })),
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.error || 'Failed to create room'); return; }
@@ -731,28 +760,34 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
     finally { setSubmitting(false); }
   };
 
+  const addStudent = (u: PortalUser) => {
+    if (!students.find(s => s.email === u.email)) {
+      setStudents(prev => [...prev, { email: u.email, name: u.name }]);
+    }
+  };
+
+  const removeStudent = (email: string) => {
+    setStudents(prev => prev.filter(s => s.email !== email));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/70 backdrop-blur-sm p-4 pt-8">
       <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
           <div>
             <h2 className="text-lg font-bold text-white">Create New Room</h2>
-            <p className="text-xs text-gray-500">Fill in the class details</p>
+            <p className="text-xs text-gray-500">Fill in the class details, assign teacher & students</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-auto">
           {error && <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-2.5 text-sm text-red-400">{error}</div>}
-          <div>
-            <label className="text-xs font-medium text-gray-400">Room Name <span className="text-red-400">*</span></label>
-            <input type="text" required value={form.room_name} onChange={(e) => f('room_name', e.target.value)}
-              placeholder="e.g. Grade 10 Maths — Quadratic Equations"
-              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none" />
-          </div>
+
+          {/* ── Subject & Grade (first, since teacher depends on subject) ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-400">Subject <span className="text-red-400">*</span></label>
-              <select value={form.subject} onChange={(e) => f('subject', e.target.value)}
+              <select value={form.subject} onChange={(e) => handleSubjectChange(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none">
                 {subjects.map((s) => <option key={s}>{s}</option>)}
               </select>
@@ -765,12 +800,23 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
               </select>
             </div>
           </div>
+
+          {/* ── Room Name (auto-suggested) ── */}
+          <div>
+            <label className="text-xs font-medium text-gray-400">Room Name <span className="text-red-400">*</span></label>
+            <input type="text" required value={form.room_name} onChange={(e) => f('room_name', e.target.value)}
+              placeholder="e.g. Grade 10 Maths — Quadratic Equations"
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none" />
+          </div>
+
           <div>
             <label className="text-xs font-medium text-gray-400">Section / Batch <span className="text-gray-600">(optional)</span></label>
             <input type="text" value={form.section} onChange={(e) => f('section', e.target.value)}
               placeholder="e.g. A, Morning Batch, Group 1"
               className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none" />
           </div>
+
+          {/* ── Date & Time ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-400">Date <span className="text-red-400">*</span></label>
@@ -797,24 +843,66 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-400">Assign Teacher <span className="text-gray-600">(optional)</span></label>
-            <div className="mt-1">
-              <UserSearchDropdown role="teacher" placeholder="Search teacher..." onSelect={(u) => setForm((p) => ({ ...p, teacher_email: u.email, teacher_name: u.name }))} excludeEmails={[]} />
-              {form.teacher_email && (
-                <div className="mt-2 flex items-center justify-between rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Avatar name={form.teacher_name} size={7} color="bg-emerald-600" />
-                    <div>
-                      <p className="text-sm font-medium text-emerald-300">{form.teacher_name}</p>
-                      <p className="text-xs text-gray-500">{form.teacher_email}</p>
-                    </div>
+
+          {/* ── Assign Teacher (MANDATORY, filtered by subject) ── */}
+          <div className="rounded-xl border border-emerald-800/50 bg-emerald-950/10 p-4">
+            <label className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+              <GraduationCap className="h-3.5 w-3.5" /> Assign Teacher <span className="text-red-400">*</span>
+            </label>
+            <p className="mb-2 text-[10px] text-gray-500">Teachers who teach <strong className="text-emerald-400">{form.subject}</strong> are shown first</p>
+            {!form.teacher_email ? (
+              <UserSearchDropdown
+                role="teacher"
+                placeholder={`Search teacher for ${form.subject}...`}
+                subject={form.subject}
+                onSelect={(u) => setForm((p) => ({ ...p, teacher_email: u.email, teacher_name: u.name }))}
+                excludeEmails={[]}
+              />
+            ) : (
+              <div className="flex items-center justify-between rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Avatar name={form.teacher_name} size={7} color="bg-emerald-600" />
+                  <div>
+                    <p className="text-sm font-medium text-emerald-300">{form.teacher_name}</p>
+                    <p className="text-xs text-gray-500">{form.teacher_email}</p>
                   </div>
-                  <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
                 </div>
-              )}
-            </div>
+                <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
+              </div>
+            )}
           </div>
+
+          {/* ── Add Students (optional) ── */}
+          <div className="rounded-xl border border-violet-800/50 bg-violet-950/10 p-4">
+            <label className="text-xs font-medium text-violet-400 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" /> Add Students <span className="text-gray-600">(optional)</span>
+            </label>
+            <p className="mb-2 text-[10px] text-gray-500">You can also add students after creating the room</p>
+            <UserSearchDropdown
+              role="student"
+              placeholder="Search student by name or email..."
+              onSelect={addStudent}
+              excludeEmails={students.map(s => s.email)}
+            />
+            {students.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">{students.length} student{students.length !== 1 ? 's' : ''} added</p>
+                {students.map((s) => (
+                  <div key={s.email} className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-800/30 px-3 py-2">
+                    <Avatar name={s.name} size={7} color="bg-violet-600" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">{s.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{s.email}</p>
+                    </div>
+                    <button type="button" onClick={() => removeStudent(s.email)} className="text-gray-600 hover:text-red-400 transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-xs font-medium text-gray-400">Notes for Teacher <span className="text-gray-600">(optional)</span></label>
             <textarea rows={2} value={form.notes_for_teacher} onChange={(e) => f('notes_for_teacher', e.target.value)}

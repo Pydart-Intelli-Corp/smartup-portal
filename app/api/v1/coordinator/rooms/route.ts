@@ -99,12 +99,20 @@ export async function POST(req: NextRequest) {
     fee_paise = 0,
     notes_for_teacher,
     teacher_email,
+    students, // Optional: [{ email, name }]
   } = body;
 
   // Validation
   if (!room_name || !subject || !grade || !scheduled_start || !duration_minutes) {
     return NextResponse.json(
       { success: false, error: 'Missing required fields: room_name, subject, grade, scheduled_start, duration_minutes' },
+      { status: 400 }
+    );
+  }
+
+  if (!teacher_email) {
+    return NextResponse.json(
+      { success: false, error: 'Teacher assignment is required' },
       { status: 400 }
     );
   }
@@ -215,6 +223,19 @@ export async function POST(req: NextRequest) {
            ON CONFLICT (room_id, participant_email) DO NOTHING`,
           [roomId, teacher_email, teacherName]
         );
+      }
+
+      // Add students if provided
+      const studentList = Array.isArray(students) ? students : [];
+      for (const s of studentList) {
+        if (s.email && s.name) {
+          await client.query(
+            `INSERT INTO room_assignments (room_id, participant_type, participant_email, participant_name, payment_status)
+             VALUES ($1, 'student', $2, $3, 'pending')
+             ON CONFLICT (room_id, participant_email) DO NOTHING`,
+            [roomId, s.email, s.name]
+          );
+        }
       }
 
       return result.rows[0];
