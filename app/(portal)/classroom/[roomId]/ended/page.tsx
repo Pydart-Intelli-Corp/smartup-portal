@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 
 /**
@@ -10,12 +10,9 @@ import { useSession } from '@/hooks/useSession';
  * Displays summary and offers return to dashboard.
  */
 
-export default function ClassEndedPage({
-  params,
-}: {
-  params: { roomId: string };
-}) {
+export default function ClassEndedPage() {
   const router = useRouter();
+  const { roomId } = useParams<{ roomId: string }>();
   const { user } = useSession();
   const [roomName, setRoomName] = useState<string>('');
 
@@ -69,7 +66,7 @@ export default function ClassEndedPage({
             Return to Dashboard
           </button>
           <button
-            onClick={() => router.push(`/join/${params.roomId}`)}
+            onClick={() => router.push(`/join/${roomId}`)}
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
             Rejoin Room (if still active)

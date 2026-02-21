@@ -123,7 +123,7 @@ export async function createLiveKitToken(options: {
   const token = new AccessToken(apiKey, apiSecret, {
     identity: participantIdentity,
     name: participantName,
-    ttl: ttl || '2h',
+    ttl: ttl || '4h',
     metadata,
   });
   token.addGrant(grant);

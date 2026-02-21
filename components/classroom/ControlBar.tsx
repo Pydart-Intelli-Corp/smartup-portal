@@ -51,6 +51,8 @@ export default function ControlBar({
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
 
+  const [endError, setEndError] = useState('');
+
   // Ghost has no controls
   if (role === 'ghost') return null;
 
@@ -84,18 +86,19 @@ export default function ControlBar({
 
   const handleEndClass = async () => {
     setIsEnding(true);
+    setEndError('');
     try {
       const res = await fetch(`/api/v1/room/${roomId}`, { method: 'DELETE' });
       if (res.ok) {
         onEndClass?.();
       } else {
-        console.error('Failed to end class');
+        const data = await res.json().catch(() => null);
+        setEndError(data?.error || 'Failed to end class — please try again');
       }
-    } catch (err) {
-      console.error('Error ending class:', err);
+    } catch {
+      setEndError('Network error — please try again');
     } finally {
       setIsEnding(false);
-      setShowEndConfirm(false);
     }
   };
 
@@ -208,9 +211,12 @@ export default function ControlBar({
           <div className="rounded-xl bg-gray-800 p-6 text-center shadow-xl">
             <h3 className="mb-2 text-lg font-semibold text-white">End class for everyone?</h3>
             <p className="mb-4 text-sm text-gray-400">This will disconnect all students.</p>
+            {endError && (
+              <p className="mb-3 text-sm text-red-400">{endError}</p>
+            )}
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => setShowEndConfirm(false)}
+                onClick={() => { setShowEndConfirm(false); setEndError(''); }}
                 className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
               >
                 Cancel

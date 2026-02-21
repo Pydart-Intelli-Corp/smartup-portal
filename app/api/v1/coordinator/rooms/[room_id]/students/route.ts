@@ -57,10 +57,34 @@ export async function POST(
     );
   }
 
-  // Verify room exists
-  const roomCheck = await db.query('SELECT room_id FROM rooms WHERE room_id = $1', [room_id]);
+  // Verify room exists and is in an appropriate status
+  const roomCheck = await db.query(
+    'SELECT room_id, status, max_participants FROM rooms WHERE room_id = $1',
+    [room_id]
+  );
   if (roomCheck.rows.length === 0) {
     return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
+  }
+  const room = roomCheck.rows[0] as Record<string, unknown>;
+  if (room.status === 'cancelled' || room.status === 'ended') {
+    return NextResponse.json(
+      { success: false, error: `Cannot add students to a ${room.status} room` },
+      { status: 400 }
+    );
+  }
+
+  // Check max_participants limit
+  const countResult = await db.query(
+    `SELECT COUNT(*)::int AS cnt FROM room_assignments WHERE room_id = $1 AND participant_type = 'student'`,
+    [room_id]
+  );
+  const currentCount = Number(countResult.rows[0]?.cnt ?? 0);
+  const maxParticipants = Number(room.max_participants) || 500;
+  if (currentCount + students.length > maxParticipants) {
+    return NextResponse.json(
+      { success: false, error: `Cannot add ${students.length} students — room limit is ${maxParticipants} (currently ${currentCount} assigned)` },
+      { status: 400 }
+    );
   }
 
   let added = 0;

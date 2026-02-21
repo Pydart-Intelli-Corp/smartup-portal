@@ -39,7 +39,7 @@ interface Room {
 }
 
 interface Assignment {
-  id: number;
+  id: string;
   participant_type: string;
   participant_email: string;
   participant_name: string;
@@ -774,7 +774,7 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-400">Date <span className="text-red-400">*</span></label>
-              <input type="date" required min={new Date().toISOString().split('T')[0]} value={form.scheduled_date} onChange={(e) => f('scheduled_date', e.target.value)}
+              <input type="date" required min={toISTDateValue(new Date())} value={form.scheduled_date} onChange={(e) => f('scheduled_date', e.target.value)}
                 className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
             </div>
             <div>

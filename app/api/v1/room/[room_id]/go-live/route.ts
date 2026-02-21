@@ -79,13 +79,22 @@ export async function POST(
     }
 
     // Update DB: scheduled → live
-    await db.query(
+    // Atomic update — only succeeds if status is still 'scheduled'
+    const updateResult = await db.query(
       `UPDATE rooms SET status = 'live', updated_at = NOW()
        WHERE room_id = $1 AND status = 'scheduled'`,
       [room_id]
     );
 
-    // Log event
+    // If no rows updated, another request already changed the status
+    if (updateResult.rowCount === 0) {
+      return NextResponse.json<ApiResponse>(
+        { success: true, message: 'Room is already live' },
+        { status: 200 }
+      );
+    }
+
+    // Log event (only if we actually changed the status)
     await db.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
        VALUES ($1, 'room_started', $2, $3)`,

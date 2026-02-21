@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       `SELECT r.room_id, r.room_name, r.subject, r.grade, r.section,
               r.teacher_email, r.status, r.scheduled_start, r.duration_minutes,
               r.max_participants, r.notes_for_teacher,
-              ra.payment_status, ra.join_token,
+              ra.payment_status,
               t.full_name AS teacher_name
        FROM room_assignments ra
        JOIN rooms r ON r.room_id = ra.room_id

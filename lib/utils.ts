@@ -111,7 +111,7 @@ export function istToUTCISO(dateStr: string, timeStr: string): string {
  * Parent has limited ghost access (child's room only, handled separately).
  */
 export function isGhostRole(role: PortalRole): boolean {
-  return ['ghost', 'owner', 'academic_operator', 'coordinator', 'academic'].includes(role);
+  return ['ghost', 'owner', 'academic_operator', 'coordinator', 'academic', 'parent'].includes(role);
 }
 
 /**

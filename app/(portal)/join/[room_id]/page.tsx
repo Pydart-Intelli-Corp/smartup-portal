@@ -70,6 +70,19 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
     );
   }
 
+  // Check if room has ended
+  if (room.status === 'ended') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+        <div className="text-center">
+          <div className="mb-3 text-4xl">✅</div>
+          <h1 className="text-xl font-bold text-white">Class Ended</h1>
+          <p className="mt-2 text-gray-400">This class session has already ended.</p>
+        </div>
+      </div>
+    );
+  }
+
   // ── Auth: session OR email token ───────────────────────────
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(COOKIE_NAME)?.value;

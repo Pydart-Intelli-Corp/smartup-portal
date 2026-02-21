@@ -35,7 +35,7 @@ interface Room {
 }
 
 interface Assignment {
-  id: number;
+  id: string;
   participant_type: string;
   participant_email: string;
   participant_name: string;

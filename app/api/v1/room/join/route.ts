@@ -153,7 +153,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Determine role and identity ──────────────────────────
-    const effectiveRole = roleOverride && isGhostRole(roleOverride) ? roleOverride : user.role;
+    // Only allow ghost role override if the user's NATIVE role is already a ghost-eligible role
+    const effectiveRole = roleOverride && isGhostRole(roleOverride) && isGhostRole(user.role)
+      ? roleOverride
+      : user.role;
 
     // Auto-detect dual-device: if teacher joins without device=screen but
     // their primary identity is already in the room, promote to screen device

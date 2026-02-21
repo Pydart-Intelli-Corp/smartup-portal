@@ -63,6 +63,7 @@ export default function JoinRoomClient({
   const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [waitingForTeacher, setWaitingForTeacher] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
 
   useEffect(() => setMounted(true), []);
 
@@ -92,15 +93,26 @@ export default function JoinRoomClient({
     return () => clearInterval(id);
   }, [needsTick]);
 
-  // Auto-poll when waiting for teacher to go live (every 5s)
+  // Max poll attempts (5 min ÷ 5s = 60 attempts)
+  const MAX_POLL = 60;
+
+  // Auto-poll when waiting for teacher to go live (every 5s, max 60 attempts)
   useEffect(() => {
     if (!waitingForTeacher) return;
+    if (pollCount >= MAX_POLL) {
+      setWaitingForTeacher(false);
+      setError('Teacher has not started the class yet. Please try again later.');
+      return;
+    }
     const id = setInterval(() => {
-      handleJoin();
+      if (!joining) {
+        setPollCount((c) => c + 1);
+        handleJoin();
+      }
     }, 5000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [waitingForTeacher]);
+  }, [waitingForTeacher, pollCount, joining]);
 
   async function handleJoin() {
     setJoining(true);
@@ -194,7 +206,7 @@ export default function JoinRoomClient({
           {teacherEmail && (
             <div className="flex items-center gap-2 rounded-lg border border-gray-800 p-3">
               <Users className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-400">Teacher: {teacherEmail}</span>
+              <span className="text-sm text-gray-400">Teacher assigned</span>
             </div>
           )}
 

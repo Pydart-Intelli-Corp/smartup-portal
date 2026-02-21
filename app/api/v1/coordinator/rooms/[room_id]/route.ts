@@ -66,6 +66,19 @@ export async function PATCH(
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
+  // Verify room exists and is editable
+  const roomCheck = await db.query('SELECT status, teacher_email FROM rooms WHERE room_id = $1', [room_id]);
+  if (roomCheck.rows.length === 0) {
+    return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
+  }
+  const currentRoom = roomCheck.rows[0] as Record<string, unknown>;
+  if (currentRoom.status !== 'scheduled') {
+    return NextResponse.json(
+      { success: false, error: `Cannot edit a ${currentRoom.status} room` },
+      { status: 400 }
+    );
+  }
+
   const body = await req.json();
   const allowed = [
     'room_name', 'subject', 'grade', 'section', 'teacher_email',
@@ -79,8 +92,10 @@ export async function PATCH(
 
   for (const key of allowed) {
     if (key in body) {
+      // Trim room_name
+      const value = key === 'room_name' ? String(body[key]).trim() : body[key];
       sets.push(`${key} = $${i}`);
-      vals.push(body[key]);
+      vals.push(value);
       i++;
     }
   }
@@ -91,11 +106,7 @@ export async function PATCH(
 
   // Recalculate open_at / expires_at if schedule changed
   if (body.scheduled_start || body.duration_minutes) {
-    const roomResult = await db.query('SELECT scheduled_start, duration_minutes FROM rooms WHERE room_id = $1', [room_id]);
-    if (roomResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
-    }
-    const cur = roomResult.rows[0] as Record<string, unknown>;
+    const cur = currentRoom;
     const startStr = body.scheduled_start || cur.scheduled_start;
     const dur = body.duration_minutes || cur.duration_minutes;
     const start = new Date(startStr as string);
@@ -110,11 +121,52 @@ export async function PATCH(
     i++;
   }
 
+  // If teacher_email changed, sync room_assignments
+  const teacherChanged = 'teacher_email' in body && body.teacher_email !== currentRoom.teacher_email;
+
   vals.push(room_id);
   const sql = `UPDATE rooms SET ${sets.join(', ')} WHERE room_id = $${i} RETURNING *`;
-  const result = await db.query(sql, vals);
 
-  return NextResponse.json({ success: true, data: { room: result.rows[0] } });
+  try {
+    let result;
+    if (teacherChanged) {
+      result = await db.withTransaction(async (client) => {
+        const res = await client.query(sql, vals);
+
+        // Remove old teacher assignment
+        if (currentRoom.teacher_email) {
+          await client.query(
+            `DELETE FROM room_assignments WHERE room_id = $1 AND participant_email = $2 AND participant_type = 'teacher'`,
+            [room_id, currentRoom.teacher_email]
+          );
+        }
+
+        // Add new teacher assignment with real name
+        if (body.teacher_email) {
+          const teacherLookup = await client.query(
+            'SELECT full_name FROM portal_users WHERE email = $1 LIMIT 1',
+            [body.teacher_email]
+          );
+          const teacherName = teacherLookup.rows[0]?.full_name || body.teacher_email;
+          await client.query(
+            `INSERT INTO room_assignments (room_id, participant_type, participant_email, participant_name, payment_status)
+             VALUES ($1, 'teacher', $2, $3, 'exempt')
+             ON CONFLICT (room_id, participant_email) DO UPDATE SET participant_name = $3`,
+            [room_id, body.teacher_email, teacherName]
+          );
+        }
+
+        return res;
+      });
+    } else {
+      result = await db.query(sql, vals);
+    }
+
+    return NextResponse.json({ success: true, data: { room: result.rows[0] } });
+  } catch (err) {
+    console.error('[coordinator/rooms] PATCH error:', err);
+    return NextResponse.json({ success: false, error: 'Failed to update room' }, { status: 500 });
+  }
 }
 
 // ── DELETE — Cancel room ────────────────────────────────────
@@ -125,6 +177,19 @@ export async function DELETE(
   const { room_id } = await params;
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+  // Verify room exists and check current status
+  const roomCheck = await db.query('SELECT status FROM rooms WHERE room_id = $1', [room_id]);
+  if (roomCheck.rows.length === 0) {
+    return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
+  }
+  const currentStatus = (roomCheck.rows[0] as Record<string, string>).status;
+  if (currentStatus === 'cancelled') {
+    return NextResponse.json({ success: false, error: 'Room is already cancelled' }, { status: 400 });
+  }
+  if (currentStatus === 'ended') {
+    return NextResponse.json({ success: false, error: 'Cannot cancel an ended room' }, { status: 400 });
+  }
 
   await db.withTransaction(async (client) => {
     await client.query(

@@ -149,15 +149,18 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
     [router, roomId]
   );
 
-  // Handle end class (teacher)
+  // Handle end class (teacher) — navigate directly, disconnect fires CLIENT_INITIATED
   const handleEndClass = useCallback(() => {
-    router.push(`/classroom/${roomId}/ended`);
-  }, [router, roomId]);
-
-  // Handle leave (student)
-  const handleLeave = useCallback(() => {
     room.disconnect();
     router.push(`/classroom/${roomId}/ended`);
+  }, [room, router, roomId]);
+
+  // Handle leave (student) — navigate directly, suppress the onDisconnected handler
+  const handleLeave = useCallback(() => {
+    // Navigate first, then disconnect. The onDisconnected callback will fire
+    // with CLIENT_INITIATED but router.push is already called, so it's safe.
+    router.push(`/classroom/${roomId}/ended`);
+    room.disconnect();
   }, [room, router, roomId]);
 
   // Error state
