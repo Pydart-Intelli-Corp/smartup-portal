@@ -83,8 +83,19 @@ export default function StudentView({
   const [chatOpen, setChatOpen] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [showCameraWarning, setShowCameraWarning] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
 
-  // Lock to landscape on mobile/tablet
+  // Detect portrait orientation for CSS-based landscape rotation
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
+
+  // Try Screen Orientation API lock (works on some Android browsers)
   useEffect(() => {
     const lockLandscape = async () => {
       try {
@@ -161,10 +172,32 @@ export default function StudentView({
     }
   }, [handRaised, localParticipant]);
 
+  // When screen share is active and device is portrait, force landscape via CSS transform
+  const forceRotate = hasScreenShare && isPortrait;
+
   return (
-    <div className="flex h-screen flex-col bg-gray-950">
-      {/* Minimal header */}
-      <HeaderBar roomName={roomName} role="student" scheduledStart={scheduledStart} durationMinutes={durationMinutes} />
+    <div
+      className="bg-gray-950"
+      style={
+        forceRotate
+          ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vh',
+              height: '100vw',
+              transform: 'rotate(90deg)',
+              transformOrigin: 'top left',
+              marginLeft: '100vw',
+              overflow: 'hidden',
+            }
+          : { display: 'flex', flexDirection: 'column', height: '100vh' }
+      }
+    >
+      {/* Minimal header — hidden when rotated to maximize whiteboard space */}
+      {!forceRotate && (
+        <HeaderBar roomName={roomName} role="student" scheduledStart={scheduledStart} durationMinutes={durationMinutes} />
+      )}
 
       {/* Main body */}
       <div className="flex flex-1 overflow-hidden">
@@ -254,15 +287,35 @@ export default function StudentView({
         )}
       </div>
 
-      {/* Control bar */}
-      <ControlBar
-        role="student"
-        roomId={roomId}
-        handRaised={handRaised}
-        onToggleHandRaise={toggleHandRaise}
-        onToggleChat={() => setChatOpen(!chatOpen)}
-        onLeave={onLeave}
-      />
+      {/* Control bar — hidden when rotated, replaced by floating controls */}
+      {forceRotate ? (
+        <div className="absolute bottom-2 right-2 z-30 flex gap-2">
+          <button
+            onClick={toggleHandRaise}
+            className={cn(
+              'rounded-full px-3 py-1.5 text-xs font-medium shadow-lg',
+              handRaised ? 'bg-yellow-500 text-black' : 'bg-gray-800/80 text-white'
+            )}
+          >
+            {handRaised ? '🖐 Lower' : '✋ Raise'}
+          </button>
+          <button
+            onClick={onLeave}
+            className="rounded-full bg-red-600/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
+          >
+            Leave
+          </button>
+        </div>
+      ) : (
+        <ControlBar
+          role="student"
+          roomId={roomId}
+          handRaised={handRaised}
+          onToggleHandRaise={toggleHandRaise}
+          onToggleChat={() => setChatOpen(!chatOpen)}
+          onLeave={onLeave}
+        />
+      )}
 
       {/* Camera warning dialog */}
       {showCameraWarning && (
