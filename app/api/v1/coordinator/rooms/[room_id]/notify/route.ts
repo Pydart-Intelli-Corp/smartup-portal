@@ -9,6 +9,7 @@ import { verifySession, COOKIE_NAME } from '@/lib/session';
 import { createLiveKitToken } from '@/lib/livekit';
 import { sendEmail } from '@/lib/email';
 import { teacherInviteTemplate, studentInviteTemplate } from '@/lib/email-templates';
+import { fmtDateLongIST, fmtTimeIST } from '@/lib/utils';
 import type { PortalRole } from '@/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -90,13 +91,8 @@ export async function POST(
       );
 
       // Build template data and send directly (no queue)
-      const scheduledStart = new Date(room.scheduled_start as string);
-      const dateStr = scheduledStart.toLocaleDateString('en-IN', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-      });
-      const timeStr = scheduledStart.toLocaleTimeString('en-IN', {
-        hour: '2-digit', minute: '2-digit', hour12: true,
-      });
+      const dateStr = fmtDateLongIST(room.scheduled_start as string);
+      const timeStr = fmtTimeIST(room.scheduled_start as string);
       const duration = `${room.duration_minutes} minutes`;
 
       let emailContent: { subject: string; html: string; text: string };

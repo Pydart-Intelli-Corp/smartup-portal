@@ -703,7 +703,7 @@ function AOPEditRoomTab({ room, onSaved }: { room: Room; onSaved: () => void }) 
 function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
     room_name: '', subject: 'Mathematics', grade: 'Class 10', section: '',
-    scheduled_date: new Date().toISOString().split('T')[0], start_time: '09:00',
+    scheduled_date: toISTDateValue(new Date()), start_time: '09:00',
     duration_minutes: 60, max_participants: 50, notes_for_teacher: '',
     teacher_email: '', teacher_name: '',
   });
