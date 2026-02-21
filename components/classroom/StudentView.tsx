@@ -16,6 +16,13 @@ import VideoTile from './VideoTile';
 import ChatPanel from './ChatPanel';
 import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
+import {
+  MicOnIcon, MicOffIcon,
+  CameraOnIcon, CameraOffIcon,
+  HandRaiseIcon,
+  ChatIcon,
+  LeaveIcon,
+} from './icons';
 
 /**
  * StudentView — Student classroom layout.
@@ -306,50 +313,47 @@ export default function StudentView({
           )}
 
           {/* Divider */}
-          <div className="w-8 border-t border-gray-700" />
+          <div className="w-8 border-t border-gray-600/40" />
 
           {/* Mic toggle */}
-          <SidebarButton
-            active={isMicOn}
+          <SidebarMeetButton
+            on={isMicOn}
             onClick={toggleMic}
             title={isMicOn ? 'Mute' : 'Unmute'}
-            activeIcon="🎤"
-            inactiveIcon="🔇"
-            activeColor="bg-gray-700"
-            inactiveColor="bg-red-600"
+            onIcon={<MicOnIcon className="h-4 w-4" />}
+            offIcon={<MicOffIcon className="h-4 w-4" />}
+            offColor="bg-[#ea4335]"
           />
 
           {/* Camera toggle */}
-          <SidebarButton
-            active={isCameraOn}
+          <SidebarMeetButton
+            on={isCameraOn}
             onClick={toggleCamera}
             title={isCameraOn ? 'Camera off' : 'Camera on'}
-            activeIcon="📷"
-            inactiveIcon="🚫"
-            activeColor="bg-gray-700"
-            inactiveColor="bg-red-600"
+            onIcon={<CameraOnIcon className="h-4 w-4" />}
+            offIcon={<CameraOffIcon className="h-4 w-4" />}
+            offColor="bg-[#ea4335]"
           />
 
           {/* Hand raise */}
-          <SidebarButton
-            active={handRaised}
+          <SidebarMeetButton
+            on={handRaised}
             onClick={toggleHandRaise}
             title={handRaised ? 'Lower hand' : 'Raise hand'}
-            activeIcon="🖐"
-            inactiveIcon="✋"
-            activeColor="bg-yellow-500"
-            inactiveColor="bg-gray-700"
+            onIcon={<HandRaiseIcon className="h-4 w-4" />}
+            offIcon={<HandRaiseIcon className="h-4 w-4" />}
+            onColor="bg-[#fbbf24]"
+            onTextColor="text-black"
           />
 
           {/* Chat toggle */}
-          <SidebarButton
-            active={chatOpen}
+          <SidebarMeetButton
+            on={chatOpen}
             onClick={() => setChatOpen(!chatOpen)}
             title="Chat"
-            activeIcon="💬"
-            inactiveIcon="💬"
-            activeColor="bg-blue-600"
-            inactiveColor="bg-gray-700"
+            onIcon={<ChatIcon className="h-4 w-4" />}
+            offIcon={<ChatIcon className="h-4 w-4" />}
+            onColor="bg-[#1a73e8]"
           />
 
           {/* Spacer to push leave to bottom */}
@@ -359,9 +363,9 @@ export default function StudentView({
           <button
             onClick={() => setShowLeaveConfirm(true)}
             title="Leave class"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-sm transition-colors hover:bg-red-700 flex-shrink-0"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ea4335] text-white transition-all hover:bg-[#d33426] active:scale-90 flex-shrink-0"
           >
-            ✕
+            <LeaveIcon className="h-4 w-4" />
           </button>
         </div>
 
@@ -435,35 +439,39 @@ export default function StudentView({
   );
 }
 
-// ── Sidebar button component ───────────────────────────────
-function SidebarButton({
-  active,
+// ── Google Meet-style sidebar button ───────────────────────
+function SidebarMeetButton({
+  on,
   onClick,
   title,
-  activeIcon,
-  inactiveIcon,
-  activeColor,
-  inactiveColor,
+  onIcon,
+  offIcon,
+  onColor = 'bg-[#3c4043]',
+  offColor = 'bg-[#3c4043]',
+  onTextColor = 'text-white',
+  offTextColor = 'text-white',
 }: {
-  active: boolean;
+  on: boolean;
   onClick: () => void;
   title: string;
-  activeIcon: string;
-  inactiveIcon: string;
-  activeColor: string;
-  inactiveColor: string;
+  onIcon: React.ReactNode;
+  offIcon: React.ReactNode;
+  onColor?: string;
+  offColor?: string;
+  onTextColor?: string;
+  offTextColor?: string;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-full text-base transition-colors flex-shrink-0',
-        active ? activeColor : inactiveColor,
-        'hover:opacity-80'
+        'flex h-9 w-9 items-center justify-center rounded-full transition-all duration-150 active:scale-90 flex-shrink-0',
+        on ? `${onColor} ${onTextColor}` : `${offColor} ${offTextColor}`,
+        on ? 'hover:bg-[#4a4d51]' : (offColor === 'bg-[#ea4335]' ? 'hover:bg-[#d33426]' : 'hover:bg-[#4a4d51]'),
       )}
     >
-      {active ? activeIcon : inactiveIcon}
+      {on ? onIcon : offIcon}
     </button>
   );
 }

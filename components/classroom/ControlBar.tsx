@@ -6,30 +6,33 @@ import {
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { cn } from '@/lib/utils';
+import {
+  MicOnIcon, MicOffIcon,
+  CameraOnIcon, CameraOffIcon,
+  ScreenShareIcon, ScreenShareOffIcon,
+  WhiteboardIcon,
+  HandRaiseIcon,
+  ChatIcon,
+  EndCallIcon,
+  LeaveIcon,
+} from './icons';
 
 /**
- * ControlBar — classroom media controls.
- * Teacher: mic, camera, screen share, whiteboard toggle, end class.
- * Student: mic (starts muted), camera, hand raise, chat toggle, leave.
+ * ControlBar — classroom media controls (Google Meet style).
+ * Teacher: mic, camera, screen share, whiteboard toggle, chat, end class.
+ * Student: mic, camera, hand raise, chat toggle, leave.
  * Ghost: no controls (read-only observe).
  */
 
 export interface ControlBarProps {
   role: 'teacher' | 'student' | 'ghost';
   roomId: string;
-  /** Whiteboard mode active (teacher only) */
   whiteboardActive?: boolean;
-  /** Toggle whiteboard mode (teacher only) */
   onToggleWhiteboard?: () => void;
-  /** Toggle chat panel */
   onToggleChat?: () => void;
-  /** Hand raise state (student only) */
   handRaised?: boolean;
-  /** Toggle hand raise (student only) */
   onToggleHandRaise?: () => void;
-  /** End class callback */
   onEndClass?: () => void;
-  /** Leave class callback */
   onLeave?: () => void;
   className?: string;
 }
@@ -50,10 +53,8 @@ export default function ControlBar({
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
-
   const [endError, setEndError] = useState('');
 
-  // Ghost has no controls
   if (role === 'ghost') return null;
 
   const isMicOn = localParticipant.isMicrophoneEnabled;
@@ -61,27 +62,18 @@ export default function ControlBar({
   const isScreenShareOn = localParticipant.isScreenShareEnabled;
 
   const toggleMic = async () => {
-    try {
-      await localParticipant.setMicrophoneEnabled(!isMicOn);
-    } catch (err) {
-      console.error('[ControlBar] Mic toggle failed:', err);
-    }
+    try { await localParticipant.setMicrophoneEnabled(!isMicOn); }
+    catch (err) { console.error('[ControlBar] Mic toggle failed:', err); }
   };
 
   const toggleCamera = async () => {
-    try {
-      await localParticipant.setCameraEnabled(!isCameraOn);
-    } catch (err) {
-      console.error('[ControlBar] Camera toggle failed:', err);
-    }
+    try { await localParticipant.setCameraEnabled(!isCameraOn); }
+    catch (err) { console.error('[ControlBar] Camera toggle failed:', err); }
   };
 
   const toggleScreenShare = async () => {
-    try {
-      await localParticipant.setScreenShareEnabled(!isScreenShareOn);
-    } catch (err) {
-      console.error('[ControlBar] Screen share toggle failed:', err);
-    }
+    try { await localParticipant.setScreenShareEnabled(!isScreenShareOn); }
+    catch (err) { console.error('[ControlBar] Screen share toggle failed:', err); }
   };
 
   const handleEndClass = async () => {
@@ -103,95 +95,99 @@ export default function ControlBar({
   };
 
   return (
-    <div className={cn('relative flex h-16 items-center justify-center gap-3 border-t border-gray-800 bg-gray-900 px-4', className)}>
+    <div className={cn(
+      'relative flex h-[72px] items-center justify-center gap-2 border-t border-gray-800/50 bg-[#202124] px-6',
+      className
+    )}>
       {/* Microphone */}
-      <ControlButton
-        active={isMicOn}
+      <MeetButton
+        on={isMicOn}
         onClick={toggleMic}
-        title={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-        activeIcon="🎤"
-        inactiveIcon="🔇"
-        activeColor="bg-gray-700"
-        inactiveColor="bg-red-600"
+        title={isMicOn ? 'Turn off microphone (Ctrl+D)' : 'Turn on microphone (Ctrl+D)'}
+        onIcon={<MicOnIcon className="h-5 w-5" />}
+        offIcon={<MicOffIcon className="h-5 w-5" />}
+        offColor="bg-[#ea4335]"
       />
 
       {/* Camera */}
-      <ControlButton
-        active={isCameraOn}
+      <MeetButton
+        on={isCameraOn}
         onClick={toggleCamera}
-        title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
-        activeIcon="📷"
-        inactiveIcon="🚫"
-        activeColor="bg-gray-700"
-        inactiveColor="bg-red-600"
+        title={isCameraOn ? 'Turn off camera (Ctrl+E)' : 'Turn on camera (Ctrl+E)'}
+        onIcon={<CameraOnIcon className="h-5 w-5" />}
+        offIcon={<CameraOffIcon className="h-5 w-5" />}
+        offColor="bg-[#ea4335]"
       />
 
-      {/* Teacher-only: Screen share */}
+      {/* Divider */}
+      <div className="mx-1 h-8 w-px bg-gray-600/40" />
+
+      {/* Teacher: Screen share */}
       {role === 'teacher' && (
-        <ControlButton
-          active={isScreenShareOn}
+        <MeetButton
+          on={isScreenShareOn}
           onClick={toggleScreenShare}
-          title={isScreenShareOn ? 'Stop screen share' : 'Start screen share'}
-          activeIcon="🖥️"
-          inactiveIcon="🖥️"
-          activeColor="bg-green-600"
-          inactiveColor="bg-gray-700"
+          title={isScreenShareOn ? 'Stop presenting' : 'Present now'}
+          onIcon={<ScreenShareIcon className="h-5 w-5" />}
+          offIcon={<ScreenShareOffIcon className="h-5 w-5" />}
+          onColor="bg-[#1a73e8]"
         />
       )}
 
-      {/* Teacher-only: Whiteboard mode */}
+      {/* Teacher: Whiteboard */}
       {role === 'teacher' && onToggleWhiteboard && (
-        <ControlButton
-          active={whiteboardActive}
+        <MeetButton
+          on={whiteboardActive}
           onClick={() => {
             if (!isScreenShareOn && !whiteboardActive) {
-              // Reminder: need screen share first
               alert('Start screen share first — share your tablet screen');
               return;
             }
             onToggleWhiteboard();
           }}
           title={whiteboardActive ? 'Exit whiteboard mode' : 'Whiteboard mode'}
-          activeIcon="📋"
-          inactiveIcon="📋"
-          activeColor="bg-green-600"
-          inactiveColor="bg-gray-700"
+          onIcon={<WhiteboardIcon className="h-5 w-5" />}
+          offIcon={<WhiteboardIcon className="h-5 w-5" />}
+          onColor="bg-[#1a73e8]"
         />
       )}
 
-      {/* Student-only: Hand raise */}
+      {/* Student: Hand raise */}
       {role === 'student' && onToggleHandRaise && (
-        <ControlButton
-          active={handRaised}
+        <MeetButton
+          on={handRaised}
           onClick={onToggleHandRaise}
           title={handRaised ? 'Lower hand' : 'Raise hand'}
-          activeIcon="🖐"
-          inactiveIcon="✋"
-          activeColor="bg-yellow-500"
-          inactiveColor="bg-gray-700"
+          onIcon={<HandRaiseIcon className="h-5 w-5" />}
+          offIcon={<HandRaiseIcon className="h-5 w-5" />}
+          onColor="bg-[#fbbf24]"
+          onTextColor="text-black"
         />
       )}
 
-      {/* Chat toggle */}
+      {/* Chat */}
       {onToggleChat && (
-        <ControlButton
-          active={false}
+        <MeetButton
+          on={false}
           onClick={onToggleChat}
-          title="Toggle chat"
-          activeIcon="💬"
-          inactiveIcon="💬"
-          activeColor="bg-gray-700"
-          inactiveColor="bg-gray-700"
+          title="Chat with everyone"
+          onIcon={<ChatIcon className="h-5 w-5" />}
+          offIcon={<ChatIcon className="h-5 w-5" />}
         />
       )}
+
+      {/* Divider */}
+      <div className="mx-1 h-8 w-px bg-gray-600/40" />
 
       {/* Teacher: End Class */}
       {role === 'teacher' && (
         <button
           onClick={() => setShowEndConfirm(true)}
-          className="ml-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+          title="End class for everyone"
+          className="flex h-12 items-center gap-2 rounded-full bg-[#ea4335] px-5 text-sm font-medium text-white transition-all hover:bg-[#d33426] hover:shadow-lg hover:shadow-red-900/30 active:scale-95"
         >
-          ⏹ End Class
+          <EndCallIcon className="h-5 w-5" />
+          <span className="hidden sm:inline">End</span>
         </button>
       )}
 
@@ -199,58 +195,58 @@ export default function ControlBar({
       {role === 'student' && (
         <button
           onClick={() => setShowLeaveConfirm(true)}
-          className="ml-4 rounded-lg bg-gray-700 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
+          title="Leave class"
+          className="flex h-12 items-center gap-2 rounded-full bg-[#ea4335] px-5 text-sm font-medium text-white transition-all hover:bg-[#d33426] hover:shadow-lg hover:shadow-red-900/30 active:scale-95"
         >
-          ✕ Leave
+          <LeaveIcon className="h-5 w-5" />
+          <span className="hidden sm:inline">Leave</span>
         </button>
       )}
 
-      {/* End class confirmation dialog */}
+      {/* End class confirmation */}
       {showEndConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl bg-gray-800 p-6 text-center shadow-xl">
+          <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
             <h3 className="mb-2 text-lg font-semibold text-white">End class for everyone?</h3>
             <p className="mb-4 text-sm text-gray-400">This will disconnect all students.</p>
-            {endError && (
-              <p className="mb-3 text-sm text-red-400">{endError}</p>
-            )}
+            {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => { setShowEndConfirm(false); setEndError(''); }}
-                className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
+                className="rounded-full bg-[#3c4043] px-5 py-2 text-sm text-white hover:bg-[#4a4d51] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEndClass}
                 disabled={isEnding}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                className="rounded-full bg-[#ea4335] px-5 py-2 text-sm font-medium text-white hover:bg-[#d33426] disabled:opacity-50 transition-colors"
               >
-                {isEnding ? 'Ending...' : 'End Class Now'}
+                {isEnding ? 'Ending...' : 'End Class'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Leave confirmation dialog */}
+      {/* Leave confirmation */}
       {showLeaveConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl bg-gray-800 p-6 text-center shadow-xl">
+          <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
             <h3 className="mb-2 text-lg font-semibold text-white">Leave this class?</h3>
             <p className="mb-4 text-sm text-gray-400">You can rejoin while the class is active.</p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowLeaveConfirm(false)}
-                className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
+                className="rounded-full bg-[#3c4043] px-5 py-2 text-sm text-white hover:bg-[#4a4d51] transition-colors"
               >
                 Stay
               </button>
               <button
                 onClick={onLeave}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                className="rounded-full bg-[#ea4335] px-5 py-2 text-sm font-medium text-white hover:bg-[#d33426] transition-colors"
               >
-                Leave Class
+                Leave
               </button>
             </div>
           </div>
@@ -260,35 +256,39 @@ export default function ControlBar({
   );
 }
 
-// ── Internal button component ────────────────────────────────
-function ControlButton({
-  active,
+// ── Google Meet-style circular button ────────────────────────
+function MeetButton({
+  on,
   onClick,
   title,
-  activeIcon,
-  inactiveIcon,
-  activeColor,
-  inactiveColor,
+  onIcon,
+  offIcon,
+  onColor = 'bg-[#3c4043]',
+  offColor = 'bg-[#3c4043]',
+  onTextColor = 'text-white',
+  offTextColor = 'text-white',
 }: {
-  active: boolean;
+  on: boolean;
   onClick: () => void;
   title: string;
-  activeIcon: string;
-  inactiveIcon: string;
-  activeColor: string;
-  inactiveColor: string;
+  onIcon: React.ReactNode;
+  offIcon: React.ReactNode;
+  onColor?: string;
+  offColor?: string;
+  onTextColor?: string;
+  offTextColor?: string;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
       className={cn(
-        'flex h-10 w-10 items-center justify-center rounded-full text-lg transition-colors',
-        active ? activeColor : inactiveColor,
-        'hover:opacity-80'
+        'flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 active:scale-90',
+        on ? `${onColor} ${onTextColor}` : `${offColor} ${offTextColor}`,
+        on ? 'hover:bg-[#4a4d51]' : (offColor === 'bg-[#ea4335]' ? 'hover:bg-[#d33426]' : 'hover:bg-[#4a4d51]'),
       )}
     >
-      {active ? activeIcon : inactiveIcon}
+      {on ? onIcon : offIcon}
     </button>
   );
 }
