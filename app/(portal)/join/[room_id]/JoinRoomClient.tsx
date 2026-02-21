@@ -222,14 +222,14 @@ export default function JoinRoomClient({
           </div>
 
           {/* Status banners */}
-          {isLive && (
+          {isLive && !isEnded && (
             <div className="flex items-center gap-2 rounded-lg border border-green-800 bg-green-950/30 p-3 text-green-400">
               <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-sm font-medium">Class is Live — Join Now!</span>
             </div>
           )}
 
-          {isScheduled && lobbyOpen && (
+          {isScheduled && lobbyOpen && !isEnded && (
             <div className="flex items-center gap-2 rounded-lg border border-blue-800 bg-blue-950/30 p-3 text-blue-400">
               <CheckCircle2 className="h-4 w-4" />
               <span className="text-sm font-medium">Lobby is open — you can enter early</span>

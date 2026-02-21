@@ -44,6 +44,7 @@ export interface TeacherViewProps {
   durationMinutes: number;
   roomStatus: string;
   onEndClass: () => void;
+  onTimeExpired?: () => void;
 }
 
 export default function TeacherView({
@@ -54,6 +55,7 @@ export default function TeacherView({
   durationMinutes,
   roomStatus,
   onEndClass,
+  onTimeExpired,
 }: TeacherViewProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'participants'>('chat');
@@ -127,6 +129,7 @@ export default function TeacherView({
         durationMinutes={durationMinutes}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onTimeExpired={onTimeExpired}
       />
 
       {/* ── Go Live Setup Banner ──────────────────────────────── */}

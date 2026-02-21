@@ -50,6 +50,7 @@ export interface StudentViewProps {
   scheduledStart: string;
   durationMinutes: number;
   onLeave: () => void;
+  onTimeExpired?: () => void;
 }
 
 function isTeacherPrimary(p: RemoteParticipant): boolean {
@@ -77,6 +78,7 @@ export default function StudentView({
   scheduledStart,
   durationMinutes,
   onLeave,
+  onTimeExpired,
 }: StudentViewProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
@@ -215,7 +217,7 @@ export default function StudentView({
     >
       {/* Header — hidden when rotated to maximize whiteboard space */}
       {!forceRotate && (
-        <HeaderBar roomName={roomName} role="student" scheduledStart={scheduledStart} durationMinutes={durationMinutes} />
+        <HeaderBar roomName={roomName} role="student" scheduledStart={scheduledStart} durationMinutes={durationMinutes} onTimeExpired={onTimeExpired} />
       )}
 
       {/* Main body: content + sidebar */}

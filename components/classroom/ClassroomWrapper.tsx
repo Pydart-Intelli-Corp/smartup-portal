@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -163,6 +163,42 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
     room.disconnect();
   }, [room, router, roomId]);
 
+  // Handle time expired — auto-exit when class time runs out
+  const timeExpiredFired = useRef(false);
+  const handleTimeExpired = useCallback(() => {
+    if (timeExpiredFired.current) return;
+    timeExpiredFired.current = true;
+    console.log('[ClassroomWrapper] Class time expired — auto-disconnecting');
+    // Give 3 seconds for the user to see the "Class time has ended" banner
+    setTimeout(() => {
+      room.disconnect();
+      router.push(`/classroom/${roomId}/ended?reason=expired`);
+    }, 3000);
+  }, [room, router, roomId]);
+
+  // Safety net: schedule hard auto-exit based on scheduledStart + durationMinutes
+  // This fires even if HeaderBar timer has drift or component re-renders
+  useEffect(() => {
+    if (!scheduledStart || !durationMinutes) return;
+    const start = new Date(scheduledStart).getTime();
+    if (isNaN(start)) return;
+    const endTime = start + durationMinutes * 60 * 1000;
+    const msUntilEnd = endTime - Date.now();
+
+    // If already past end time, fire immediately
+    if (msUntilEnd <= 0) {
+      handleTimeExpired();
+      return;
+    }
+
+    // Schedule auto-exit at exact end time
+    const timer = setTimeout(() => {
+      handleTimeExpired();
+    }, msUntilEnd);
+
+    return () => clearTimeout(timer);
+  }, [scheduledStart, durationMinutes, handleTimeExpired]);
+
   // Error state
   if (error) {
     return (
@@ -251,6 +287,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
           durationMinutes={durationMinutes}
           roomStatus={roomStatus}
           onEndClass={handleEndClass}
+          onTimeExpired={handleTimeExpired}
         />
       ) : isGhost ? (
         <GhostView
@@ -268,6 +305,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
           scheduledStart={scheduledStart}
           durationMinutes={durationMinutes}
           onLeave={handleLeave}
+          onTimeExpired={handleTimeExpired}
         />
       )}
     </LiveKitRoom>

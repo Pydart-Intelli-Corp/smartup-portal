@@ -136,6 +136,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if class time has ended (scheduled_start + duration_minutes)
+    if (room.scheduled_start && room.duration_minutes) {
+      const classEnd = new Date(String(room.scheduled_start)).getTime() + Number(room.duration_minutes) * 60 * 1000;
+      if (!isNaN(classEnd) && now.getTime() >= classEnd) {
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: 'This class has ended. The scheduled time has passed.' },
+          { status: 410 }
+        );
+      }
+    }
+
     // Check if room hasn't opened yet (open_at in future)
     // Allow 15 minutes early for lobby
     if (room.open_at) {
