@@ -447,3 +447,37 @@ export function credentialsTemplate(data: CredentialsTemplateData): { subject: s
 
   return { subject, html: masterLayout(body, data.recipientEmail), text };
 }
+
+// ── Template 9: Room Started (Class is Live) ────────────────
+
+export interface RoomStartedData {
+  studentName: string;
+  roomName: string;
+  teacherName: string;
+  joinLink: string;
+  recipientEmail: string;
+}
+
+export function roomStartedTemplate(data: RoomStartedData): { subject: string; html: string; text: string } {
+  const subject = `🔴 Class is LIVE now — ${data.roomName}`;
+
+  const body = `
+    ${alertBox('Your class has started! Join now.', '#c62828', '#ffebee')}
+
+    <p style="font-size:16px; color:#1a1a2e; margin:0 0 8px;">Dear ${data.studentName},</p>
+    <p style="font-size:14px; color:#495057; margin:0 0 16px;">
+      <strong>${data.teacherName}</strong> has started the class <strong>"${data.roomName}"</strong>.
+      Click below to join immediately.
+    </p>
+
+    <div style="text-align:center; margin:24px 0;">
+      ${button('🎓 Join Class Now', data.joinLink, '#c62828')}
+    </div>
+
+    <p style="font-size:13px; color:#6c757d; margin:0;">You will be asked to log in with your SmartUp credentials after clicking the link.</p>
+  `;
+
+  const text = `Your class "${data.roomName}" is LIVE now!\n\nDear ${data.studentName},\n\n${data.teacherName} has started the class.\n\nJoin now: ${data.joinLink}\n\n— SmartUp Classes`;
+
+  return { subject, html: masterLayout(body, data.recipientEmail), text };
+}

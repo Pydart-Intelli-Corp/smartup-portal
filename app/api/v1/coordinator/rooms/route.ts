@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
+import { sendCreationNotifications } from '@/lib/room-notifications';
 
 // ── Auth helper ─────────────────────────────────────────────
 async function getCoordinator(req: NextRequest) {
@@ -244,6 +245,17 @@ export async function POST(req: NextRequest) {
 
       return result.rows[0];
     });
+
+    // Fire-and-forget: send creation notification emails to all participants
+    sendCreationNotifications({
+      room_id: roomId,
+      room_name: trimmedName,
+      subject,
+      grade,
+      scheduled_start: scheduledDate.toISOString(),
+      duration_minutes: dur,
+      notes_for_teacher: notes_for_teacher || null,
+    }).catch(err => console.error('[coordinator/rooms] Notification error:', err));
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/types';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
 import { db } from '@/lib/db';
+import { sendGoLiveNotifications } from '@/lib/room-notifications';
 
 /**
  * POST /api/v1/room/[room_id]/go-live
@@ -38,7 +39,7 @@ export async function POST(
 
     // Verify room exists
     const roomResult = await db.query(
-      'SELECT room_id, status, room_name, teacher_email FROM rooms WHERE room_id = $1',
+      'SELECT room_id, status, room_name, teacher_email, subject, grade, scheduled_start, duration_minutes FROM rooms WHERE room_id = $1',
       [room_id]
     );
 
@@ -100,6 +101,16 @@ export async function POST(
        VALUES ($1, 'room_started', $2, $3)`,
       [room_id, user.id, JSON.stringify({ started_by: user.name, role: user.role })]
     );
+
+    // Fire-and-forget: notify students that class has started
+    sendGoLiveNotifications({
+      room_id,
+      room_name: room.room_name as string,
+      subject: room.subject as string || '',
+      grade: room.grade as string || '',
+      scheduled_start: room.scheduled_start as string || new Date().toISOString(),
+      duration_minutes: (room.duration_minutes as number) || 60,
+    }).catch(err => console.error('[go-live] Notification error:', err));
 
     return NextResponse.json<ApiResponse>(
       {
