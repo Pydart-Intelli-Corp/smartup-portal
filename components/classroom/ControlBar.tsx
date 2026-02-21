@@ -59,15 +59,27 @@ export default function ControlBar({
   const isScreenShareOn = localParticipant.isScreenShareEnabled;
 
   const toggleMic = async () => {
-    await localParticipant.setMicrophoneEnabled(!isMicOn);
+    try {
+      await localParticipant.setMicrophoneEnabled(!isMicOn);
+    } catch (err) {
+      console.error('[ControlBar] Mic toggle failed:', err);
+    }
   };
 
   const toggleCamera = async () => {
-    await localParticipant.setCameraEnabled(!isCameraOn);
+    try {
+      await localParticipant.setCameraEnabled(!isCameraOn);
+    } catch (err) {
+      console.error('[ControlBar] Camera toggle failed:', err);
+    }
   };
 
   const toggleScreenShare = async () => {
-    await localParticipant.setScreenShareEnabled(!isScreenShareOn);
+    try {
+      await localParticipant.setScreenShareEnabled(!isScreenShareOn);
+    } catch (err) {
+      console.error('[ControlBar] Screen share toggle failed:', err);
+    }
   };
 
   const handleEndClass = async () => {

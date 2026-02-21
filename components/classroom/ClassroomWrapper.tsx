@@ -120,12 +120,31 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
     }
   }, [roomId]);
 
-  // Handle room disconnection
+  // Handle room disconnection — only redirect for intentional/server-side disconnects
   const handleDisconnected = useCallback(
     (reason?: DisconnectReason) => {
-      console.log('[ClassroomWrapper] Disconnected:', reason);
-      // Redirect to ended page
-      router.push(`/classroom/${roomId}/ended`);
+      console.log('[ClassroomWrapper] Disconnected, reason:', reason);
+
+      // Reasons that should redirect to the "ended" page:
+      // CLIENT_INITIATED = user clicked leave / teacher ended class
+      // SERVER_SHUTDOWN = LiveKit server stopped the room
+      // ROOM_DELETED = room was destroyed server-side
+      // PARTICIPANT_REMOVED = kicked from room
+      const endReasons: (DisconnectReason | undefined)[] = [
+        DisconnectReason.CLIENT_INITIATED,
+        DisconnectReason.SERVER_SHUTDOWN,
+        DisconnectReason.ROOM_DELETED,
+        DisconnectReason.PARTICIPANT_REMOVED,
+      ];
+
+      if (endReasons.includes(reason)) {
+        router.push(`/classroom/${roomId}/ended`);
+        return;
+      }
+
+      // For unexpected disconnects (UNKNOWN, SIGNAL_DISCONNECTED, media errors, etc.)
+      // Log a warning but do NOT redirect — LiveKit SDK will attempt reconnection automatically.
+      console.warn('[ClassroomWrapper] Unexpected disconnect (not redirecting). Reason:', reason);
     },
     [router, roomId]
   );
@@ -175,7 +194,10 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   const isScreenDevice = device === 'screen';
   // navigator.mediaDevices is undefined on insecure (HTTP) contexts
   const isSecure = typeof window !== 'undefined' && (window.isSecureContext ?? location.protocol === 'https:');
-  const enableMedia = !isGhost && !isScreenDevice && isSecure;
+  // Only auto-enable audio on connect. Camera is off by default —
+  // users click the camera button when ready (avoids getUserMedia
+  // failures that can disconnect the room before it even starts).
+  const enableAudio = !isGhost && !isScreenDevice && isSecure;
 
   return (
     <LiveKitRoom
@@ -183,8 +205,8 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       serverUrl={livekitUrl}
       room={room}
       connect={true}
-      audio={enableMedia}
-      video={enableMedia}
+      audio={enableAudio}
+      video={false}
       onDisconnected={handleDisconnected}
       onError={(err) => {
         console.error('[LiveKitRoom] Error:', err);
