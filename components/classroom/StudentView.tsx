@@ -10,9 +10,8 @@ import {
   AudioTrack,
   type TrackReference,
 } from '@livekit/components-react';
-import { Track, type RemoteParticipant } from 'livekit-client';
+import { Track, type RemoteParticipant, type RemoteTrackPublication } from 'livekit-client';
 import HeaderBar from './HeaderBar';
-import ControlBar from './ControlBar';
 import VideoTile from './VideoTile';
 import ChatPanel from './ChatPanel';
 import WhiteboardComposite from './WhiteboardComposite';
@@ -21,16 +20,20 @@ import { cn } from '@/lib/utils';
 /**
  * StudentView — Student classroom layout.
  *
- * Forces landscape orientation on mobile/tablet devices.
+ * Layout:
+ *   ┌──────────────────────────────┬──────┐
+ *   │         Header Bar           │      │
+ *   ├──────────────────────────────┤ Side │
+ *   │                              │  bar │
+ *   │   Whiteboard / Video         │      │
+ *   │   (full area, clean)         │ 📷🎤 │
+ *   │                              │ ✋💬 │
+ *   │                              │ Leave│
+ *   └──────────────────────────────┴──────┘
  *
- * Supports dual-device teacher setup:
- *   - Primary teacher (laptop): camera + mic → overlay with bg removal
- *   - Screen device (tablet): screen share → whiteboard background
- *
- * When whiteboard (screen share) is active:
- *   Tablet screen fills main area + teacher camera as AI-cutout overlay (via WhiteboardComposite)
- * When no screen share:
- *   Teacher camera fills main area as standard video tile.
+ * Right sidebar contains: teacher camera, student self-cam,
+ * mic/camera/hand-raise/chat/leave buttons.
+ * Whiteboard gets full space without any overlapping elements.
  */
 
 export interface StudentViewProps {
@@ -42,33 +45,21 @@ export interface StudentViewProps {
   onLeave: () => void;
 }
 
-/**
- * Determine if a participant is the primary teacher.
- * Checks metadata first, then identity prefix.
- */
 function isTeacherPrimary(p: RemoteParticipant): boolean {
   try {
     const meta = JSON.parse(p.metadata || '{}');
     const role = meta.effective_role || meta.portal_role;
     const device = meta.device;
     if (role === 'teacher' && device !== 'screen') return true;
-  } catch {
-    // fallback: identity based
-  }
-  // Identity: teacher_xxx (no _screen suffix)
+  } catch { /* fallback */ }
   return p.identity.startsWith('teacher') && !p.identity.endsWith('_screen');
 }
 
-/**
- * Determine if a participant is the teacher's screen device.
- */
 function isTeacherScreen(p: RemoteParticipant): boolean {
   try {
     const meta = JSON.parse(p.metadata || '{}');
     return meta.device === 'screen' && (meta.portal_role === 'teacher' || meta.effective_role === 'teacher_screen');
-  } catch {
-    // fallback
-  }
+  } catch { /* fallback */ }
   return p.identity.endsWith('_screen') && p.identity.startsWith('teacher');
 }
 
@@ -83,6 +74,7 @@ export default function StudentView({
   const [chatOpen, setChatOpen] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [showCameraWarning, setShowCameraWarning] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
 
   // Detect portrait orientation for CSS-based landscape rotation
@@ -104,42 +96,28 @@ export default function StudentView({
         if (orientation?.lock) {
           await orientation.lock('landscape');
         }
-      } catch {
-        // Not supported on desktop browsers or user denied — ignore
-      }
+      } catch { /* Not supported — ignore */ }
     };
     lockLandscape();
     return () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (screen?.orientation as any)?.unlock?.();
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     };
   }, []);
 
   const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
 
-  // Find primary teacher (laptop — camera + mic)
-  const teacher = useMemo(() => {
-    return remoteParticipants.find(isTeacherPrimary) || null;
-  }, [remoteParticipants]);
+  const teacher = useMemo(() => remoteParticipants.find(isTeacherPrimary) || null, [remoteParticipants]);
+  const teacherScreenDevice = useMemo(() => remoteParticipants.find(isTeacherScreen) || null, [remoteParticipants]);
 
-  // Find teacher's screen device (tablet — screen share only)
-  const teacherScreenDevice = useMemo(() => {
-    return remoteParticipants.find(isTeacherScreen) || null;
-  }, [remoteParticipants]);
-
-  // Determine screen share availability — check both teacher devices
   const hasScreenShare = useMemo(() => {
-    // Check screen device first (dual-device mode)
     if (teacherScreenDevice) {
       const pub = teacherScreenDevice.getTrackPublication(Track.Source.ScreenShare);
       if (pub && !pub.isMuted) return true;
     }
-    // Check primary teacher (single-device screen share)
     if (teacher) {
       const pub = teacher.getTrackPublication(Track.Source.ScreenShare);
       if (pub && !pub.isMuted) return true;
@@ -153,17 +131,21 @@ export default function StudentView({
     return !!pub && !pub.isMuted;
   }, [teacher]);
 
-  // Hand raise toggle via data channel
+  // Teacher camera track ref for sidebar PIP
+  const teacherCameraPub = useMemo(() => {
+    if (!teacher) return null;
+    const pub = teacher.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
+    return (pub && !pub.isMuted && pub.track) ? pub : null;
+  }, [teacher]);
+
   const toggleHandRaise = useCallback(async () => {
     const newState = !handRaised;
     setHandRaised(newState);
-
     const msg = {
       student_id: localParticipant.identity,
       student_name: localParticipant.name || localParticipant.identity,
       action: newState ? 'raise' : 'lower',
     };
-
     try {
       const bytes = new TextEncoder().encode(JSON.stringify(msg));
       await localParticipant.publishData(bytes, { topic: 'hand_raise', reliable: true });
@@ -171,6 +153,19 @@ export default function StudentView({
       console.error('Failed to send hand raise:', err);
     }
   }, [handRaised, localParticipant]);
+
+  const toggleMic = async () => {
+    try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); }
+    catch (err) { console.error('[Student] Mic toggle failed:', err); }
+  };
+
+  const toggleCamera = async () => {
+    try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
+    catch (err) { console.error('[Student] Camera toggle failed:', err); }
+  };
+
+  const isMicOn = localParticipant.isMicrophoneEnabled;
+  const isCameraOn = localParticipant.isCameraEnabled;
 
   // When screen share is active and device is portrait, force landscape via CSS transform
   const forceRotate = hasScreenShare && isPortrait;
@@ -194,26 +189,24 @@ export default function StudentView({
           : { display: 'flex', flexDirection: 'column', height: '100vh' }
       }
     >
-      {/* Minimal header — hidden when rotated to maximize whiteboard space */}
+      {/* Header — hidden when rotated to maximize whiteboard space */}
       {!forceRotate && (
         <HeaderBar roomName={roomName} role="student" scheduledStart={scheduledStart} durationMinutes={durationMinutes} />
       )}
 
-      {/* Main body */}
+      {/* Main body: content + sidebar */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Main content area */}
+        {/* ── Main content area (whiteboard / video) ── */}
         <div className="relative flex-1 overflow-hidden">
-          {/* Main content */}
-          <div className="h-full p-2">
+          <div className="h-full p-1">
             {hasScreenShare && teacher ? (
-              /* Priority 1: WhiteboardComposite — screen share + AI teacher overlay */
               <WhiteboardComposite
                 teacher={teacher}
                 teacherScreenDevice={teacherScreenDevice}
+                hideOverlay={true}
                 className="h-full w-full rounded-lg"
               />
             ) : hasTeacherCamera && teacher ? (
-              /* Priority 2: Teacher camera large */
               <div className="flex h-full items-center justify-center">
                 <VideoTile
                   participant={teacher}
@@ -225,7 +218,6 @@ export default function StudentView({
                 />
               </div>
             ) : (
-              /* Priority 3: Waiting placeholder */
               <div className="flex h-full items-center justify-center">
                 <div className="text-center">
                   <div className="mb-3 text-4xl">📚</div>
@@ -253,31 +245,110 @@ export default function StudentView({
             )}
           </div>
 
-          {/* PiP self-view — bottom-left */}
-          {localParticipant.isCameraEnabled && (
-            <div className="absolute bottom-20 left-4 z-10">
+          {/* Hand raised indicator — bottom-left of main area */}
+          {handRaised && (
+            <div className="absolute bottom-4 left-4 z-10 rounded-lg bg-yellow-500/90 px-3 py-1.5 text-sm font-medium text-black">
+              🖐 Your hand is raised
+            </div>
+          )}
+        </div>
+
+        {/* ── Right Sidebar ── */}
+        <div className={cn(
+          'flex flex-col items-center gap-2 border-l border-gray-800 bg-gray-900/80',
+          forceRotate ? 'w-14 py-1' : 'w-16 py-2'
+        )}>
+          {/* Teacher camera PIP */}
+          {hasTeacherCamera && teacher && teacherCameraPub && (
+            <div className="w-12 h-12 rounded-md overflow-hidden ring-1 ring-blue-500/50 flex-shrink-0" title="Teacher">
+              <VideoTrack
+                trackRef={{
+                  participant: teacher,
+                  publication: teacherCameraPub,
+                  source: Track.Source.Camera,
+                } as TrackReference}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
+
+          {/* Student self-cam PIP */}
+          {isCameraOn && (
+            <div className="w-12 h-12 rounded-md overflow-hidden ring-1 ring-green-500/50 flex-shrink-0" title="You">
               <VideoTile
                 participant={localParticipant}
                 size="small"
                 mirror={true}
                 showName={false}
                 showMicIndicator={false}
-                className="border-2 border-white shadow-lg"
+                className="h-full w-full !rounded-none"
               />
             </div>
           )}
 
-          {/* Hand raised indicator */}
-          {handRaised && (
-            <div className="absolute bottom-20 left-40 z-10 rounded-lg bg-yellow-500/90 px-3 py-1.5 text-sm font-medium text-black">
-              🖐 Your hand is raised
-            </div>
-          )}
+          {/* Divider */}
+          <div className="w-8 border-t border-gray-700" />
+
+          {/* Mic toggle */}
+          <SidebarButton
+            active={isMicOn}
+            onClick={toggleMic}
+            title={isMicOn ? 'Mute' : 'Unmute'}
+            activeIcon="🎤"
+            inactiveIcon="🔇"
+            activeColor="bg-gray-700"
+            inactiveColor="bg-red-600"
+          />
+
+          {/* Camera toggle */}
+          <SidebarButton
+            active={isCameraOn}
+            onClick={toggleCamera}
+            title={isCameraOn ? 'Camera off' : 'Camera on'}
+            activeIcon="📷"
+            inactiveIcon="🚫"
+            activeColor="bg-gray-700"
+            inactiveColor="bg-red-600"
+          />
+
+          {/* Hand raise */}
+          <SidebarButton
+            active={handRaised}
+            onClick={toggleHandRaise}
+            title={handRaised ? 'Lower hand' : 'Raise hand'}
+            activeIcon="🖐"
+            inactiveIcon="✋"
+            activeColor="bg-yellow-500"
+            inactiveColor="bg-gray-700"
+          />
+
+          {/* Chat toggle */}
+          <SidebarButton
+            active={chatOpen}
+            onClick={() => setChatOpen(!chatOpen)}
+            title="Chat"
+            activeIcon="💬"
+            inactiveIcon="💬"
+            activeColor="bg-blue-600"
+            inactiveColor="bg-gray-700"
+          />
+
+          {/* Spacer to push leave to bottom */}
+          <div className="flex-1" />
+
+          {/* Leave button */}
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            title="Leave class"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-sm transition-colors hover:bg-red-700 flex-shrink-0"
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Chat panel (slides in from right) */}
+        {/* Chat panel (slides in from right of content area, before sidebar) */}
         {chatOpen && (
-          <div className="w-[300px] border-l border-gray-800">
+          <div className="w-[280px] border-l border-gray-800">
             <ChatPanel
               participantName={participantName}
               participantRole="student"
@@ -287,34 +358,28 @@ export default function StudentView({
         )}
       </div>
 
-      {/* Control bar — hidden when rotated, replaced by floating controls */}
-      {forceRotate ? (
-        <div className="absolute bottom-2 right-2 z-30 flex gap-2">
-          <button
-            onClick={toggleHandRaise}
-            className={cn(
-              'rounded-full px-3 py-1.5 text-xs font-medium shadow-lg',
-              handRaised ? 'bg-yellow-500 text-black' : 'bg-gray-800/80 text-white'
-            )}
-          >
-            {handRaised ? '🖐 Lower' : '✋ Raise'}
-          </button>
-          <button
-            onClick={onLeave}
-            className="rounded-full bg-red-600/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
-          >
-            Leave
-          </button>
+      {/* Leave confirmation dialog */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="rounded-xl bg-gray-800 p-6 text-center shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-white">Leave this class?</h3>
+            <p className="mb-4 text-sm text-gray-400">You can rejoin while the class is active.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
+              >
+                Stay
+              </button>
+              <button
+                onClick={onLeave}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Leave Class
+              </button>
+            </div>
+          </div>
         </div>
-      ) : (
-        <ControlBar
-          role="student"
-          roomId={roomId}
-          handRaised={handRaised}
-          onToggleHandRaise={toggleHandRaise}
-          onToggleChat={() => setChatOpen(!chatOpen)}
-          onLeave={onLeave}
-        />
       )}
 
       {/* Camera warning dialog */}
@@ -348,5 +413,38 @@ export default function StudentView({
         </div>
       )}
     </div>
+  );
+}
+
+// ── Sidebar button component ───────────────────────────────
+function SidebarButton({
+  active,
+  onClick,
+  title,
+  activeIcon,
+  inactiveIcon,
+  activeColor,
+  inactiveColor,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  activeIcon: string;
+  inactiveIcon: string;
+  activeColor: string;
+  inactiveColor: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'flex h-9 w-9 items-center justify-center rounded-full text-base transition-colors flex-shrink-0',
+        active ? activeColor : inactiveColor,
+        'hover:opacity-80'
+      )}
+    >
+      {active ? activeIcon : inactiveIcon}
+    </button>
   );
 }

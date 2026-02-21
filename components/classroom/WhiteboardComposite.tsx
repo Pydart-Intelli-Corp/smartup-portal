@@ -28,6 +28,8 @@ export interface WhiteboardCompositeProps {
   teacher: Participant;
   /** Optional: the teacher's screen device participant */
   teacherScreenDevice?: RemoteParticipant | null;
+  /** Hide the teacher camera overlay (when shown elsewhere, e.g. sidebar) */
+  hideOverlay?: boolean;
   /** Class name for sizing */
   className?: string;
 }
@@ -35,6 +37,7 @@ export interface WhiteboardCompositeProps {
 export default function WhiteboardComposite({
   teacher,
   teacherScreenDevice,
+  hideOverlay = false,
   className,
 }: WhiteboardCompositeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,7 +101,7 @@ export default function WhiteboardComposite({
       />
 
       {/* Hidden video element: teacher's camera for MediaPipe input */}
-      {hasCameraTrack && (
+      {!hideOverlay && hasCameraTrack && (
         <video
           ref={captureTeacherVideoRef}
           autoPlay
@@ -110,13 +113,15 @@ export default function WhiteboardComposite({
       )}
 
       {/* Layer 2: Teacher overlay — AI background removed cutout (falls back to regular PIP) */}
-      <TeacherOverlay
-        active={hasCameraTrack}
-        videoElement={teacherVideoRef.current}
-        teacher={teacher}
-        containerWidth={containerSize.width}
-        containerHeight={containerSize.height}
-      />
+      {!hideOverlay && (
+        <TeacherOverlay
+          active={hasCameraTrack}
+          videoElement={teacherVideoRef.current}
+          teacher={teacher}
+          containerWidth={containerSize.width}
+          containerHeight={containerSize.height}
+        />
+      )}
     </div>
   );
 }
