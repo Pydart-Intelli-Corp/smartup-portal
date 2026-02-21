@@ -1,0 +1,215 @@
+'use client';
+
+import { useState, useCallback, useRef } from 'react';
+import { useLocalParticipant } from '@livekit/components-react';
+import { Track, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
+import { Monitor, MonitorOff, Wifi, WifiOff } from 'lucide-react';
+
+/**
+ * ScreenDeviceView — Minimal tablet/screen device UI.
+ *
+ * This view is shown when the teacher joins from their tablet (device=screen).
+ * Its only purpose is to share the tablet screen, which becomes
+ * the whiteboard background in the main teacher + student views.
+ *
+ * ┌──────────────────────────────────┐
+ * │  Connected as screen device      │
+ * │                                  │
+ * │    [ SHARE SCREEN ]  big btn     │
+ * │                                  │
+ * │  Status: sharing / not sharing   │
+ * └──────────────────────────────────┘
+ */
+
+export interface ScreenDeviceViewProps {
+  roomId: string;
+  roomName: string;
+  participantName: string;
+}
+
+export default function ScreenDeviceView({
+  roomName,
+  participantName,
+}: ScreenDeviceViewProps) {
+  const { localParticipant } = useLocalParticipant();
+  const [toggling, setToggling] = useState(false);
+  const [error, setError] = useState('');
+
+  const screenTrackRef = useRef<LocalVideoTrack | null>(null);
+  const audioTrackRef = useRef<LocalAudioTrack | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const toggleScreenShare = useCallback(async () => {
+    setToggling(true);
+    setError('');
+    try {
+      if (sharing) {
+        // Stop sharing — unpublish and stop tracks
+        if (screenTrackRef.current) {
+          await localParticipant.unpublishTrack(screenTrackRef.current);
+          screenTrackRef.current.stop();
+          screenTrackRef.current = null;
+        }
+        if (audioTrackRef.current) {
+          await localParticipant.unpublishTrack(audioTrackRef.current);
+          audioTrackRef.current.stop();
+          audioTrackRef.current = null;
+        }
+        setSharing(false);
+      } else {
+        // Start sharing — call getDisplayMedia directly (bypasses LiveKit's internal check)
+        // Try multiple ways to access getDisplayMedia for maximum compatibility
+        let stream: MediaStream;
+        if (navigator.mediaDevices?.getDisplayMedia) {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true,
+          });
+        } else if ((navigator as unknown as Record<string, unknown>).getDisplayMedia) {
+          // Older API — some Android browsers expose it on navigator directly
+          stream = await (navigator as unknown as { getDisplayMedia: (c: MediaStreamConstraints) => Promise<MediaStream> }).getDisplayMedia({
+            video: true,
+            audio: true,
+          });
+        } else {
+          // Last resort — try calling it anyway and let the error propagate
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true,
+          });
+        }
+
+        // Publish video track as screen share
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          const localVideo = new LocalVideoTrack(videoTrack, undefined, false);
+          await localParticipant.publishTrack(localVideo, {
+            source: Track.Source.ScreenShare,
+          });
+          screenTrackRef.current = localVideo;
+
+          // Listen for browser-level "Stop sharing" click
+          videoTrack.onended = () => {
+            localParticipant.unpublishTrack(localVideo).catch(() => {});
+            localVideo.stop();
+            screenTrackRef.current = null;
+            if (audioTrackRef.current) {
+              localParticipant.unpublishTrack(audioTrackRef.current).catch(() => {});
+              audioTrackRef.current.stop();
+              audioTrackRef.current = null;
+            }
+            setSharing(false);
+          };
+        }
+
+        // Publish audio track if available
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack) {
+          const localAudio = new LocalAudioTrack(audioTrack, undefined, false);
+          await localParticipant.publishTrack(localAudio, {
+            source: Track.Source.ScreenShareAudio,
+          });
+          audioTrackRef.current = localAudio;
+        }
+
+        setSharing(true);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ScreenDevice] Screen share error:', err);
+      // User cancelled the picker — not a real error
+      if (msg.includes('Permission denied') || msg.includes('NotAllowedError') || msg.includes('AbortError') || msg.includes('cancel')) {
+        console.log('[ScreenDevice] User cancelled screen share');
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setToggling(false);
+    }
+  }, [localParticipant, sharing]);
+
+  return (
+    <div className="flex h-screen flex-col items-center justify-center bg-gray-950 px-6">
+      {/* Connection status badge */}
+      <div className="mb-8 flex items-center gap-2 rounded-full border border-gray-700 bg-gray-900 px-4 py-2">
+        {localParticipant.connectionQuality !== undefined ? (
+          <Wifi className="h-4 w-4 text-emerald-400" />
+        ) : (
+          <WifiOff className="h-4 w-4 text-red-400" />
+        )}
+        <span className="text-sm text-gray-300">
+          Connected to <strong className="text-white">{roomName}</strong>
+        </span>
+      </div>
+
+      {/* Icon */}
+      <div className={`mb-6 flex h-24 w-24 items-center justify-center rounded-full ${
+        sharing
+          ? 'bg-emerald-500/20 ring-2 ring-emerald-500/50'
+          : 'bg-gray-800 ring-2 ring-gray-700'
+      }`}>
+        {sharing ? (
+          <Monitor className="h-12 w-12 text-emerald-400" />
+        ) : (
+          <MonitorOff className="h-12 w-12 text-gray-500" />
+        )}
+      </div>
+
+      {/* Status text */}
+      <h1 className="mb-2 text-xl font-bold text-white">
+        {sharing ? 'Screen is being shared' : 'Screen Device Ready'}
+      </h1>
+      <p className="mb-8 max-w-sm text-center text-sm text-gray-400">
+        {sharing
+          ? 'Your tablet screen is now visible to students as the whiteboard background. Keep this tab open.'
+          : 'Tap the button below to share your tablet screen. Students will see it as the whiteboard background.'}
+      </p>
+
+      {/* Share / Stop button */}
+      <button
+        onClick={toggleScreenShare}
+        disabled={toggling}
+        className={`flex items-center gap-3 rounded-2xl px-10 py-5 text-lg font-bold shadow-lg transition-all active:scale-95 ${
+          sharing
+            ? 'bg-red-600 text-white hover:bg-red-700'
+            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+        } disabled:opacity-50`}
+      >
+        {sharing ? (
+          <>
+            <MonitorOff className="h-6 w-6" />
+            {toggling ? 'Stopping...' : 'Stop Sharing'}
+          </>
+        ) : (
+          <>
+            <Monitor className="h-6 w-6" />
+            {toggling ? 'Starting...' : 'Share Screen'}
+          </>
+        )}
+      </button>
+
+      {/* Error */}
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-800 bg-red-950/50 px-4 py-2 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      {/* Sharing indicator pulse */}
+      {sharing && (
+        <div className="mt-8 flex items-center gap-2">
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-sm text-emerald-400">Live — sharing to classroom</span>
+        </div>
+      )}
+
+      {/* Footer: identity */}
+      <p className="mt-auto mb-6 text-xs text-gray-600">
+        {participantName} • screen device
+      </p>
+    </div>
+  );
+}

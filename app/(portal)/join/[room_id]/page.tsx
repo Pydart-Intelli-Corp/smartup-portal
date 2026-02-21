@@ -1,0 +1,126 @@
+// ═══════════════════════════════════════════════════════════════
+// Join Room — /join/[room_id]
+// Participants arrive here from email invite links.
+// Validates their token/session and routes to classroom.
+// If ?token= is in URL (email link), auth is NOT required.
+// ═══════════════════════════════════════════════════════════════
+
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { verifySession, COOKIE_NAME } from '@/lib/session';
+import { db } from '@/lib/db';
+import JoinRoomClient from './JoinRoomClient';
+
+interface Props {
+  params: Promise<{ room_id: string }>;
+  searchParams: Promise<{ token?: string; device?: string }>;
+}
+
+/**
+ * Decode a JWT payload without verifying signature.
+ * Used to extract display info from the email's LiveKit token.
+ */
+function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
+  try {
+    const parts = jwt.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(
+      Buffer.from(parts[1], 'base64url').toString('utf-8')
+    );
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export default async function JoinRoomPage({ params, searchParams }: Props) {
+  const { room_id } = await params;
+  const { token: emailToken, device } = await searchParams;
+
+  // Get room info
+  const roomResult = await db.query(
+    `SELECT room_id, room_name, subject, grade, status, scheduled_start,
+            duration_minutes, teacher_email, open_at, expires_at
+     FROM rooms WHERE room_id = $1`,
+    [room_id]
+  );
+
+  if (roomResult.rows.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-red-400">Room Not Found</h1>
+          <p className="mt-2 text-gray-400">This room does not exist or may have been deleted.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const room = roomResult.rows[0] as Record<string, unknown>;
+
+  // Check if room is cancelled
+  if (room.status === 'cancelled') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-red-400">Room Cancelled</h1>
+          <p className="mt-2 text-gray-400">This class has been cancelled by the coordinator.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Auth: session OR email token ───────────────────────────
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(COOKIE_NAME)?.value;
+  let user = null;
+  if (sessionToken) {
+    user = await verifySession(sessionToken);
+  }
+
+  // If email token present → extract participant info from JWT payload
+  // No login required — the token itself is the auth
+  let emailUser: { name: string; email: string; role: string } | null = null;
+  if (emailToken && !user) {
+    const payload = decodeJwtPayload(emailToken);
+    if (payload) {
+      const metadata = typeof payload.metadata === 'string'
+        ? JSON.parse(payload.metadata) as Record<string, unknown>
+        : {};
+      emailUser = {
+        name: (payload.name as string) || 'Participant',
+        email: (payload.sub as string) || '',
+        role: (metadata.role as string) || 'student',
+      };
+    }
+  }
+
+  // If neither session nor email token → redirect to login
+  if (!user && !emailUser) {
+    const returnPath = `/join/${room_id}${emailToken || device ? '?' : ''}${emailToken ? `token=${emailToken}` : ''}${emailToken && device ? '&' : ''}${device ? `device=${device}` : ''}`;
+    redirect(`/login?redirect=${encodeURIComponent(returnPath)}`);
+  }
+
+  // Resolved user info (session takes priority over email token)
+  const displayName = user?.name || emailUser!.name;
+  const displayEmail = user?.id || emailUser!.email;
+  const displayRole = user?.role || emailUser!.role;
+
+  return (
+    <JoinRoomClient
+      roomId={room_id}
+      roomName={room.room_name as string}
+      subject={room.subject as string}
+      grade={room.grade as string}
+      status={room.status as string}
+      scheduledStart={room.scheduled_start as string}
+      durationMinutes={room.duration_minutes as number}
+      teacherEmail={room.teacher_email as string | null}
+      userName={displayName}
+      userEmail={displayEmail}
+      userRole={displayRole}
+      emailToken={emailToken || null}
+      device={device || 'desktop'}
+    />
+  );
+}

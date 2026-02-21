@@ -1,0 +1,276 @@
+// ═══════════════════════════════════════════════════════════════
+// SmartUp Portal — Email Service (Step 05)
+// ═══════════════════════════════════════════════════════════════
+// Single entry point for all email sending. Uses Nodemailer
+// for SMTP transport. In dev mode with EMAIL_MODE=log, emails
+// are printed to console instead of sent.
+// ═══════════════════════════════════════════════════════════════
+
+import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
+import { db } from '@/lib/db';
+import {
+  teacherInviteTemplate,
+  studentInviteTemplate,
+  paymentConfirmationTemplate,
+  roomReminderTemplate,
+  roomCancelledTemplate,
+  roomRescheduledTemplate,
+  coordinatorSummaryTemplate,
+  type TeacherInviteData,
+  type StudentInviteData,
+  type PaymentConfirmationData,
+  type RoomReminderData,
+  type RoomCancelledData,
+  type RoomRescheduledData,
+  type CoordinatorSummaryData,
+} from '@/lib/email-templates';
+
+// ── Singleton Transporter ───────────────────────────────────
+
+const globalForEmail = globalThis as unknown as {
+  emailTransporter: Transporter | undefined;
+};
+
+function getTransporter(): Transporter {
+  if (globalForEmail.emailTransporter) {
+    return globalForEmail.emailTransporter;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER || process.env.SMTP_USERNAME,
+      pass: process.env.SMTP_PASS || process.env.SMTP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false, // allow self-signed certs in dev
+    },
+  });
+
+  if (process.env.NODE_ENV !== 'production') {
+    globalForEmail.emailTransporter = transporter;
+  }
+
+  return transporter;
+}
+
+// ── Send Options ────────────────────────────────────────────
+
+export interface SendEmailOptions {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+  priority?: 'high' | 'normal' | 'low';
+}
+
+export interface SendEmailResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+// ── Core Send Function ──────────────────────────────────────
+
+const DEV_LOG_MODE = process.env.EMAIL_MODE === 'log';
+
+/**
+ * Core email send function. In dev mode with EMAIL_MODE=log,
+ * prints to console instead of sending. Includes single retry
+ * on first failure (30s delay).
+ */
+export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+  const from = `"${process.env.EMAIL_FROM_NAME || 'SmartUp Classes'}" <${process.env.EMAIL_FROM_ADDRESS || 'noreply@smartup.live'}>`;
+
+  // ── Dev log mode — print to console, skip SMTP ────────
+  if (DEV_LOG_MODE) {
+    const recipients = Array.isArray(options.to) ? options.to.join(', ') : options.to;
+    console.log('\n┌─── EMAIL (DEV LOG MODE) ────────────────────────────┐');
+    console.log(`│ To:      ${recipients}`);
+    console.log(`│ From:    ${from}`);
+    console.log(`│ Subject: ${options.subject}`);
+    console.log(`│ Priority:${options.priority || 'normal'}`);
+    console.log('├──────────────────────────────────────────────────────┤');
+    console.log(`│ Text Preview (first 200 chars):`);
+    console.log(`│ ${options.text.substring(0, 200).replace(/\n/g, '\n│ ')}`);
+    console.log('└──────────────────────────────────────────────────────┘\n');
+    return { success: true, messageId: `dev-${Date.now()}` };
+  }
+
+  // ── Production SMTP send with retry ───────────────────
+  const mailOptions = {
+    from,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+    text: options.text,
+    replyTo: options.replyTo,
+    priority: options.priority,
+  };
+
+  const transporter = getTransporter();
+
+  // First attempt
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
+  } catch (firstError) {
+    console.warn('[Email] First attempt failed, retrying in 30s...', firstError);
+  }
+
+  // Wait 30 seconds and retry once
+  await new Promise((resolve) => setTimeout(resolve, 30_000));
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
+  } catch (secondError) {
+    const errMsg = secondError instanceof Error ? secondError.message : String(secondError);
+    console.error('[Email] Second attempt failed:', errMsg);
+    return { success: false, error: errMsg };
+  }
+}
+
+// ── Email Log Helpers ───────────────────────────────────────
+
+/**
+ * Log a queued email to the email_log table. Returns the log ID.
+ */
+export async function logEmailQueued(
+  roomId: string | null,
+  recipientEmail: string,
+  templateType: string,
+  subject: string
+): Promise<string> {
+  const result = await db.query<{ id: string }>(
+    `INSERT INTO email_log (room_id, recipient_email, template_type, subject, status)
+     VALUES ($1, $2, $3, $4, 'queued')
+     RETURNING id`,
+    [roomId, recipientEmail, templateType, subject]
+  );
+  return result.rows[0].id;
+}
+
+/**
+ * Update email log to sent status.
+ */
+export async function logEmailSent(logId: string, smtpMessageId?: string): Promise<void> {
+  await db.query(
+    `UPDATE email_log SET status = 'sent', smtp_message_id = $1, sent_at = NOW() WHERE id = $2`,
+    [smtpMessageId || null, logId]
+  );
+}
+
+/**
+ * Update email log to failed status.
+ */
+export async function logEmailFailed(logId: string, errorMessage: string): Promise<void> {
+  await db.query(
+    `UPDATE email_log SET status = 'failed', error_message = $1 WHERE id = $2`,
+    [errorMessage, logId]
+  );
+}
+
+// ── Convenience Senders (template + send + log) ─────────────
+
+export async function sendTeacherInvite(data: TeacherInviteData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = teacherInviteTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'teacher_invite', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}
+
+export async function sendStudentInvite(data: StudentInviteData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = studentInviteTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'student_invite', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}
+
+export async function sendPaymentConfirmation(data: PaymentConfirmationData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = paymentConfirmationTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'payment_confirmation', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'high' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}
+
+export async function sendRoomReminder(data: RoomReminderData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = roomReminderTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'room_reminder', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'high' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}
+
+export async function sendRoomCancelled(data: RoomCancelledData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = roomCancelledTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'room_cancelled', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'high' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}
+
+export async function sendRoomRescheduled(data: RoomRescheduledData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = roomRescheduledTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'room_rescheduled', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'high' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}
+
+export async function sendCoordinatorSummary(data: CoordinatorSummaryData & { roomId: string }): Promise<SendEmailResult> {
+  const { subject, html, text } = coordinatorSummaryTemplate(data);
+  const logId = await logEmailQueued(data.roomId, data.recipientEmail, 'coordinator_summary', subject);
+
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'low' });
+
+  if (result.success) {
+    await logEmailSent(logId, result.messageId);
+  } else {
+    await logEmailFailed(logId, result.error || 'Unknown error');
+  }
+  return result;
+}

@@ -1,0 +1,98 @@
+// ═══════════════════════════════════════════════════════════════
+// SmartUp Portal — User Database Operations
+// ═══════════════════════════════════════════════════════════════
+// CRUD for portal_users table.
+// ═══════════════════════════════════════════════════════════════
+
+import { db } from '@/lib/db';
+import type { SmartUpUser, PortalRole } from '@/types';
+
+// ── Types ───────────────────────────────────────────────────
+
+export interface PortalUser {
+  email: string;
+  full_name: string;
+  portal_role: PortalRole;
+  phone: string | null;
+  profile_image: string | null;
+  batch_ids: string[];
+  is_active: boolean;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+  [key: string]: unknown;
+}
+
+// ── Upsert on login ─────────────────────────────────────────
+
+export async function upsertUser(user: SmartUpUser): Promise<PortalUser> {
+  const result = await db.query<PortalUser>(
+    `INSERT INTO portal_users (email, full_name, portal_role, last_login_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (email) DO UPDATE SET
+       full_name = EXCLUDED.full_name,
+       portal_role = EXCLUDED.portal_role,
+       last_login_at = NOW(),
+       is_active = TRUE
+     RETURNING *`,
+    [user.id, user.name, user.role]
+  );
+  return result.rows[0];
+}
+
+// ── Get user by email ───────────────────────────────────────
+
+export async function getUserByEmail(email: string): Promise<PortalUser | null> {
+  const result = await db.query<PortalUser>(
+    `SELECT * FROM portal_users WHERE email = $1`,
+    [email]
+  );
+  return result.rows[0] ?? null;
+}
+
+// ── List users by role ──────────────────────────────────────
+
+export async function getUsersByRole(role: PortalRole): Promise<PortalUser[]> {
+  const result = await db.query<PortalUser>(
+    `SELECT * FROM portal_users WHERE portal_role = $1 AND is_active = TRUE ORDER BY full_name`,
+    [role]
+  );
+  return result.rows;
+}
+
+// ── Search users (for coordinator assign flow) ──────────────
+
+export async function searchUsers(
+  query: string,
+  role?: PortalRole
+): Promise<PortalUser[]> {
+  const params: unknown[] = [`%${query}%`];
+  let sql = `SELECT * FROM portal_users WHERE is_active = TRUE AND (full_name ILIKE $1 OR email ILIKE $1)`;
+
+  if (role) {
+    params.push(role);
+    sql += ` AND portal_role = $${params.length}`;
+  }
+
+  sql += ' ORDER BY full_name LIMIT 50';
+  const result = await db.query<PortalUser>(sql, params);
+  return result.rows;
+}
+
+// ── Deactivate user ─────────────────────────────────────────
+
+export async function deactivateUser(email: string): Promise<void> {
+  await db.query(
+    `UPDATE portal_users SET is_active = FALSE, updated_at = NOW() WHERE email = $1`,
+    [email]
+  );
+}
+
+// ── Get all active users (for admin views) ──────────────────
+
+export async function getAllActiveUsers(): Promise<PortalUser[]> {
+  const result = await db.query<PortalUser>(
+    `SELECT * FROM portal_users WHERE is_active = TRUE ORDER BY portal_role, full_name`
+  );
+  return result.rows;
+}

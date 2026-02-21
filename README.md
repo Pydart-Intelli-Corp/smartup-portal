@@ -1,36 +1,149 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SmartUp Portal
 
-## Getting Started
+Live classroom platform for Indian school students (Class 1–12). Built with Next.js, LiveKit, PostgreSQL, and Redis.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Next.js | 16.1.6 | App Router, server components, API routes |
+| TypeScript | 5.x | Type safety |
+| Tailwind CSS | 4.x | Styling (via PostCSS) |
+| PostgreSQL | 15.16 | Primary database |
+| Redis | 7.0.15 | Session cache, BullMQ email queue |
+| LiveKit | 1.9.11 | WebRTC video/audio/screen share |
+| Nodemailer | 6.x | Gmail SMTP email delivery |
+| jose | 6.x | JWT sign/verify (HS256) |
+| bcryptjs | 3.x | Password hashing |
+| shadcn/ui | — | UI component library |
+
+## Architecture
+
+```
+SmartUp Portal (class.smartup.live)    ← this project
+    ↕ LiveKit SDK
+LiveKit Media (media.smartup.live)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Portal** owns users, rooms, sessions, payments, email, dashboards
+- **LiveKit** handles WebRTC video/audio
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quick Start
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Install dependencies
+npm install
 
-## Learn More
+# Copy environment file
+cp .env.example .env.local
+# Edit .env.local with your credentials
 
-To learn more about Next.js, take a look at the following resources:
+# Run database migrations
+npm run db:migrate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Seed test users
+npm run db:seed
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Start dev server
+npm run dev
+```
 
-## Deploy on Vercel
+Open http://localhost:3000 — redirects to `/login`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Environment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Required variables in `.env.local`:
+
+```env
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+JWT_SECRET=<64-char-random>
+
+NEXT_PUBLIC_LIVEKIT_URL=ws://76.13.244.54:7880
+LIVEKIT_API_KEY=<key>
+LIVEKIT_API_SECRET=<secret>
+
+DATABASE_URL=postgresql://smartup:<pass>@76.13.244.60:5432/smartup_portal
+REDIS_URL=redis://:<pass>@76.13.244.60:6379
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=<gmail>
+SMTP_PASS=<app-password>
+EMAIL_FROM_NAME=SmartUp Classes
+EMAIL_FROM_ADDRESS=<email>
+EMAIL_MODE=smtp
+```
+
+## Project Structure
+
+```
+app/
+├── (auth)/login/           Login page
+├── (portal)/               Protected dashboard pages (8 roles)
+│   ├── coordinator/        Room CRUD, student management, notifications
+│   ├── teacher/            Assigned rooms
+│   ├── student/            Enrolled rooms with payment status
+│   ├── academic-operator/  All rooms read-only + Phase 2 placeholders
+│   ├── hr/                 User account management
+│   ├── parent/             Child's rooms
+│   ├── owner/              System overview + ghost access
+│   ├── ghost/              Live room monitoring + /monitor grid
+│   ├── classroom/[roomId]/ LiveKit classroom (stubs)
+│   └── join/[room_id]/     Pre-join flow
+└── api/v1/                 REST API routes
+
+lib/                        Server utilities (db, redis, livekit, email, auth)
+components/                 React components (auth, dashboard, classroom, ui)
+migrations/                 SQL migration files
+types/                      TypeScript type definitions
+hooks/                      Client-side React hooks
+scripts/                    Seed users, migrate DB
+```
+
+## Roles
+
+8 portal roles:
+
+| Role | Dashboard | LiveKit Access |
+|------|-----------|---------------|
+| **owner** | `/owner` | Ghost (invisible) to all rooms |
+| **coordinator** | `/coordinator` | Create rooms, observe |
+| **academic_operator** | `/academic-operator` | Read-only, observe |
+| **hr** | `/hr` | User account management |
+| **teacher** | `/teacher` | Full publish (video/audio/screen) |
+| **student** | `/student` | Publish video/audio, subscribe |
+| **parent** | `/parent` | Read-only observe |
+| **ghost** | `/ghost` | Invisible monitoring |
+
+## API Routes
+
+See [DEV_FLOW.md](DEV_FLOW.md) for the complete route table.
+
+## Database
+
+PostgreSQL tables: `rooms`, `room_events`, `room_assignments`, `payment_attempts`, `email_log`, `school_config`, `portal_users`, `user_profiles`.
+
+Migrations in `migrations/` — run with `npm run db:migrate`.
+
+## Servers
+
+| Server | IP | Domain |
+|--------|-----|--------|
+| LiveKit Media | `76.13.244.54` | `media.smartup.live` |
+| Portal | `76.13.244.60` | `class.smartup.live` |
+
+## Development
+
+```bash
+npm run dev          # Start dev server
+npx tsc --noEmit     # Type check
+npm run db:migrate   # Run migrations
+npm run db:seed      # Seed test users
+```
+
+## Documentation
+
+- [DEV_FLOW.md](DEV_FLOW.md) — Build progress, file inventory, known issues
+- [USERS.md](USERS.md) — Test accounts and credentials
+- `portal_dev/` — Build specification
+- `server_build/` — Server setup logs
