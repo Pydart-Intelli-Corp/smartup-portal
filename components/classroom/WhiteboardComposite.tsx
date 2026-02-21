@@ -109,10 +109,11 @@ export default function WhiteboardComposite({
         />
       )}
 
-      {/* Layer 2: Teacher overlay — AI background removed cutout */}
+      {/* Layer 2: Teacher overlay — AI background removed cutout (falls back to regular PIP) */}
       <TeacherOverlay
         active={hasCameraTrack}
         videoElement={teacherVideoRef.current}
+        teacher={teacher}
         containerWidth={containerSize.width}
         containerHeight={containerSize.height}
       />

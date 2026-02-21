@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { VideoTrack, type TrackReference } from '@livekit/components-react';
+import { Track, type Participant, type RemoteTrackPublication } from 'livekit-client';
 import { useTeacherOverlay } from '@/hooks/useTeacherOverlay';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +24,8 @@ export interface TeacherOverlayProps {
   active: boolean;
   /** The teacher's camera <video> element to process (can be local or remote) */
   videoElement?: HTMLVideoElement | null;
+  /** The teacher participant — used for fallback PIP when MediaPipe fails */
+  teacher?: Participant | null;
   /** Container dimensions for safe-zone calculation */
   containerWidth?: number;
   containerHeight?: number;
@@ -39,6 +43,7 @@ const CORNER_POSITIONS: Record<Corner, { top?: string; bottom?: string; left?: s
 export default function TeacherOverlay({
   active,
   videoElement,
+  teacher,
   containerWidth = 0,
   containerHeight = 0,
 }: TeacherOverlayProps) {
@@ -124,29 +129,40 @@ export default function TeacherOverlay({
 
   if (!active) return null;
 
-  // Error fallback — show teacher camera without background removal
-  if (error) {
+  // Build camera PIP fallback (used when MediaPipe fails or is loading)
+  const cameraPub = teacher?.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
+  const hasFallbackTrack = !!cameraPub && !cameraPub.isMuted && !!cameraPub.track;
+
+  // Camera PIP fallback renderer — shows regular camera in a rounded overlay
+  const renderCameraFallback = () => {
+    const overlayW = Math.min(320, Math.max(180, containerWidth * 0.22 || 240));
+    const overlayH = overlayW * 0.75;
+    if (!hasFallbackTrack || !teacher) return null;
     return (
       <div
-        className="absolute z-10 rounded-lg bg-gray-900/80 px-3 py-2 text-xs text-yellow-400"
-        style={CORNER_POSITIONS[corner]}
+        className="absolute z-20 overflow-hidden rounded-lg shadow-lg ring-1 ring-white/20"
+        style={{ width: overlayW, height: overlayH, ...CORNER_POSITIONS[corner] }}
       >
-        ⚠️ {error}
+        <VideoTrack
+          trackRef={{
+            participant: teacher,
+            publication: cameraPub!,
+            source: Track.Source.Camera,
+          } as TrackReference}
+          className="h-full w-full object-cover"
+        />
       </div>
     );
+  };
+
+  // Error fallback — show teacher camera as a normal PIP (no background removal)
+  if (error) {
+    return renderCameraFallback();
   }
 
-  // Loading state
+  // Loading state — show camera PIP while model loads
   if (!isReady) {
-    return (
-      <div
-        className="absolute z-10 flex items-center gap-2 rounded-lg bg-gray-900/80 px-3 py-2 text-xs text-gray-400"
-        style={CORNER_POSITIONS[corner]}
-      >
-        <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-500 border-t-white" />
-        Loading AI background removal...
-      </div>
-    );
+    return renderCameraFallback();
   }
 
   // Overlay size: 22% of container width, clamped between 180–320px
