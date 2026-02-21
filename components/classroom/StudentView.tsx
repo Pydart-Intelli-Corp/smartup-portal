@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils';
 /**
  * StudentView — Student classroom layout.
  *
+ * Forces landscape orientation on mobile/tablet devices.
+ *
  * Supports dual-device teacher setup:
  *   - Primary teacher (laptop): camera + mic → overlay with bg removal
  *   - Screen device (tablet): screen share → whiteboard background
@@ -81,6 +83,30 @@ export default function StudentView({
   const [chatOpen, setChatOpen] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [showCameraWarning, setShowCameraWarning] = useState(false);
+
+  // Lock to landscape on mobile/tablet
+  useEffect(() => {
+    const lockLandscape = async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const orientation = screen?.orientation as any;
+        if (orientation?.lock) {
+          await orientation.lock('landscape');
+        }
+      } catch {
+        // Not supported on desktop browsers or user denied — ignore
+      }
+    };
+    lockLandscape();
+    return () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (screen?.orientation as any)?.unlock?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
 
   const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();

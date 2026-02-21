@@ -198,8 +198,8 @@ export default function TeacherView({
 
       {/* Main body: content + sidebar */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Main content + student strip */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Left: Main content area */}
+        <div className="relative flex flex-1 flex-col overflow-hidden">
           {/* Main content area */}
           <div className="flex-1 overflow-hidden p-2">
             {whiteboardActive && hasAnyScreenShare ? (
@@ -207,52 +207,65 @@ export default function TeacherView({
               <WhiteboardComposite
                 teacher={localParticipant as unknown as Participant}
                 teacherScreenDevice={teacherScreenDevice}
-                className="h-full w-full rounded-lg"
+                className="h-full w-full"
               />
-            ) : (
-              /* Default: teacher self-cam large view */
+            ) : students.length === 0 ? (
+              /* No students yet: show waiting message */
               <div className="flex h-full items-center justify-center">
-                <VideoTile
-                  participant={localParticipant}
-                  size="large"
-                  mirror={true}
-                  showName={false}
-                  showMicIndicator={false}
-                  className="max-h-full max-w-full rounded-lg"
-                />
+                <div className="text-center">
+                  <div className="mb-2 text-4xl">👥</div>
+                  <p className="text-gray-400 text-sm">Waiting for students to join...</p>
+                  <p className="text-gray-600 text-xs mt-1">{isLive ? 'Room is live' : 'Room not live yet'}</p>
+                </div>
+              </div>
+            ) : (
+              /* Student grid: fills main area, auto-sizing squares */
+              <div
+                className={cn(
+                  'grid h-full w-full gap-2 auto-rows-fr',
+                  students.length === 1 && 'grid-cols-1',
+                  students.length === 2 && 'grid-cols-2',
+                  students.length >= 3 && students.length <= 4 && 'grid-cols-2',
+                  students.length >= 5 && students.length <= 6 && 'grid-cols-3',
+                  students.length >= 7 && students.length <= 9 && 'grid-cols-3',
+                  students.length >= 10 && 'grid-cols-4',
+                )}
+              >
+                {students.map((student) => (
+                  <div key={student.identity} className="relative min-h-0 min-w-0">
+                    <VideoTile
+                      participant={student}
+                      size="large"
+                      showName={true}
+                      showMicIndicator={true}
+                      playAudio={true}
+                      className="!rounded-none border-gray-600"
+                    />
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
+          {/* Teacher self-preview: small floating overlay in top-left */}
+          <div className="absolute top-3 left-3 z-30 shadow-lg ring-1 ring-white/20">
+            <VideoTile
+              participant={localParticipant}
+              size="small"
+              mirror={true}
+              showName={false}
+              showMicIndicator={true}
+              className="!rounded-none !w-[120px] !h-[90px]"
+            />
+          </div>
+
           {/* Tablet connection status banner */}
           {teacherScreenDevice && (
-            <div className="mx-2 mb-1 flex items-center gap-2 rounded bg-green-900/40 px-3 py-1.5 text-xs text-green-400">
+            <div className="mx-2 mb-1 flex items-center gap-2 bg-green-900/40 px-3 py-1.5 text-xs text-green-400">
               <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
               Tablet connected — screen share available from {teacherScreenDevice.name || 'tablet'}
             </div>
           )}
-
-          {/* Student strip — scrollable horizontal row */}
-          <div className="border-t border-gray-800 px-2 py-2">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {students.length === 0 ? (
-                <p className="text-xs text-gray-500 px-2">
-                  No students connected yet...
-                </p>
-              ) : (
-                students.map((student) => (
-                  <VideoTile
-                    key={student.identity}
-                    participant={student}
-                    size="small"
-                    showName={true}
-                    showMicIndicator={true}
-                    playAudio={true}
-                  />
-                ))
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Right: Sidebar (Chat / Participants) */}
