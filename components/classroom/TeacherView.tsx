@@ -10,7 +10,7 @@ import { Track, VideoQuality, type Participant, type RemoteParticipant, type Rem
 import HeaderBar from './HeaderBar';
 import ControlBar from './ControlBar';
 import VideoTile from './VideoTile';
-import VideoQualitySelector, { type VideoQualityOption, QUALITY_DIMENSIONS } from './VideoQualitySelector';
+import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import ChatPanel from './ChatPanel';
 import ParticipantList from './ParticipantList';
 import WhiteboardComposite from './WhiteboardComposite';
@@ -334,16 +334,13 @@ export default function TeacherView({
   const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
 
   // Apply quality to all student camera tracks
+  // Uses setVideoQuality() to directly select simulcast layer (LOW/MEDIUM/HIGH)
   useEffect(() => {
-    const dims = QUALITY_DIMENSIONS[videoQuality];
+    const quality = QUALITY_MAP[videoQuality];
     for (const student of students) {
       const camPub = student.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
       if (camPub) {
-        if (dims) {
-          camPub.setVideoDimensions(dims);
-        } else {
-          camPub.setVideoQuality(VideoQuality.HIGH);
-        }
+        camPub.setVideoQuality(quality ?? VideoQuality.HIGH);
       }
     }
   }, [students, videoQuality]);

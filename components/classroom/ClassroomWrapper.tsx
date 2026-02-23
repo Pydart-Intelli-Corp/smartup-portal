@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LiveKitRoom,
 } from '@livekit/components-react';
-import { Room, RoomEvent, DisconnectReason } from 'livekit-client';
+import { Room, RoomEvent, DisconnectReason, VideoPresets, ScreenSharePresets } from 'livekit-client';
 import { useRouter } from 'next/navigation';
 import TeacherView from './TeacherView';
 import StudentView from './StudentView';
@@ -48,9 +48,22 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   const [room] = useState(() => new Room({
     adaptiveStream: true,
     dynacast: true,
-    // Performance: only subscribe to needed tracks
+    // Camera capture at 1080p for HD quality
     videoCaptureDefaults: {
-      resolution: { width: 640, height: 480, frameRate: 24 },
+      resolution: VideoPresets.h1080.resolution,
+    },
+    publishDefaults: {
+      // Enable simulcast — 3 layers so subscribers can pick quality
+      simulcast: true,
+      videoSimulcastLayers: [
+        VideoPresets.h360,
+        VideoPresets.h720,
+      ],
+      // VP8 for maximum browser compatibility
+      videoCodec: 'vp8',
+      // Screen share: high bitrate + 15fps for crisp whiteboard/text
+      screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
+      screenShareSimulcastLayers: [],
     },
   }));
 

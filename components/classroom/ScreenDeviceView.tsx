@@ -60,23 +60,23 @@ export default function ScreenDeviceView({
         // Start sharing — call getDisplayMedia directly (bypasses LiveKit's internal check)
         // Try multiple ways to access getDisplayMedia for maximum compatibility
         let stream: MediaStream;
+        // Request high-resolution screen capture for crisp whiteboard/text
+        const displayConstraints = {
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 15, max: 30 },
+          },
+          audio: true,
+        };
         if (navigator.mediaDevices?.getDisplayMedia) {
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true,
-          });
+          stream = await navigator.mediaDevices.getDisplayMedia(displayConstraints);
         } else if ((navigator as unknown as Record<string, unknown>).getDisplayMedia) {
           // Older API — some Android browsers expose it on navigator directly
-          stream = await (navigator as unknown as { getDisplayMedia: (c: MediaStreamConstraints) => Promise<MediaStream> }).getDisplayMedia({
-            video: true,
-            audio: true,
-          });
+          stream = await (navigator as unknown as { getDisplayMedia: (c: typeof displayConstraints) => Promise<MediaStream> }).getDisplayMedia(displayConstraints);
         } else {
           // Last resort — try calling it anyway and let the error propagate
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true,
-          });
+          stream = await navigator.mediaDevices.getDisplayMedia(displayConstraints);
         }
 
         // Publish video track as screen share
@@ -85,6 +85,12 @@ export default function ScreenDeviceView({
           const localVideo = new LocalVideoTrack(videoTrack, undefined, false);
           await localParticipant.publishTrack(localVideo, {
             source: Track.Source.ScreenShare,
+            // High bitrate for clear whiteboard text/drawings
+            videoEncoding: {
+              maxBitrate: 3_000_000, // 3 Mbps
+              maxFramerate: 15,
+            },
+            simulcast: false,
           });
           screenTrackRef.current = localVideo;
 

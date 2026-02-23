@@ -13,7 +13,7 @@ import {
 } from '@livekit/components-react';
 import { Track, VideoQuality, type RemoteParticipant, type RemoteTrackPublication } from 'livekit-client';
 import VideoTile from './VideoTile';
-import VideoQualitySelector, { type VideoQualityOption, QUALITY_DIMENSIONS } from './VideoQualitySelector';
+import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
 import {
@@ -279,42 +279,30 @@ export default function StudentView({
   }, [remoteTracks, teacher]);
 
   // ── Apply video quality to teacher's remote tracks ──
+  // Uses setVideoQuality() to directly select simulcast layer (LOW/MEDIUM/HIGH).
+  // This is NOT overridden by adaptive stream, unlike setVideoDimensions().
   useEffect(() => {
     if (!teacher) return;
-    const dims = QUALITY_DIMENSIONS[videoQuality];
+    const quality = QUALITY_MAP[videoQuality];
     // Apply to camera track
     const camPub = teacher.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
     if (camPub) {
-      if (dims) {
-        camPub.setVideoDimensions(dims);
-      } else {
-        // Auto: reset to adaptive stream by setting HIGH quality
-        camPub.setVideoQuality(VideoQuality.HIGH);
-      }
+      camPub.setVideoQuality(quality ?? VideoQuality.HIGH);
     }
     // Apply to screen share track (if any)
     const screenPub = teacher.getTrackPublication(Track.Source.ScreenShare) as RemoteTrackPublication | undefined;
     if (screenPub) {
-      if (dims) {
-        screenPub.setVideoDimensions(dims);
-      } else {
-        screenPub.setVideoQuality(VideoQuality.HIGH);
-      }
+      screenPub.setVideoQuality(quality ?? VideoQuality.HIGH);
     }
-    // Also apply to screen device if separate
   }, [teacher, videoQuality]);
 
   // Also apply quality to screen device (separate participant for tablet)
   useEffect(() => {
     if (!screenDevice) return;
-    const dims = QUALITY_DIMENSIONS[videoQuality];
+    const quality = QUALITY_MAP[videoQuality];
     const screenPub = screenDevice.getTrackPublication(Track.Source.ScreenShare) as RemoteTrackPublication | undefined;
     if (screenPub) {
-      if (dims) {
-        screenPub.setVideoDimensions(dims);
-      } else {
-        screenPub.setVideoQuality(VideoQuality.HIGH);
-      }
+      screenPub.setVideoQuality(quality ?? VideoQuality.HIGH);
     }
   }, [screenDevice, videoQuality]);
 

@@ -1,34 +1,40 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { VideoQuality } from 'livekit-client';
 import { cn } from '@/lib/utils';
 
 /**
  * VideoQualitySelector — YouTube-style video quality picker.
  *
  * Shows a gear icon button that opens a floating menu with quality options:
- *   Auto · 360p · 480p · 1080p
+ *   Auto · 360p · 720p · 1080p
  *
  * Designed to work in both overlay (StudentView) and standard (TeacherView) contexts.
  */
 
-export type VideoQualityOption = 'auto' | '360p' | '480p' | '1080p';
+export type VideoQualityOption = 'auto' | '360p' | '720p' | '1080p';
 
-export const QUALITY_DIMENSIONS: Record<VideoQualityOption, { width: number; height: number } | null> = {
-  auto: null,           // let adaptive stream manage
-  '360p': { width: 640, height: 360 },
-  '480p': { width: 854, height: 480 },
-  '1080p': { width: 1920, height: 1080 },
+/**
+ * Maps quality option → VideoQuality enum for setVideoQuality().
+ * This directly selects which simulcast layer the SFU sends.
+ * null = let adaptive stream manage automatically.
+ */
+export const QUALITY_MAP: Record<VideoQualityOption, VideoQuality | null> = {
+  auto: null,
+  '360p': VideoQuality.LOW,
+  '720p': VideoQuality.MEDIUM,
+  '1080p': VideoQuality.HIGH,
 };
 
 export const QUALITY_LABELS: Record<VideoQualityOption, string> = {
   auto: 'Auto',
   '360p': '360p',
-  '480p': '480p',
-  '1080p': '1080p',
+  '720p': '720p',
+  '1080p': '1080p HD',
 };
 
-const QUALITY_OPTIONS: VideoQualityOption[] = ['auto', '360p', '480p', '1080p'];
+const QUALITY_OPTIONS: VideoQualityOption[] = ['auto', '360p', '720p', '1080p'];
 
 interface VideoQualitySelectorProps {
   /** Current quality */
@@ -153,7 +159,7 @@ export default function VideoQualitySelector({
                 <span className="flex-1 text-sm font-medium">{QUALITY_LABELS[opt]}</span>
                 {/* Description */}
                 <span className="text-[10px] text-[#9aa0a6]">
-                  {opt === 'auto' ? 'Adaptive' : opt === '360p' ? 'Low' : opt === '480p' ? 'Medium' : 'High'}
+                  {opt === 'auto' ? 'Adaptive' : opt === '360p' ? 'Low' : opt === '720p' ? 'Medium' : 'High'}
                 </span>
               </button>
             );
