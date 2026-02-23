@@ -5,12 +5,12 @@ import {
   useParticipants,
   useDataChannel,
 } from '@livekit/components-react';
-import { Participant, Track } from 'livekit-client';
+import { Participant } from 'livekit-client';
 import { cn } from '@/lib/utils';
 
 /**
- * ParticipantList — Shows all room participants with role badges,
- * mic/camera indicators. Teacher has mute/kick controls.
+ * ParticipantList — Shows all room participants with role badges.
+ * Teacher can locally mute/unmute each student's audio playback.
  * Ghost participants (hidden: true) are NOT shown.
  */
 
@@ -19,6 +19,10 @@ export interface ParticipantListProps {
   roomId: string;
   onClose?: () => void;
   className?: string;
+  /** Set of student identities that are locally muted (teacher only) */
+  mutedStudents?: Set<string>;
+  /** Toggle local mute for a student (teacher only) */
+  onToggleMute?: (identity: string) => void;
 }
 
 interface HandRaiseState {
@@ -30,6 +34,8 @@ export default function ParticipantList({
   roomId,
   onClose,
   className,
+  mutedStudents,
+  onToggleMute,
 }: ParticipantListProps) {
   const participants = useParticipants();
   const [handRaises, setHandRaises] = useState<HandRaiseState>({});
@@ -79,18 +85,6 @@ export default function ParticipantList({
     return (a.name || a.identity).localeCompare(b.name || b.identity);
   });
 
-  const handleMute = async (identity: string) => {
-    try {
-      await fetch(`/api/v1/room/participants/${identity}/mute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room_id: roomId }),
-      });
-    } catch (err) {
-      console.error('Failed to mute participant:', err);
-    }
-  };
-
   const handleKick = async (identity: string) => {
     try {
       await fetch(`/api/v1/room/participants/${identity}`, {
@@ -122,12 +116,10 @@ export default function ParticipantList({
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {sorted.map((p) => {
           const pRole = getParticipantRole(p);
-          const micTrack = p.getTrackPublication(Track.Source.Microphone);
-          const camTrack = p.getTrackPublication(Track.Source.Camera);
-          const isMicOn = !!micTrack && !micTrack.isMuted;
-          const isCamOn = !!camTrack && !camTrack.isMuted;
           const displayName = p.name || p.identity;
           const isRaised = handRaises[p.identity];
+          const isStudent = pRole === 'student';
+          const isMuted = isStudent && mutedStudents?.has(p.identity);
 
           return (
             <div
@@ -143,35 +135,32 @@ export default function ParticipantList({
                 </div>
               </div>
 
-              {/* Indicators */}
+              {/* Controls */}
               <div className="flex items-center gap-1.5">
-                <span className={cn('text-xs', isCamOn ? 'text-green-400' : 'text-gray-600')}>
-                  📷
-                </span>
-                <span className={cn('text-xs', isMicOn ? 'text-green-400' : 'text-gray-600')}>
-                  🎤
-                </span>
-
-                {/* Teacher-only controls */}
-                {role === 'teacher' && pRole !== 'teacher' && (
-                  <>
-                    {isMicOn && (
-                      <button
-                        onClick={() => handleMute(p.identity)}
-                        className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-300 hover:bg-gray-600"
-                        title="Mute"
-                      >
-                        Mute
-                      </button>
+                {/* Local mute/unmute button (teacher only, students only) */}
+                {role === 'teacher' && isStudent && onToggleMute && (
+                  <button
+                    onClick={() => onToggleMute(p.identity)}
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors',
+                      isMuted
+                        ? 'bg-[#34a853]/15 text-[#34a853] hover:bg-[#34a853]/25'
+                        : 'bg-[#ea4335]/15 text-[#ea4335] hover:bg-[#ea4335]/25',
                     )}
-                    <button
-                      onClick={() => setConfirmKick(p.identity)}
-                      className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-gray-600"
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
-                  </>
+                  >
+                    {isMuted ? 'Unmute' : 'Mute'}
+                  </button>
+                )}
+
+                {/* Teacher-only kick control */}
+                {role === 'teacher' && pRole !== 'teacher' && (
+                  <button
+                    onClick={() => setConfirmKick(p.identity)}
+                    className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-gray-600"
+                    title="Remove"
+                  >
+                    ✕
+                  </button>
                 )}
               </div>
 

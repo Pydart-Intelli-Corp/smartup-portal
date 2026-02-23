@@ -6,6 +6,7 @@ import {
   useRemoteParticipants,
   useParticipants,
   useTracks,
+  useDataChannel,
   VideoTrack,
   AudioTrack,
   type TrackReference,
@@ -79,7 +80,7 @@ function fmtCountdown(sec: number): string {
 const HIDE_DELAY = 3500;          // ms before overlays auto-hide
 const WARNING_THRESHOLD = 5 * 60; // 5 min warning
 
-import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxWarning, sfxExpired, hapticTap } from '@/lib/sounds';
+import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxWarning, sfxExpired, sfxMediaControl, hapticTap, hapticToggle } from '@/lib/sounds';
 
 // ─── component ────────────────────────────────────────────
 export default function StudentView({
@@ -304,39 +305,74 @@ export default function StudentView({
     toastTimer.current = setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // Student mic/camera must stay on — tapping the button
-  // shows a toast and notifies the teacher.
-  const attemptToggleMic = useCallback(async () => {
+  // ── Media approval request system ──
+  // Student sends request → teacher approves/denies → media_control response toggles device
+  const [micRequestPending, setMicRequestPending] = useState(false);
+  const [camRequestPending, setCamRequestPending] = useState(false);
+
+  // Listen for media_control responses from teacher
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onMediaControl = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as { target_id: string; type: 'mic' | 'camera'; enabled: boolean };
+      if (data.target_id !== 'all' && data.target_id !== localParticipant.identity) return;
+      sfxMediaControl();
+      hapticToggle();
+      if (data.type === 'mic') {
+        setMicRequestPending(false);
+        localParticipant.setMicrophoneEnabled(data.enabled).catch(() => {});
+        showToast(data.enabled ? 'Microphone turned on' : 'Teacher approved — mic turned off');
+      } else if (data.type === 'camera') {
+        setCamRequestPending(false);
+        localParticipant.setCameraEnabled(data.enabled).catch(() => {});
+        showToast(data.enabled ? 'Camera turned on' : 'Teacher approved — camera turned off');
+      }
+    } catch {}
+  }, [localParticipant, showToast]);
+
+  const { message: mediaCtrlMsg } = useDataChannel('media_control', onMediaControl);
+  useEffect(() => { if (mediaCtrlMsg) onMediaControl(mediaCtrlMsg); }, [mediaCtrlMsg, onMediaControl]);
+
+  // Request mic toggle — sends to teacher for approval
+  const requestToggleMic = useCallback(async () => {
     hapticTap();
-    showToast('Your microphone must stay on during class');
+    if (micRequestPending) return;
+    setMicRequestPending(true);
+    showToast('Waiting for teacher approval…');
     try {
       await localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({
           student_id: localParticipant.identity,
           student_name: localParticipant.name || localParticipant.identity,
           type: 'mic',
-          desired: false,
+          desired: !isMicOn,
         })),
         { topic: 'media_request', reliable: true },
       );
     } catch {}
-  }, [localParticipant, showToast]);
+    setTimeout(() => setMicRequestPending(false), 15000);
+  }, [isMicOn, micRequestPending, localParticipant, showToast]);
 
-  const attemptToggleCam = useCallback(async () => {
+  // Request camera toggle — sends to teacher for approval
+  const requestToggleCam = useCallback(async () => {
     hapticTap();
-    showToast('Your camera must stay on during class');
+    if (camRequestPending) return;
+    setCamRequestPending(true);
+    showToast('Waiting for teacher approval…');
     try {
       await localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({
           student_id: localParticipant.identity,
           student_name: localParticipant.name || localParticipant.identity,
           type: 'camera',
-          desired: false,
+          desired: !isCamOn,
         })),
         { topic: 'media_request', reliable: true },
       );
     } catch {}
-  }, [localParticipant, showToast]);
+    setTimeout(() => setCamRequestPending(false), 15000);
+  }, [isCamOn, camRequestPending, localParticipant, showToast]);
 
   // ── Participant join/leave sound ──
   const prevRemoteIds = useRef<Set<string>>(new Set());
@@ -652,16 +688,16 @@ export default function StudentView({
           'flex items-center justify-center bg-gradient-to-t from-black/70 via-black/40 to-transparent',
           compact ? 'gap-2.5 px-3 pt-8 pb-2.5' : 'gap-3 px-5 pt-10 pb-4',
         )}>
-          {/* Mic — always on, tap notifies teacher */}
-          <OvBtn on={isMicOn} onClick={attemptToggleMic}
-            title="Microphone always on"
+          {/* Mic — request teacher approval to toggle */}
+          <OvBtn on={isMicOn} onClick={requestToggleMic}
+            title={micRequestPending ? 'Waiting for approval…' : isMicOn ? 'Request mute' : 'Request unmute'}
             onIcon={<MicOnIcon className="w-5 h-5" />} offIcon={<MicOffIcon className="w-5 h-5" />}
-            offDanger compact={compact} />
-          {/* Camera — always on, tap notifies teacher */}
-          <OvBtn on={isCamOn} onClick={attemptToggleCam}
-            title="Camera always on"
+            offDanger compact={compact} pending={micRequestPending} />
+          {/* Camera — request teacher approval to toggle */}
+          <OvBtn on={isCamOn} onClick={requestToggleCam}
+            title={camRequestPending ? 'Waiting for approval…' : isCamOn ? 'Request camera off' : 'Request camera on'}
             onIcon={<CameraOnIcon className="w-5 h-5" />} offIcon={<CameraOffIcon className="w-5 h-5" />}
-            offDanger compact={compact} />
+            offDanger compact={compact} pending={camRequestPending} />
 
           <div className="h-7 w-px bg-white/15" />
 
@@ -792,14 +828,16 @@ function FullscreenExitIcon({ className }: { className?: string }) {
 }
 
 // ─── Overlay round button ─────────────────────────────────
-function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrimary, compact }: {
+function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrimary, compact, pending }: {
   on: boolean; onClick: () => void; title: string;
   onIcon: React.ReactNode; offIcon: React.ReactNode;
-  offDanger?: boolean; onWarn?: boolean; onPrimary?: boolean; compact?: boolean;
+  offDanger?: boolean; onWarn?: boolean; onPrimary?: boolean; compact?: boolean; pending?: boolean;
 }) {
   const sz = compact ? 'h-10 w-10' : 'h-12 w-12';
   let clr: string;
-  if (on) {
+  if (pending) {
+    clr = 'bg-[#f9ab00]/80 text-[#202124] hover:bg-[#e09c00] animate-pulse';
+  } else if (on) {
     if (onWarn)    clr = 'bg-[#f9ab00] text-[#202124] hover:bg-[#e09c00]';
     else if (onPrimary) clr = 'bg-[#1a73e8] text-white hover:bg-[#1557b0]';
     else clr = 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-md';
@@ -810,6 +848,12 @@ function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrima
     <button onClick={onClick} title={title}
       className={cn('relative flex items-center justify-center rounded-full transition-all duration-150 active:scale-90 shadow-lg', sz, clr)}>
       {on ? onIcon : offIcon}
+      {pending && (
+        <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f9ab00] opacity-75" />
+          <span className="inline-flex h-3 w-3 rounded-full bg-[#f9ab00]" />
+        </span>
+      )}
     </button>
   );
 }
