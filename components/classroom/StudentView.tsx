@@ -5,6 +5,8 @@ import {
   useLocalParticipant,
   useRemoteParticipants,
   useParticipants,
+  useTracks,
+  useDataChannel,
   VideoTrack,
   AudioTrack,
   type TrackReference,
@@ -78,34 +80,7 @@ function fmtCountdown(sec: number): string {
 const HIDE_DELAY = 3500;          // ms before overlays auto-hide
 const WARNING_THRESHOLD = 5 * 60; // 5 min warning
 
-// ─── sound effects (Web Audio API — no files needed) ──────
-function playTone(freq: number, durationMs: number, type: OscillatorType = 'sine') {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.18, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationMs / 1000);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + durationMs / 1000);
-    setTimeout(() => ctx.close(), durationMs + 100);
-  } catch {}
-}
-
-function playHandRaiseSound() {
-  // Rising two-tone chime
-  playTone(880, 200, 'sine');
-  setTimeout(() => playTone(1174, 300, 'sine'), 150);
-}
-
-function playHandLowerSound() {
-  // Falling single tone
-  playTone(660, 250, 'triangle');
-}
+import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxWarning, sfxExpired, sfxMediaControl, hapticTap, hapticToggle } from '@/lib/sounds';
 
 // ─── component ────────────────────────────────────────────
 export default function StudentView({
@@ -155,14 +130,18 @@ export default function StudentView({
     };
   }, []);
 
-  // ── try orientation lock (mobile) ──
-  useEffect(() => {
-    if (!isMobile) return;
+  // ── orientation lock helper (works only in fullscreen on most browsers) ──
+  const lockLandscape = useCallback(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (screen.orientation as any)?.lock?.('landscape');
+    } catch {}
+  }, []);
+
+  const unlockOrientation = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    try { (screen.orientation as any)?.lock?.('landscape').catch(() => {}); } catch {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return () => { try { (screen.orientation as any)?.unlock?.(); } catch {} };
-  }, [isMobile]);
+    try { (screen.orientation as any)?.unlock?.(); } catch {}
+  }, []);
 
   // ── keyboard height (CSS-rotated mode) ──
   useEffect(() => {
@@ -230,14 +209,18 @@ export default function StudentView({
         if (el.requestFullscreen) await el.requestFullscreen();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+        // After entering fullscreen, lock to landscape (requires fullscreen to be active)
+        if (isMobile) await lockLandscape();
       } else {
+        // Unlock orientation before exiting fullscreen
+        if (isMobile) unlockOrientation();
         if (document.exitFullscreen) await document.exitFullscreen();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
       }
     } catch {}
     showOverlay();
-  }, [showOverlay]);
+  }, [showOverlay, isMobile, lockLandscape, unlockOrientation]);
 
   // keep overlays visible while chat/dialog is open
   useEffect(() => {
@@ -264,39 +247,152 @@ export default function StudentView({
   const teacher = useMemo(() => remotes.find(isTeacherPrimary) ?? null, [remotes]);
   const screenDevice = useMemo(() => remotes.find(isTeacherScreen) ?? null, [remotes]);
 
+  // ── useTracks for reactive track detection ──
+  // This properly subscribes to track publish/subscribe/mute events
+  const remoteTracks = useTracks(
+    [Track.Source.Camera, Track.Source.ScreenShare, Track.Source.ScreenShareAudio],
+    { onlySubscribed: false },
+  );
+
   const hasScreenShare = useMemo(() => {
-    for (const src of [screenDevice, teacher]) {
-      if (!src) continue;
-      const pub = src.getTrackPublication(Track.Source.ScreenShare);
-      if (pub && !pub.isMuted) return true;
-    }
-    return false;
-  }, [teacher, screenDevice]);
+    return remoteTracks.some((t) => {
+      if (t.source !== Track.Source.ScreenShare) return false;
+      const p = t.participant as RemoteParticipant;
+      return isTeacherPrimary(p) || isTeacherScreen(p);
+    });
+  }, [remoteTracks]);
 
   const hasTeacherCam = useMemo(() => {
     if (!teacher) return false;
-    const p = teacher.getTrackPublication(Track.Source.Camera);
-    return !!p && !p.isMuted;
-  }, [teacher]);
+    return remoteTracks.some(
+      (t) => t.source === Track.Source.Camera && t.participant.identity === teacher.identity,
+    );
+  }, [remoteTracks, teacher]);
 
   const teacherCamPub = useMemo(() => {
     if (!teacher) return null;
-    const p = teacher.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
-    return p && !p.isMuted && p.track ? p : null;
-  }, [teacher]);
+    const tr = remoteTracks.find(
+      (t) => t.source === Track.Source.Camera && t.participant.identity === teacher.identity,
+    );
+    if (!tr) return null;
+    const p = tr.publication as RemoteTrackPublication | undefined;
+    return p && p.track ? p : null;
+  }, [remoteTracks, teacher]);
 
   // ── local media ──
   const isMicOn = localParticipant.isMicrophoneEnabled;
   const isCamOn = localParticipant.isCameraEnabled;
 
-  const toggleMic = async () => { try { await localParticipant.setMicrophoneEnabled(!isMicOn); } catch {} };
-  const toggleCam = async () => { try { await localParticipant.setCameraEnabled(!isCamOn); } catch {} };
+  // Auto-enable mic + camera on mount
+  const autoEnabled = useRef(false);
+  useEffect(() => {
+    if (autoEnabled.current) return;
+    autoEnabled.current = true;
+    const enable = async () => {
+      try { await localParticipant.setMicrophoneEnabled(true); } catch {}
+      try { await localParticipant.setCameraEnabled(true); } catch {}
+    };
+    // Small delay to ensure connection is established
+    setTimeout(enable, 500);
+  }, [localParticipant]);
+
+  // ── Media request/control system ──
+  // Student can't directly toggle — sends request to teacher
+  // Teacher sends media_control commands that actually toggle
+  const [micRequestPending, setMicRequestPending] = useState(false);
+  const [camRequestPending, setCamRequestPending] = useState(false);
+
+  // Listen for media_control commands from teacher
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onMediaControl = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as { target_id: string; type: 'mic' | 'camera'; enabled: boolean };
+      // Check if this command is for us (or for 'all')
+      if (data.target_id !== 'all' && data.target_id !== localParticipant.identity) return;
+      sfxMediaControl();
+      hapticToggle();
+      if (data.type === 'mic') {
+        setMicRequestPending(false);
+        localParticipant.setMicrophoneEnabled(data.enabled).catch(() => {});
+      } else if (data.type === 'camera') {
+        setCamRequestPending(false);
+        localParticipant.setCameraEnabled(data.enabled).catch(() => {});
+      }
+    } catch {}
+  }, [localParticipant]);
+
+  const { message: mediaCtrlMsg } = useDataChannel('media_control', onMediaControl);
+  useEffect(() => { if (mediaCtrlMsg) onMediaControl(mediaCtrlMsg); }, [mediaCtrlMsg, onMediaControl]);
+
+  // Send media request to teacher (instead of directly toggling)
+  const requestToggleMic = useCallback(async () => {
+    hapticTap();
+    if (micRequestPending) return; // already pending
+    setMicRequestPending(true);
+    try {
+      await localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({
+          student_id: localParticipant.identity,
+          student_name: localParticipant.name || localParticipant.identity,
+          type: 'mic',
+          desired: !isMicOn,
+        })),
+        { topic: 'media_request', reliable: true },
+      );
+    } catch {}
+    // Auto-clear pending after 10s if teacher doesn't respond
+    setTimeout(() => setMicRequestPending(false), 10000);
+  }, [isMicOn, micRequestPending, localParticipant]);
+
+  const requestToggleCam = useCallback(async () => {
+    hapticTap();
+    if (camRequestPending) return;
+    setCamRequestPending(true);
+    try {
+      await localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({
+          student_id: localParticipant.identity,
+          student_name: localParticipant.name || localParticipant.identity,
+          type: 'camera',
+          desired: !isCamOn,
+        })),
+        { topic: 'media_request', reliable: true },
+      );
+    } catch {}
+    setTimeout(() => setCamRequestPending(false), 10000);
+  }, [isCamOn, camRequestPending, localParticipant]);
+
+  // ── Participant join/leave sound ──
+  const prevRemoteIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentIds = new Set(remotes.map((p) => p.identity));
+    if (prevRemoteIds.current.size > 0) {
+      for (const id of currentIds) {
+        if (!prevRemoteIds.current.has(id)) { sfxParticipantJoin(); break; }
+      }
+      for (const id of prevRemoteIds.current) {
+        if (!currentIds.has(id)) { sfxParticipantLeave(); break; }
+      }
+    }
+    prevRemoteIds.current = currentIds;
+  }, [remotes]);
+
+  // ── Warning / expired sound (fire once each) ──
+  const warningSounded = useRef(false);
+  const expiredSounded = useRef(false);
+  useEffect(() => {
+    if (isWarning && !warningSounded.current) { warningSounded.current = true; sfxWarning(); }
+  }, [isWarning]);
+  useEffect(() => {
+    if (isExpired && !expiredSounded.current) { expiredSounded.current = true; sfxExpired(); }
+  }, [isExpired]);
 
   const toggleHand = useCallback(async () => {
     const next = !handRaised;
     setHandRaised(next);
-    // Play sound effect
-    if (next) playHandRaiseSound(); else playHandLowerSound();
+    // Sound + haptic
+    if (next) sfxHandRaise(); else sfxHandLower();
     try {
       await localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({
@@ -572,14 +668,16 @@ export default function StudentView({
           'flex items-center justify-center bg-gradient-to-t from-black/70 via-black/40 to-transparent',
           compact ? 'gap-2.5 px-3 pt-8 pb-2.5' : 'gap-3 px-5 pt-10 pb-4',
         )}>
-          {/* Mic */}
-          <OvBtn on={isMicOn} onClick={toggleMic} title={isMicOn ? 'Mute' : 'Unmute'}
+          {/* Mic — sends request to teacher */}
+          <OvBtn on={isMicOn} onClick={requestToggleMic}
+            title={micRequestPending ? 'Request pending…' : isMicOn ? 'Request mute' : 'Request unmute'}
             onIcon={<MicOnIcon className="w-5 h-5" />} offIcon={<MicOffIcon className="w-5 h-5" />}
-            offDanger compact={compact} />
-          {/* Camera */}
-          <OvBtn on={isCamOn} onClick={toggleCam} title={isCamOn ? 'Stop video' : 'Start video'}
+            offDanger compact={compact} pending={micRequestPending} />
+          {/* Camera — sends request to teacher */}
+          <OvBtn on={isCamOn} onClick={requestToggleCam}
+            title={camRequestPending ? 'Request pending…' : isCamOn ? 'Request camera off' : 'Request camera on'}
             onIcon={<CameraOnIcon className="w-5 h-5" />} offIcon={<CameraOffIcon className="w-5 h-5" />}
-            offDanger compact={compact} />
+            offDanger compact={compact} pending={camRequestPending} />
 
           <div className="h-7 w-px bg-white/15" />
 
@@ -710,14 +808,16 @@ function FullscreenExitIcon({ className }: { className?: string }) {
 }
 
 // ─── Overlay round button ─────────────────────────────────
-function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrimary, compact }: {
+function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrimary, compact, pending }: {
   on: boolean; onClick: () => void; title: string;
   onIcon: React.ReactNode; offIcon: React.ReactNode;
-  offDanger?: boolean; onWarn?: boolean; onPrimary?: boolean; compact?: boolean;
+  offDanger?: boolean; onWarn?: boolean; onPrimary?: boolean; compact?: boolean; pending?: boolean;
 }) {
   const sz = compact ? 'h-10 w-10' : 'h-12 w-12';
   let clr: string;
-  if (on) {
+  if (pending) {
+    clr = 'bg-[#f9ab00]/80 text-[#202124] hover:bg-[#e09c00] animate-pulse';
+  } else if (on) {
     if (onWarn)    clr = 'bg-[#f9ab00] text-[#202124] hover:bg-[#e09c00]';
     else if (onPrimary) clr = 'bg-[#1a73e8] text-white hover:bg-[#1557b0]';
     else clr = 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-md';
@@ -726,8 +826,14 @@ function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrima
   }
   return (
     <button onClick={onClick} title={title}
-      className={cn('flex items-center justify-center rounded-full transition-all duration-150 active:scale-90 shadow-lg', sz, clr)}>
+      className={cn('relative flex items-center justify-center rounded-full transition-all duration-150 active:scale-90 shadow-lg', sz, clr)}>
       {on ? onIcon : offIcon}
+      {pending && (
+        <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f9ab00] opacity-75" />
+          <span className="inline-flex h-3 w-3 rounded-full bg-[#f9ab00]" />
+        </span>
+      )}
     </button>
   );
 }

@@ -6,6 +6,7 @@ import {
   useDataChannel,
 } from '@livekit/components-react';
 import { cn, fmtTimeIST } from '@/lib/utils';
+import { sfxChatReceive, sfxChatSend } from '@/lib/sounds';
 
 /**
  * ChatPanel — Realtime chat via LiveKit data channel.
@@ -62,6 +63,7 @@ export default function ChatPanel({
         const dedupeKey = `${data.sender}_${data.timestamp}_${data.text}`;
         if (processedIds.current.has(dedupeKey)) return;
         processedIds.current.add(dedupeKey);
+        sfxChatReceive();
         setMessages((prev) => [
           ...prev,
           {
@@ -137,6 +139,7 @@ export default function ChatPanel({
       const bytes = new TextEncoder().encode(JSON.stringify(msg));
       // Use the hook's send function — automatically sets topic 'chat'
       await send(bytes, { reliable: true });
+      sfxChatSend();
 
       // Add to local messages
       const dedupeKey = `${msg.sender}_${msg.timestamp}_${msg.text}`;

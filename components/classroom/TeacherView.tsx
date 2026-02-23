@@ -6,7 +6,7 @@ import {
   useRemoteParticipants,
   useDataChannel,
 } from '@livekit/components-react';
-import { Track, type Participant } from 'livekit-client';
+import { Track, type Participant, type RemoteParticipant } from 'livekit-client';
 import HeaderBar from './HeaderBar';
 import ControlBar from './ControlBar';
 import VideoTile from './VideoTile';
@@ -14,6 +14,7 @@ import ChatPanel from './ChatPanel';
 import ParticipantList from './ParticipantList';
 import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
+import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxMediaRequest, sfxMediaControl, hapticTap } from '@/lib/sounds';
 
 /**
  * TeacherView — Google Meet-style teacher classroom.
@@ -94,6 +95,9 @@ export default function TeacherView({
         processedHandIds.current = new Set(arr.slice(-100));
       }
 
+      // Play sound + haptic for hand raise/lower
+      if (data.action === 'raise') sfxHandRaise(); else sfxHandLower();
+
       setRaisedHands((prev) => {
         const next = new Map(prev);
         if (data.action === 'raise') {
@@ -129,10 +133,12 @@ export default function TeacherView({
 
   // Dismiss individual hand or all
   const dismissHand = useCallback((studentId: string) => {
+    hapticTap();
     setRaisedHands((prev) => { const n = new Map(prev); n.delete(studentId); return n; });
   }, []);
 
   const dismissAllHands = useCallback(() => {
+    hapticTap();
     setRaisedHands(new Map());
   }, []);
 
@@ -140,6 +146,103 @@ export default function TeacherView({
   const sortedHands = useMemo(() => {
     return Array.from(raisedHands.entries()).sort((a, b) => a[1].time - b[1].time);
   }, [raisedHands]);
+
+  // ── Media request tracking ──
+  interface MediaRequest {
+    student_id: string;
+    student_name: string;
+    type: 'mic' | 'camera';
+    desired: boolean;
+    time: number;
+  }
+  const [mediaRequests, setMediaRequests] = useState<MediaRequest[]>([]);
+  const processedRequestIds = useRef(new Set<string>());
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onMediaRequest = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as { student_id: string; student_name: string; type: 'mic' | 'camera'; desired: boolean };
+      const key = `${data.student_id}_${data.type}_${Math.floor(Date.now() / 500)}`;
+      if (processedRequestIds.current.has(key)) return;
+      processedRequestIds.current.add(key);
+      if (processedRequestIds.current.size > 200) {
+        const arr = Array.from(processedRequestIds.current);
+        processedRequestIds.current = new Set(arr.slice(-100));
+      }
+      sfxMediaRequest();
+      setMediaRequests((prev) => [
+        ...prev.filter((r) => !(r.student_id === data.student_id && r.type === data.type)),
+        { ...data, time: Date.now() },
+      ]);
+    } catch {}
+  }, []);
+
+  const { message: mediaReqMsg } = useDataChannel('media_request', onMediaRequest);
+  useEffect(() => { if (mediaReqMsg) onMediaRequest(mediaReqMsg); }, [mediaReqMsg, onMediaRequest]);
+
+  // Send media_control command to a student (or all)
+  const sendMediaControl = useCallback(async (targetId: string, type: 'mic' | 'camera', enabled: boolean) => {
+    hapticTap();
+    sfxMediaControl();
+    try {
+      await localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({
+          target_id: targetId,
+          type,
+          enabled,
+        })),
+        { topic: 'media_control', reliable: true },
+      );
+    } catch {}
+    // Remove any matching pending request
+    setMediaRequests((prev) => prev.filter((r) => !(r.student_id === targetId && r.type === type)));
+  }, [localParticipant]);
+
+  // Approve a media request
+  const approveRequest = useCallback((req: MediaRequest) => {
+    sendMediaControl(req.student_id, req.type, req.desired);
+  }, [sendMediaControl]);
+
+  // Deny a media request (just remove it — no command sent)
+  const denyRequest = useCallback((req: MediaRequest) => {
+    hapticTap();
+    setMediaRequests((prev) => prev.filter((r) => !(r.student_id === req.student_id && r.type === req.type)));
+  }, []);
+
+  // Mute all students (mic)
+  const muteAllStudents = useCallback(() => {
+    sendMediaControl('all', 'mic', false);
+  }, [sendMediaControl]);
+
+  // Unmute all students (mic)
+  const unmuteAllStudents = useCallback(() => {
+    sendMediaControl('all', 'mic', true);
+  }, [sendMediaControl]);
+
+  // Clean up requests for students who left
+  useEffect(() => {
+    const activeIds = new Set(remoteParticipants.map((p) => p.identity));
+    setMediaRequests((prev) => prev.filter((r) => activeIds.has(r.student_id)));
+  }, [remoteParticipants]);
+
+  // ── Student join/leave sound ──
+  const prevStudentIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentIds = new Set(remoteParticipants.filter((p) => {
+      try { const m = JSON.parse(p.metadata || '{}'); return (m.effective_role || m.portal_role) === 'student'; }
+      catch { return p.identity.startsWith('student'); }
+    }).map((p) => p.identity));
+    if (prevStudentIds.current.size > 0) {
+      for (const id of currentIds) {
+        if (!prevStudentIds.current.has(id)) { sfxParticipantJoin(); break; }
+      }
+      for (const id of prevStudentIds.current) {
+        if (!currentIds.has(id)) { sfxParticipantLeave(); break; }
+      }
+    }
+    prevStudentIds.current = currentIds;
+  }, [remoteParticipants]);
 
   // ── Teacher screen device (tablet) ──
   const teacherScreenDevice = useMemo(() => {
@@ -164,6 +267,15 @@ export default function TeacherView({
       }
     });
   }, [remoteParticipants]);
+
+  // Auto mute-all student mics when first student joins
+  const initialMuteSent = useRef(false);
+  useEffect(() => {
+    if (!initialMuteSent.current && students.length > 0 && isLive) {
+      initialMuteSent.current = true;
+      setTimeout(() => sendMediaControl('all', 'mic', false), 1000);
+    }
+  }, [students.length, isLive, sendMediaControl]);
 
   // ── Screen share detection ──
   const isLocalScreenShare = localParticipant.isScreenShareEnabled;
@@ -289,7 +401,7 @@ export default function TeacherView({
                     {students.map((s) => (
                       <div
                         key={s.identity}
-                        className="h-full w-[130px] flex-shrink-0 overflow-hidden rounded-lg"
+                        className="relative group h-full w-[130px] flex-shrink-0 overflow-hidden rounded-lg"
                       >
                         <VideoTile
                           participant={s}
@@ -299,6 +411,13 @@ export default function TeacherView({
                           playAudio={true}
                           handRaised={raisedHands.has(s.identity)}
                           className="!w-full !h-full !rounded-lg"
+                        />
+                        {/* Teacher controls overlay */}
+                        <StudentMediaOverlay
+                          student={s}
+                          onToggleMic={(id, en) => sendMediaControl(id, 'mic', en)}
+                          onToggleCam={(id, en) => sendMediaControl(id, 'camera', en)}
+                          compact
                         />
                       </div>
                     ))}
@@ -327,23 +446,52 @@ export default function TeacherView({
 
             /* === Student grid (responsive, no rotation) === */
             ) : (
-              <div className={cn('grid h-full w-full gap-2 auto-rows-fr', gridCols)}>
-                {students.map((s) => (
-                  <div
-                    key={s.identity}
-                    className="relative min-h-0 min-w-0 overflow-hidden rounded-xl bg-[#292a2d]"
-                  >
-                    <VideoTile
-                      participant={s}
-                      size="large"
-                      showName={true}
-                      showMicIndicator={true}
-                      playAudio={true}
-                      handRaised={raisedHands.has(s.identity)}
-                      className="!rounded-xl"
-                    />
+              <div className="flex h-full flex-col gap-2">
+                {/* Mute All / Unmute All bar */}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#9aa0a6]">
+                    {students.length} student{students.length !== 1 ? 's' : ''}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={muteAllStudents}
+                      className="flex items-center gap-1.5 rounded-full bg-[#ea4335]/15 px-3 py-1 text-[10px] font-semibold text-[#ea4335] hover:bg-[#ea4335]/25 transition-colors"
+                    >
+                      <span>🔇</span> Mute All
+                    </button>
+                    <button
+                      onClick={unmuteAllStudents}
+                      className="flex items-center gap-1.5 rounded-full bg-[#34a853]/15 px-3 py-1 text-[10px] font-semibold text-[#34a853] hover:bg-[#34a853]/25 transition-colors"
+                    >
+                      <span>🎤</span> Unmute All
+                    </button>
                   </div>
-                ))}
+                </div>
+                {/* Grid */}
+                <div className={cn('grid flex-1 w-full gap-2 auto-rows-fr', gridCols)}>
+                  {students.map((s) => (
+                    <div
+                      key={s.identity}
+                      className="relative group min-h-0 min-w-0 overflow-hidden rounded-xl bg-[#292a2d]"
+                    >
+                      <VideoTile
+                        participant={s}
+                        size="large"
+                        showName={true}
+                        showMicIndicator={true}
+                        playAudio={true}
+                        handRaised={raisedHands.has(s.identity)}
+                        className="!rounded-xl"
+                      />
+                      {/* Teacher controls overlay */}
+                      <StudentMediaOverlay
+                        student={s}
+                        onToggleMic={(id, en) => sendMediaControl(id, 'mic', en)}
+                        onToggleCam={(id, en) => sendMediaControl(id, 'camera', en)}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -359,6 +507,52 @@ export default function TeacherView({
               className="!w-[140px] !h-[105px] !rounded-xl"
             />
           </div>
+
+          {/* ── Media request notifications (floating bottom-left) ── */}
+          {mediaRequests.length > 0 && (
+            <div className="absolute bottom-3 left-3 z-40 w-[280px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-[#1a73e8]/10 border-b border-[#3c4043]">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">✋</span>
+                  <span className="text-xs font-semibold text-[#8ab4f8]">
+                    {mediaRequests.length} media request{mediaRequests.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+              <div className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+                {mediaRequests.map((req) => (
+                  <div
+                    key={`${req.student_id}_${req.type}`}
+                    className="flex items-center justify-between px-3 py-2 hover:bg-[#3c4043]/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs">{req.type === 'mic' ? (req.desired ? '🎙️' : '🔇') : (req.desired ? '📷' : '🚫')}</span>
+                      <span className="truncate text-xs text-[#e8eaed]">
+                        <strong>{req.student_name}</strong>{' '}
+                        {req.desired ? 'wants to turn on' : 'wants to turn off'} {req.type}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      <button
+                        onClick={() => approveRequest(req)}
+                        title="Approve"
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[#34a853]/20 text-[#34a853] hover:bg-[#34a853]/40 transition-colors"
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6 9 17l-5-5" /></svg>
+                      </button>
+                      <button
+                        onClick={() => denyRequest(req)}
+                        title="Deny"
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ea4335]/20 text-[#ea4335] hover:bg-[#ea4335]/40 transition-colors"
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Hand-raise queue (floating bottom-right) ── */}
           {handCount > 0 && (
@@ -489,6 +683,63 @@ function StatusDot({
         {active ? label : (pendingLabel ?? label)}
       </span>
     </span>
+  );
+}
+
+/**
+ * StudentMediaOverlay — hover overlay on each student tile
+ * showing mic/camera toggle buttons for teacher control.
+ */
+function StudentMediaOverlay({
+  student,
+  onToggleMic,
+  onToggleCam,
+  compact,
+}: {
+  student: RemoteParticipant;
+  onToggleMic: (id: string, enabled: boolean) => void;
+  onToggleCam: (id: string, enabled: boolean) => void;
+  compact?: boolean;
+}) {
+  const micPub = student.getTrackPublication(Track.Source.Microphone);
+  const camPub = student.getTrackPublication(Track.Source.Camera);
+  const isMicOn = !!micPub && !micPub.isMuted;
+  const isCamOn = !!camPub && !camPub.isMuted;
+
+  return (
+    <div className={cn(
+      'absolute inset-0 z-10 flex items-center justify-center gap-1.5 bg-black/0 opacity-0 group-hover:bg-black/40 group-hover:opacity-100 transition-all duration-200',
+      compact && 'gap-1',
+    )}>
+      {/* Mic toggle */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleMic(student.identity, !isMicOn); }}
+        title={isMicOn ? 'Mute student' : 'Unmute student'}
+        className={cn(
+          'flex items-center justify-center rounded-full transition-all active:scale-90',
+          compact ? 'h-6 w-6' : 'h-8 w-8',
+          isMicOn
+            ? 'bg-white/20 text-white hover:bg-[#ea4335]/80'
+            : 'bg-[#ea4335] text-white hover:bg-[#ea4335]/80',
+        )}
+      >
+        <span className={compact ? 'text-[10px]' : 'text-xs'}>{isMicOn ? '🎤' : '🔇'}</span>
+      </button>
+      {/* Camera toggle */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleCam(student.identity, !isCamOn); }}
+        title={isCamOn ? 'Turn off camera' : 'Turn on camera'}
+        className={cn(
+          'flex items-center justify-center rounded-full transition-all active:scale-90',
+          compact ? 'h-6 w-6' : 'h-8 w-8',
+          isCamOn
+            ? 'bg-white/20 text-white hover:bg-[#ea4335]/80'
+            : 'bg-[#ea4335] text-white hover:bg-[#ea4335]/80',
+        )}
+      >
+        <span className={compact ? 'text-[10px]' : 'text-xs'}>{isCamOn ? '📷' : '🚫'}</span>
+      </button>
+    </div>
   );
 }
 
