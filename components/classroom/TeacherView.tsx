@@ -14,7 +14,7 @@ import ChatPanel from './ChatPanel';
 import ParticipantList from './ParticipantList';
 import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
-import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxMediaRequest, sfxMediaControl, hapticTap } from '@/lib/sounds';
+import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxMediaRequest, hapticTap } from '@/lib/sounds';
 
 /**
  * TeacherView — Google Meet-style teacher classroom.
@@ -181,44 +181,11 @@ export default function TeacherView({
   const { message: mediaReqMsg } = useDataChannel('media_request', onMediaRequest);
   useEffect(() => { if (mediaReqMsg) onMediaRequest(mediaReqMsg); }, [mediaReqMsg, onMediaRequest]);
 
-  // Send media_control command to a student (or all)
-  const sendMediaControl = useCallback(async (targetId: string, type: 'mic' | 'camera', enabled: boolean) => {
-    hapticTap();
-    sfxMediaControl();
-    try {
-      await localParticipant.publishData(
-        new TextEncoder().encode(JSON.stringify({
-          target_id: targetId,
-          type,
-          enabled,
-        })),
-        { topic: 'media_control', reliable: true },
-      );
-    } catch {}
-    // Remove any matching pending request
-    setMediaRequests((prev) => prev.filter((r) => !(r.student_id === targetId && r.type === type)));
-  }, [localParticipant]);
-
-  // Approve a media request
-  const approveRequest = useCallback((req: MediaRequest) => {
-    sendMediaControl(req.student_id, req.type, req.desired);
-  }, [sendMediaControl]);
-
-  // Deny a media request (just remove it — no command sent)
-  const denyRequest = useCallback((req: MediaRequest) => {
+  // Dismiss a media notification (info-only, no action on student)
+  const dismissRequest = useCallback((req: MediaRequest) => {
     hapticTap();
     setMediaRequests((prev) => prev.filter((r) => !(r.student_id === req.student_id && r.type === req.type)));
   }, []);
-
-  // Mute all students (mic)
-  const muteAllStudents = useCallback(() => {
-    sendMediaControl('all', 'mic', false);
-  }, [sendMediaControl]);
-
-  // Unmute all students (mic)
-  const unmuteAllStudents = useCallback(() => {
-    sendMediaControl('all', 'mic', true);
-  }, [sendMediaControl]);
 
   // Clean up requests for students who left
   useEffect(() => {
@@ -268,14 +235,45 @@ export default function TeacherView({
     });
   }, [remoteParticipants]);
 
-  // Auto mute-all student mics when first student joins
-  const initialMuteSent = useRef(false);
+  // ── Local mute tracking (teacher-side only, does NOT affect student devices) ──
+  const [mutedStudents, setMutedStudents] = useState<Set<string>>(new Set());
+
+  // Auto-mute new students by default
   useEffect(() => {
-    if (!initialMuteSent.current && students.length > 0 && isLive) {
-      initialMuteSent.current = true;
-      setTimeout(() => sendMediaControl('all', 'mic', false), 1000);
-    }
-  }, [students.length, isLive, sendMediaControl]);
+    setMutedStudents((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const s of students) {
+        if (!next.has(s.identity)) { next.add(s.identity); changed = true; }
+      }
+      // Remove students who left
+      for (const id of next) {
+        if (!students.some((s) => s.identity === id)) { next.delete(id); changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [students]);
+
+  const toggleStudentMute = useCallback((studentId: string) => {
+    hapticTap();
+    setMutedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
+      return next;
+    });
+  }, []);
+
+  const muteAllStudents = useCallback(() => {
+    hapticTap();
+    setMutedStudents(new Set(students.map((s) => s.identity)));
+  }, [students]);
+
+  const unmuteAllStudents = useCallback(() => {
+    hapticTap();
+    setMutedStudents(new Set());
+  }, []);
+
+  // (Local mute is handled by default in mutedStudents state — no data channel needed)
 
   // ── Screen share detection ──
   const isLocalScreenShare = localParticipant.isScreenShareEnabled;
@@ -408,15 +406,14 @@ export default function TeacherView({
                           size="small"
                           showName={true}
                           showMicIndicator={true}
-                          playAudio={true}
+                          playAudio={!mutedStudents.has(s.identity)}
                           handRaised={raisedHands.has(s.identity)}
                           className="!w-full !h-full !rounded-lg"
                         />
-                        {/* Teacher controls overlay */}
-                        <StudentMediaOverlay
-                          student={s}
-                          onToggleMic={(id, en) => sendMediaControl(id, 'mic', en)}
-                          onToggleCam={(id, en) => sendMediaControl(id, 'camera', en)}
+                        {/* Local mute toggle overlay */}
+                        <LocalMuteOverlay
+                          isMuted={mutedStudents.has(s.identity)}
+                          onToggle={() => toggleStudentMute(s.identity)}
                           compact
                         />
                       </div>
@@ -479,15 +476,14 @@ export default function TeacherView({
                         size="large"
                         showName={true}
                         showMicIndicator={true}
-                        playAudio={true}
+                        playAudio={!mutedStudents.has(s.identity)}
                         handRaised={raisedHands.has(s.identity)}
                         className="!rounded-xl"
                       />
-                      {/* Teacher controls overlay */}
-                      <StudentMediaOverlay
-                        student={s}
-                        onToggleMic={(id, en) => sendMediaControl(id, 'mic', en)}
-                        onToggleCam={(id, en) => sendMediaControl(id, 'camera', en)}
+                      {/* Local mute toggle overlay */}
+                      <LocalMuteOverlay
+                        isMuted={mutedStudents.has(s.identity)}
+                        onToggle={() => toggleStudentMute(s.identity)}
                       />
                     </div>
                   ))}
@@ -508,16 +504,22 @@ export default function TeacherView({
             />
           </div>
 
-          {/* ── Media request notifications (floating bottom-left) ── */}
+          {/* ── Media notifications (floating bottom-left) ── */}
           {mediaRequests.length > 0 && (
             <div className="absolute bottom-3 left-3 z-40 w-[280px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 bg-[#1a73e8]/10 border-b border-[#3c4043]">
+              <div className="flex items-center justify-between px-3 py-2 bg-[#f9ab00]/10 border-b border-[#3c4043]">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">✋</span>
-                  <span className="text-xs font-semibold text-[#8ab4f8]">
-                    {mediaRequests.length} media request{mediaRequests.length !== 1 ? 's' : ''}
+                  <span className="text-sm">⚠️</span>
+                  <span className="text-xs font-semibold text-[#f9ab00]">
+                    {mediaRequests.length} notification{mediaRequests.length !== 1 ? 's' : ''}
                   </span>
                 </div>
+                <button
+                  onClick={() => setMediaRequests([])}
+                  className="rounded-md px-2 py-0.5 text-[10px] font-medium text-[#9aa0a6] hover:text-white hover:bg-[#3c4043] transition-colors"
+                >
+                  Clear all
+                </button>
               </div>
               <div className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
                 {mediaRequests.map((req) => (
@@ -526,28 +528,21 @@ export default function TeacherView({
                     className="flex items-center justify-between px-3 py-2 hover:bg-[#3c4043]/40 transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs">{req.type === 'mic' ? (req.desired ? '🎙️' : '🔇') : (req.desired ? '📷' : '🚫')}</span>
+                      <span className="text-xs">{req.type === 'mic' ? '🎙️' : '📷'}</span>
                       <span className="truncate text-xs text-[#e8eaed]">
                         <strong>{req.student_name}</strong>{' '}
-                        {req.desired ? 'wants to turn on' : 'wants to turn off'} {req.type}
+                        tried to turn off {req.type}
                       </span>
                     </div>
-                    <div className="flex gap-1 ml-2">
-                      <button
-                        onClick={() => approveRequest(req)}
-                        title="Approve"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[#34a853]/20 text-[#34a853] hover:bg-[#34a853]/40 transition-colors"
-                      >
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6 9 17l-5-5" /></svg>
-                      </button>
-                      <button
-                        onClick={() => denyRequest(req)}
-                        title="Deny"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ea4335]/20 text-[#ea4335] hover:bg-[#ea4335]/40 transition-colors"
-                      >
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => dismissRequest(req)}
+                      title="Dismiss"
+                      className="ml-2 flex h-6 w-6 items-center justify-center rounded-full text-[#9aa0a6] hover:bg-[#3c4043] hover:text-white transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -687,57 +682,36 @@ function StatusDot({
 }
 
 /**
- * StudentMediaOverlay — hover overlay on each student tile
- * showing mic/camera toggle buttons for teacher control.
+ * LocalMuteOverlay — hover overlay on each student tile
+ * showing a single mute/unmute button for local audio control.
+ * This does NOT affect the student's actual microphone — only
+ * whether the teacher hears their audio.
  */
-function StudentMediaOverlay({
-  student,
-  onToggleMic,
-  onToggleCam,
+function LocalMuteOverlay({
+  isMuted,
+  onToggle,
   compact,
 }: {
-  student: RemoteParticipant;
-  onToggleMic: (id: string, enabled: boolean) => void;
-  onToggleCam: (id: string, enabled: boolean) => void;
+  isMuted: boolean;
+  onToggle: () => void;
   compact?: boolean;
 }) {
-  const micPub = student.getTrackPublication(Track.Source.Microphone);
-  const camPub = student.getTrackPublication(Track.Source.Camera);
-  const isMicOn = !!micPub && !micPub.isMuted;
-  const isCamOn = !!camPub && !camPub.isMuted;
-
   return (
     <div className={cn(
-      'absolute inset-0 z-10 flex items-center justify-center gap-1.5 bg-black/0 opacity-0 group-hover:bg-black/40 group-hover:opacity-100 transition-all duration-200',
-      compact && 'gap-1',
+      'absolute inset-0 z-10 flex items-center justify-center bg-black/0 opacity-0 group-hover:bg-black/40 group-hover:opacity-100 transition-all duration-200',
     )}>
-      {/* Mic toggle */}
       <button
-        onClick={(e) => { e.stopPropagation(); onToggleMic(student.identity, !isMicOn); }}
-        title={isMicOn ? 'Mute student' : 'Unmute student'}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        title={isMuted ? 'Unmute student (local)' : 'Mute student (local)'}
         className={cn(
           'flex items-center justify-center rounded-full transition-all active:scale-90',
           compact ? 'h-6 w-6' : 'h-8 w-8',
-          isMicOn
-            ? 'bg-white/20 text-white hover:bg-[#ea4335]/80'
-            : 'bg-[#ea4335] text-white hover:bg-[#ea4335]/80',
+          isMuted
+            ? 'bg-[#ea4335] text-white hover:bg-[#ea4335]/80'
+            : 'bg-white/20 text-white hover:bg-[#ea4335]/80',
         )}
       >
-        <span className={compact ? 'text-[10px]' : 'text-xs'}>{isMicOn ? '🎤' : '🔇'}</span>
-      </button>
-      {/* Camera toggle */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggleCam(student.identity, !isCamOn); }}
-        title={isCamOn ? 'Turn off camera' : 'Turn on camera'}
-        className={cn(
-          'flex items-center justify-center rounded-full transition-all active:scale-90',
-          compact ? 'h-6 w-6' : 'h-8 w-8',
-          isCamOn
-            ? 'bg-white/20 text-white hover:bg-[#ea4335]/80'
-            : 'bg-[#ea4335] text-white hover:bg-[#ea4335]/80',
-        )}
-      >
-        <span className={compact ? 'text-[10px]' : 'text-xs'}>{isCamOn ? '📷' : '🚫'}</span>
+        <span className={compact ? 'text-[10px]' : 'text-xs'}>{isMuted ? '🔇' : '🎤'}</span>
       </button>
     </div>
   );

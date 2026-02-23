@@ -6,7 +6,6 @@ import {
   useRemoteParticipants,
   useParticipants,
   useTracks,
-  useDataChannel,
   VideoTrack,
   AudioTrack,
   type TrackReference,
@@ -80,7 +79,7 @@ function fmtCountdown(sec: number): string {
 const HIDE_DELAY = 3500;          // ms before overlays auto-hide
 const WARNING_THRESHOLD = 5 * 60; // 5 min warning
 
-import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxWarning, sfxExpired, sfxMediaControl, hapticTap, hapticToggle } from '@/lib/sounds';
+import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxWarning, sfxExpired, hapticTap } from '@/lib/sounds';
 
 // ─── component ────────────────────────────────────────────
 export default function StudentView({
@@ -296,72 +295,48 @@ export default function StudentView({
     setTimeout(enable, 500);
   }, [localParticipant]);
 
-  // ── Media request/control system ──
-  // Student can't directly toggle — sends request to teacher
-  // Teacher sends media_control commands that actually toggle
-  const [micRequestPending, setMicRequestPending] = useState(false);
-  const [camRequestPending, setCamRequestPending] = useState(false);
+  // ── Toast for media toggle attempts ──
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }, []);
 
-  // Listen for media_control commands from teacher
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onMediaControl = useCallback((msg: any) => {
-    try {
-      const text = new TextDecoder().decode(msg?.payload);
-      const data = JSON.parse(text) as { target_id: string; type: 'mic' | 'camera'; enabled: boolean };
-      // Check if this command is for us (or for 'all')
-      if (data.target_id !== 'all' && data.target_id !== localParticipant.identity) return;
-      sfxMediaControl();
-      hapticToggle();
-      if (data.type === 'mic') {
-        setMicRequestPending(false);
-        localParticipant.setMicrophoneEnabled(data.enabled).catch(() => {});
-      } else if (data.type === 'camera') {
-        setCamRequestPending(false);
-        localParticipant.setCameraEnabled(data.enabled).catch(() => {});
-      }
-    } catch {}
-  }, [localParticipant]);
-
-  const { message: mediaCtrlMsg } = useDataChannel('media_control', onMediaControl);
-  useEffect(() => { if (mediaCtrlMsg) onMediaControl(mediaCtrlMsg); }, [mediaCtrlMsg, onMediaControl]);
-
-  // Send media request to teacher (instead of directly toggling)
-  const requestToggleMic = useCallback(async () => {
+  // Student mic/camera must stay on — tapping the button
+  // shows a toast and notifies the teacher.
+  const attemptToggleMic = useCallback(async () => {
     hapticTap();
-    if (micRequestPending) return; // already pending
-    setMicRequestPending(true);
+    showToast('Your microphone must stay on during class');
     try {
       await localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({
           student_id: localParticipant.identity,
           student_name: localParticipant.name || localParticipant.identity,
           type: 'mic',
-          desired: !isMicOn,
+          desired: false,
         })),
         { topic: 'media_request', reliable: true },
       );
     } catch {}
-    // Auto-clear pending after 10s if teacher doesn't respond
-    setTimeout(() => setMicRequestPending(false), 10000);
-  }, [isMicOn, micRequestPending, localParticipant]);
+  }, [localParticipant, showToast]);
 
-  const requestToggleCam = useCallback(async () => {
+  const attemptToggleCam = useCallback(async () => {
     hapticTap();
-    if (camRequestPending) return;
-    setCamRequestPending(true);
+    showToast('Your camera must stay on during class');
     try {
       await localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({
           student_id: localParticipant.identity,
           student_name: localParticipant.name || localParticipant.identity,
           type: 'camera',
-          desired: !isCamOn,
+          desired: false,
         })),
         { topic: 'media_request', reliable: true },
       );
     } catch {}
-    setTimeout(() => setCamRequestPending(false), 10000);
-  }, [isCamOn, camRequestPending, localParticipant]);
+  }, [localParticipant, showToast]);
 
   // ── Participant join/leave sound ──
   const prevRemoteIds = useRef<Set<string>>(new Set());
@@ -547,6 +522,15 @@ export default function StudentView({
         />
       )}
 
+      {/* === TOAST — media toggle notification === */}
+      {toast && (
+        <div className="absolute top-12 inset-x-0 z-[70] flex justify-center pointer-events-none">
+          <div className="rounded-full bg-[#2d2e30]/95 px-5 py-2 shadow-lg ring-1 ring-white/10 backdrop-blur-sm animate-in fade-in slide-in-from-top-2">
+            <span className="text-xs font-medium text-[#f9ab00]">{toast}</span>
+          </div>
+        </div>
+      )}
+
       {/* === LAYER 1 — Warning / expired banner (always visible) === */}
       {isWarning && !warningDismissed && (
         <div className="absolute top-0 inset-x-0 z-[60] flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5">
@@ -668,16 +652,16 @@ export default function StudentView({
           'flex items-center justify-center bg-gradient-to-t from-black/70 via-black/40 to-transparent',
           compact ? 'gap-2.5 px-3 pt-8 pb-2.5' : 'gap-3 px-5 pt-10 pb-4',
         )}>
-          {/* Mic — sends request to teacher */}
-          <OvBtn on={isMicOn} onClick={requestToggleMic}
-            title={micRequestPending ? 'Request pending…' : isMicOn ? 'Request mute' : 'Request unmute'}
+          {/* Mic — always on, tap notifies teacher */}
+          <OvBtn on={isMicOn} onClick={attemptToggleMic}
+            title="Microphone always on"
             onIcon={<MicOnIcon className="w-5 h-5" />} offIcon={<MicOffIcon className="w-5 h-5" />}
-            offDanger compact={compact} pending={micRequestPending} />
-          {/* Camera — sends request to teacher */}
-          <OvBtn on={isCamOn} onClick={requestToggleCam}
-            title={camRequestPending ? 'Request pending…' : isCamOn ? 'Request camera off' : 'Request camera on'}
+            offDanger compact={compact} />
+          {/* Camera — always on, tap notifies teacher */}
+          <OvBtn on={isCamOn} onClick={attemptToggleCam}
+            title="Camera always on"
             onIcon={<CameraOnIcon className="w-5 h-5" />} offIcon={<CameraOffIcon className="w-5 h-5" />}
-            offDanger compact={compact} pending={camRequestPending} />
+            offDanger compact={compact} />
 
           <div className="h-7 w-px bg-white/15" />
 
@@ -808,16 +792,14 @@ function FullscreenExitIcon({ className }: { className?: string }) {
 }
 
 // ─── Overlay round button ─────────────────────────────────
-function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrimary, compact, pending }: {
+function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrimary, compact }: {
   on: boolean; onClick: () => void; title: string;
   onIcon: React.ReactNode; offIcon: React.ReactNode;
-  offDanger?: boolean; onWarn?: boolean; onPrimary?: boolean; compact?: boolean; pending?: boolean;
+  offDanger?: boolean; onWarn?: boolean; onPrimary?: boolean; compact?: boolean;
 }) {
   const sz = compact ? 'h-10 w-10' : 'h-12 w-12';
   let clr: string;
-  if (pending) {
-    clr = 'bg-[#f9ab00]/80 text-[#202124] hover:bg-[#e09c00] animate-pulse';
-  } else if (on) {
+  if (on) {
     if (onWarn)    clr = 'bg-[#f9ab00] text-[#202124] hover:bg-[#e09c00]';
     else if (onPrimary) clr = 'bg-[#1a73e8] text-white hover:bg-[#1557b0]';
     else clr = 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-md';
@@ -828,12 +810,6 @@ function OvBtn({ on, onClick, title, onIcon, offIcon, offDanger, onWarn, onPrima
     <button onClick={onClick} title={title}
       className={cn('relative flex items-center justify-center rounded-full transition-all duration-150 active:scale-90 shadow-lg', sz, clr)}>
       {on ? onIcon : offIcon}
-      {pending && (
-        <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f9ab00] opacity-75" />
-          <span className="inline-flex h-3 w-3 rounded-full bg-[#f9ab00]" />
-        </span>
-      )}
     </button>
   );
 }
