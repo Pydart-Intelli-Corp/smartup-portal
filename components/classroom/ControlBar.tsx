@@ -122,36 +122,6 @@ export default function ControlBar({
       {/* Divider */}
       <div className="mx-1 h-8 w-px bg-[#5f6368]/30" />
 
-      {/* Teacher: Screen share */}
-      {role === 'teacher' && (
-        <MeetButton
-          on={isScreenShareOn}
-          onClick={toggleScreenShare}
-          title={isScreenShareOn ? 'Stop presenting' : 'Present now'}
-          onIcon={<ScreenShareIcon className="h-5 w-5" />}
-          offIcon={<ScreenShareOffIcon className="h-5 w-5" />}
-          onColor="bg-[#1a73e8]"
-        />
-      )}
-
-      {/* Teacher: Whiteboard */}
-      {role === 'teacher' && onToggleWhiteboard && (
-        <MeetButton
-          on={whiteboardActive}
-          onClick={() => {
-            if (!isScreenShareOn && !whiteboardActive) {
-              alert('Start screen share first — share your tablet screen');
-              return;
-            }
-            onToggleWhiteboard();
-          }}
-          title={whiteboardActive ? 'Exit whiteboard mode' : 'Whiteboard mode'}
-          onIcon={<WhiteboardIcon className="h-5 w-5" />}
-          offIcon={<WhiteboardIcon className="h-5 w-5" />}
-          onColor="bg-[#1a73e8]"
-        />
-      )}
-
       {/* Student: Hand raise */}
       {role === 'student' && onToggleHandRaise && (
         <MeetButton

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
 } from '@livekit/components-react';
 import { Room, RoomEvent, DisconnectReason } from 'livekit-client';
 import { useRouter } from 'next/navigation';
@@ -261,9 +260,6 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       }}
       className="h-screen"
     >
-      {/* Global audio renderer for remote audio tracks */}
-      <RoomAudioRenderer />
-
       {/* HTTP warning banner */}
       {!isSecure && !isGhost && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-600 px-3 py-1.5 text-center text-xs font-medium text-white">

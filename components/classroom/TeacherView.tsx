@@ -267,17 +267,14 @@ export default function TeacherView({
   // ── Local mute tracking (teacher-side only, does NOT affect student devices) ──
   const [mutedStudents, setMutedStudents] = useState<Set<string>>(new Set());
 
-  // Auto-mute new students by default
+  // Clean up muted set when students leave (students are unmuted by default)
   useEffect(() => {
     setMutedStudents((prev) => {
-      const next = new Set(prev);
+      const activeIds = new Set(students.map((s) => s.identity));
       let changed = false;
-      for (const s of students) {
-        if (!next.has(s.identity)) { next.add(s.identity); changed = true; }
-      }
-      // Remove students who left
+      const next = new Set(prev);
       for (const id of next) {
-        if (!students.some((s) => s.identity === id)) { next.delete(id); changed = true; }
+        if (!activeIds.has(id)) { next.delete(id); changed = true; }
       }
       return changed ? next : prev;
     });
@@ -431,12 +428,6 @@ export default function TeacherView({
                           handRaised={raisedHands.has(s.identity)}
                           className="!w-full !h-full !rounded-lg"
                         />
-                        {/* Local mute toggle overlay */}
-                        <LocalMuteOverlay
-                          isMuted={mutedStudents.has(s.identity)}
-                          onToggle={() => toggleStudentMute(s.identity)}
-                          compact
-                        />
                       </div>
                     ))}
                   </div>
@@ -485,11 +476,6 @@ export default function TeacherView({
                         playAudio={!mutedStudents.has(s.identity)}
                         handRaised={raisedHands.has(s.identity)}
                         className="!rounded-xl"
-                      />
-                      {/* Local mute toggle overlay */}
-                      <LocalMuteOverlay
-                        isMuted={mutedStudents.has(s.identity)}
-                        onToggle={() => toggleStudentMute(s.identity)}
                       />
                     </div>
                   ))}
@@ -694,39 +680,5 @@ function StatusDot({
   );
 }
 
-/**
- * LocalMuteOverlay — hover overlay on each student tile
- * showing a single mute/unmute button for local audio control.
- * This does NOT affect the student's actual microphone — only
- * whether the teacher hears their audio.
- */
-function LocalMuteOverlay({
-  isMuted,
-  onToggle,
-  compact,
-}: {
-  isMuted: boolean;
-  onToggle: () => void;
-  compact?: boolean;
-}) {
-  return (
-    <div className={cn(
-      'absolute inset-0 z-10 flex items-center justify-center bg-black/0 opacity-0 group-hover:bg-black/40 group-hover:opacity-100 transition-all duration-200',
-    )}>
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        title={isMuted ? 'Unmute student (local)' : 'Mute student (local)'}
-        className={cn(
-          'flex items-center justify-center rounded-full transition-all active:scale-90',
-          compact ? 'h-6 w-6' : 'h-8 w-8',
-          isMuted
-            ? 'bg-[#ea4335] text-white hover:bg-[#ea4335]/80'
-            : 'bg-white/20 text-white hover:bg-[#ea4335]/80',
-        )}
-      >
-        <span className={compact ? 'text-[10px]' : 'text-xs'}>{isMuted ? '🔇' : '🎤'}</span>
-      </button>
-    </div>
-  );
-}
+
 
