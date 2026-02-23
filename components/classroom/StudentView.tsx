@@ -144,19 +144,17 @@ export default function StudentView({
     return () => vv.removeEventListener('resize', fn);
   }, []);
 
-  // ── request browser fullscreen on mount ──
+  // ── fullscreen state & toggle ──
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   useEffect(() => {
-    const el = document.documentElement;
-    const tryFs = async () => {
-      try {
-        if (el.requestFullscreen) await el.requestFullscreen();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-      } catch { /* user gesture required or not supported — graceful fallback */ }
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    document.addEventListener('webkitfullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      document.removeEventListener('webkitfullscreenchange', onChange);
     };
-    // Delay slightly so the page is rendered before requesting
-    const t = setTimeout(tryFs, 300);
-    return () => clearTimeout(t);
   }, []);
 
   // ── tick every second for countdown timer ──
@@ -193,6 +191,23 @@ export default function StudentView({
       hideRef.current = setTimeout(() => setOverlayVisible(false), HIDE_DELAY);
     }
   }, [chatOpen, showLeaveDialog]);
+
+  // ── fullscreen toggle (must be after showOverlay) ──
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+      }
+    } catch {}
+    showOverlay();
+  }, [showOverlay]);
 
   // keep overlays visible while chat/dialog is open
   useEffect(() => {
@@ -475,6 +490,12 @@ export default function StudentView({
             title="Chat"
             onIcon={<ChatIcon className="w-5 h-5" />} offIcon={<ChatIcon className="w-5 h-5" />}
             onPrimary compact={compact} />
+          {/* Fullscreen */}
+          <OvBtn on={isFullscreen} onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            onIcon={<FullscreenExitIcon className="w-5 h-5" />}
+            offIcon={<FullscreenIcon className="w-5 h-5" />}
+            compact={compact} />
 
           <div className="h-7 w-px bg-white/15" />
 
@@ -528,6 +549,29 @@ export default function StudentView({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Fullscreen icons ─────────────────────────────────────
+function FullscreenIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+function FullscreenExitIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+      <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+      <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+      <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+    </svg>
   );
 }
 
