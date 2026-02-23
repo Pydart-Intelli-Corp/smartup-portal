@@ -6,10 +6,11 @@ import {
   useRemoteParticipants,
   useDataChannel,
 } from '@livekit/components-react';
-import { Track, type Participant, type RemoteParticipant } from 'livekit-client';
+import { Track, VideoQuality, type Participant, type RemoteParticipant, type RemoteTrackPublication } from 'livekit-client';
 import HeaderBar from './HeaderBar';
 import ControlBar from './ControlBar';
 import VideoTile from './VideoTile';
+import VideoQualitySelector, { type VideoQualityOption, QUALITY_DIMENSIONS } from './VideoQualitySelector';
 import ChatPanel from './ChatPanel';
 import ParticipantList from './ParticipantList';
 import WhiteboardComposite from './WhiteboardComposite';
@@ -329,6 +330,24 @@ export default function TeacherView({
     : students.length <= 9 ? 'grid-cols-3'
     : 'grid-cols-4';
 
+  // ── Video quality for student feeds ──
+  const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
+
+  // Apply quality to all student camera tracks
+  useEffect(() => {
+    const dims = QUALITY_DIMENSIONS[videoQuality];
+    for (const student of students) {
+      const camPub = student.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
+      if (camPub) {
+        if (dims) {
+          camPub.setVideoDimensions(dims);
+        } else {
+          camPub.setVideoQuality(VideoQuality.HIGH);
+        }
+      }
+    }
+  }, [students, videoQuality]);
+
   // ─── Render ─────────────────────────────────────────────
   return (
     <div className="flex h-[100dvh] flex-col bg-[#202124] text-[#e8eaed]">
@@ -456,10 +475,15 @@ export default function TeacherView({
             /* === Student grid (responsive, no rotation) === */
             ) : (
               <div className="flex h-full flex-col gap-2">
-                <div className="flex items-center px-1">
+                <div className="flex items-center justify-between px-1">
                   <span className="text-xs text-[#9aa0a6]">
                     {students.length} student{students.length !== 1 ? 's' : ''}
                   </span>
+                  <VideoQualitySelector
+                    quality={videoQuality}
+                    onChange={setVideoQuality}
+                    variant="panel"
+                  />
                 </div>
                 {/* Grid */}
                 <div className={cn('grid flex-1 w-full gap-2 auto-rows-fr', gridCols)}>

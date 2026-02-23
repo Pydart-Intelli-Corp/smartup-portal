@@ -11,8 +11,9 @@ import {
   AudioTrack,
   type TrackReference,
 } from '@livekit/components-react';
-import { Track, type RemoteParticipant, type RemoteTrackPublication } from 'livekit-client';
+import { Track, VideoQuality, type RemoteParticipant, type RemoteTrackPublication } from 'livekit-client';
 import VideoTile from './VideoTile';
+import VideoQualitySelector, { type VideoQualityOption, QUALITY_DIMENSIONS } from './VideoQualitySelector';
 import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
 import {
@@ -95,6 +96,7 @@ export default function StudentView({
   const [handRaised, setHandRaised] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [teacherPopup, setTeacherPopup] = useState(false);
+  const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
   const hideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -275,6 +277,46 @@ export default function StudentView({
     const p = tr.publication as RemoteTrackPublication | undefined;
     return p && p.track ? p : null;
   }, [remoteTracks, teacher]);
+
+  // ── Apply video quality to teacher's remote tracks ──
+  useEffect(() => {
+    if (!teacher) return;
+    const dims = QUALITY_DIMENSIONS[videoQuality];
+    // Apply to camera track
+    const camPub = teacher.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
+    if (camPub) {
+      if (dims) {
+        camPub.setVideoDimensions(dims);
+      } else {
+        // Auto: reset to adaptive stream by setting HIGH quality
+        camPub.setVideoQuality(VideoQuality.HIGH);
+      }
+    }
+    // Apply to screen share track (if any)
+    const screenPub = teacher.getTrackPublication(Track.Source.ScreenShare) as RemoteTrackPublication | undefined;
+    if (screenPub) {
+      if (dims) {
+        screenPub.setVideoDimensions(dims);
+      } else {
+        screenPub.setVideoQuality(VideoQuality.HIGH);
+      }
+    }
+    // Also apply to screen device if separate
+  }, [teacher, videoQuality]);
+
+  // Also apply quality to screen device (separate participant for tablet)
+  useEffect(() => {
+    if (!screenDevice) return;
+    const dims = QUALITY_DIMENSIONS[videoQuality];
+    const screenPub = screenDevice.getTrackPublication(Track.Source.ScreenShare) as RemoteTrackPublication | undefined;
+    if (screenPub) {
+      if (dims) {
+        screenPub.setVideoDimensions(dims);
+      } else {
+        screenPub.setVideoQuality(VideoQuality.HIGH);
+      }
+    }
+  }, [screenDevice, videoQuality]);
 
   // ── local media ──
   const isMicOn = localParticipant.isMicrophoneEnabled;
@@ -708,6 +750,13 @@ export default function StudentView({
             onIcon={<FullscreenExitIcon className="w-5 h-5" />}
             offIcon={<FullscreenIcon className="w-5 h-5" />}
             compact={compact} />
+          {/* Video quality */}
+          <VideoQualitySelector
+            quality={videoQuality}
+            onChange={setVideoQuality}
+            compact={compact}
+            variant="overlay"
+          />
 
           <div className="h-7 w-px bg-white/15" />
 
