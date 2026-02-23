@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   useLocalParticipant,
   useRemoteParticipants,
+  useDataChannel,
 } from '@livekit/components-react';
 import { Track, type Participant } from 'livekit-client';
 import HeaderBar from './HeaderBar';
@@ -71,6 +72,74 @@ export default function TeacherView({
 
   const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
+
+  // ── Hand-raise tracking ──
+  const [raisedHands, setRaisedHands] = useState<Map<string, { name: string; time: number }>>(new Map());
+  const processedHandIds = useRef(new Set<string>());
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onHandRaise = useCallback((msg: any) => {
+    try {
+      const payload = msg?.payload;
+      if (!payload) return;
+      const text = new TextDecoder().decode(payload);
+      const data = JSON.parse(text) as { student_id: string; student_name: string; action: 'raise' | 'lower' };
+      // Simple dedup
+      const key = `${data.student_id}_${data.action}_${Math.floor(Date.now() / 500)}`;
+      if (processedHandIds.current.has(key)) return;
+      processedHandIds.current.add(key);
+      // Trim old dedup keys
+      if (processedHandIds.current.size > 200) {
+        const arr = Array.from(processedHandIds.current);
+        processedHandIds.current = new Set(arr.slice(-100));
+      }
+
+      setRaisedHands((prev) => {
+        const next = new Map(prev);
+        if (data.action === 'raise') {
+          next.set(data.student_id, { name: data.student_name, time: Date.now() });
+        } else {
+          next.delete(data.student_id);
+        }
+        return next;
+      });
+    } catch {}
+  }, []);
+
+  const { message: handMsg } = useDataChannel('hand_raise', onHandRaise);
+
+  // Fallback: also process via message observable
+  useEffect(() => {
+    if (!handMsg) return;
+    onHandRaise(handMsg);
+  }, [handMsg, onHandRaise]);
+
+  // Clean up hands for students who left
+  useEffect(() => {
+    setRaisedHands((prev) => {
+      const activeIds = new Set(remoteParticipants.map((p) => p.identity));
+      let changed = false;
+      const next = new Map(prev);
+      for (const id of next.keys()) {
+        if (!activeIds.has(id)) { next.delete(id); changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [remoteParticipants]);
+
+  // Dismiss individual hand or all
+  const dismissHand = useCallback((studentId: string) => {
+    setRaisedHands((prev) => { const n = new Map(prev); n.delete(studentId); return n; });
+  }, []);
+
+  const dismissAllHands = useCallback(() => {
+    setRaisedHands(new Map());
+  }, []);
+
+  const handCount = raisedHands.size;
+  const sortedHands = useMemo(() => {
+    return Array.from(raisedHands.entries()).sort((a, b) => a[1].time - b[1].time);
+  }, [raisedHands]);
 
   // ── Teacher screen device (tablet) ──
   const teacherScreenDevice = useMemo(() => {
@@ -228,6 +297,7 @@ export default function TeacherView({
                           showName={true}
                           showMicIndicator={true}
                           playAudio={true}
+                          handRaised={raisedHands.has(s.identity)}
                           className="!w-full !h-full !rounded-lg"
                         />
                       </div>
@@ -269,6 +339,7 @@ export default function TeacherView({
                       showName={true}
                       showMicIndicator={true}
                       playAudio={true}
+                      handRaised={raisedHands.has(s.identity)}
                       className="!rounded-xl"
                     />
                   </div>
@@ -288,6 +359,50 @@ export default function TeacherView({
               className="!w-[140px] !h-[105px] !rounded-xl"
             />
           </div>
+
+          {/* ── Hand-raise queue (floating bottom-right) ── */}
+          {handCount > 0 && (
+            <div className="absolute bottom-3 right-3 z-40 w-[260px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2 bg-[#f9ab00]/10 border-b border-[#3c4043]">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🖐</span>
+                  <span className="text-xs font-semibold text-[#f9ab00]">
+                    {handCount} hand{handCount !== 1 ? 's' : ''} raised
+                  </span>
+                </div>
+                <button
+                  onClick={dismissAllHands}
+                  className="rounded-md px-2 py-0.5 text-[10px] font-medium text-[#9aa0a6] hover:text-white hover:bg-[#3c4043] transition-colors"
+                >
+                  Lower all
+                </button>
+              </div>
+              {/* List — max 4 visible, scrollable */}
+              <div className="max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+                {sortedHands.map(([id, info]) => (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between px-3 py-2 hover:bg-[#3c4043]/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f9ab00]/20 text-xs">🖐</span>
+                      <span className="truncate text-xs font-medium text-[#e8eaed]">{info.name}</span>
+                    </div>
+                    <button
+                      onClick={() => dismissHand(id)}
+                      title="Lower hand"
+                      className="ml-2 flex h-6 w-6 items-center justify-center rounded-full text-[#9aa0a6] hover:bg-[#3c4043] hover:text-white transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tablet connection badge */}
           {teacherScreenDevice && isLive && (

@@ -30,6 +30,8 @@ export interface VideoTileProps {
   showMicIndicator?: boolean;
   /** Show audio track (defaults to false for grid layouts) */
   playAudio?: boolean;
+  /** Show animated hand-raise badge */
+  handRaised?: boolean;
   /** Additional CSS classes */
   className?: string;
   /** Click handler */
@@ -58,6 +60,7 @@ export default function VideoTile({
   showName = true,
   showMicIndicator = true,
   playAudio = false,
+  handRaised = false,
   className,
   onClick,
 }: VideoTileProps) {
@@ -110,6 +113,13 @@ export default function VideoTile({
             source: Track.Source.Microphone,
           } as TrackReference}
         />
+      )}
+
+      {/* Hand-raised badge (top-right, animated) */}
+      {handRaised && (
+        <div className="absolute top-1.5 right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[#f9ab00] shadow-lg animate-bounce">
+          <span className="text-sm leading-none">🖐</span>
+        </div>
       )}
 
       {/* Bottom overlay: name + mic indicator */}
