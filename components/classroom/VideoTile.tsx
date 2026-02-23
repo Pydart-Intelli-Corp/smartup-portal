@@ -75,8 +75,8 @@ export default function VideoTile({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-lg bg-gray-800 border-2 transition-all duration-200',
-        isSpeaking ? 'border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)]' : 'border-gray-700',
+        'relative overflow-hidden rounded-lg bg-[#202124] border-2 transition-all duration-200',
+        isSpeaking ? 'border-[#34a853] shadow-[0_0_12px_rgba(52,168,83,0.3)]' : 'border-[#3c4043]',
         SIZE_CLASSES[size],
         onClick && 'cursor-pointer hover:border-gray-500',
         className
@@ -94,8 +94,8 @@ export default function VideoTile({
           className={cn('h-full w-full object-cover', mirror && 'scale-x-[-1]')}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gray-800">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-600 text-lg font-semibold text-white">
+        <div className="flex h-full w-full items-center justify-center bg-[#202124]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#5f6368] text-lg font-semibold text-white">
             {getInitials(displayName)}
           </div>
         </div>
@@ -119,9 +119,9 @@ export default function VideoTile({
             {showMicIndicator && (
               <span className="text-xs">
                 {isMicOn ? (
-                  <span className="text-green-400">🎤</span>
+                  <span className="text-[#34a853]">🎤</span>
                 ) : (
-                  <span className="text-red-400">🔇</span>
+                  <span className="text-[#ea4335]">🔇</span>
                 )}
               </span>
             )}

@@ -4,9 +4,8 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   useLocalParticipant,
   useRemoteParticipants,
-  useTracks,
 } from '@livekit/components-react';
-import { Track, type RemoteParticipant, type Participant } from 'livekit-client';
+import { Track, type Participant } from 'livekit-client';
 import HeaderBar from './HeaderBar';
 import ControlBar from './ControlBar';
 import VideoTile from './VideoTile';
@@ -16,24 +15,30 @@ import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
 
 /**
- * TeacherView — Full teacher classroom layout.
+ * TeacherView — Google Meet-style teacher classroom.
  *
- * Supports dual-device: teacher can see the composite preview (what students
- * see) when screen sharing from either their primary device or tablet.
+ * Professional layout:
+ *   ┌──────────────────────────────────────────┬──────────┐
+ *   │  Header  (room • LIVE • timer • count)   │          │
+ *   ├──────────────────────────────────────────┤ Sidebar  │
+ *   │                                          │ Chat /   │
+ *   │  MAIN CONTENT                            │ Users    │
+ *   │  (student grid OR whiteboard + strip)    │ (320px)  │
+ *   │                                          │          │
+ *   │  [Self PIP]                              │          │
+ *   │                                          │          │
+ *   ├──────────────────────────────────────────┴──────────┤
+ *   │  🎤  📷  🖥️  📋  💬           [End Class]          │
+ *   └─────────────────────────────────────────────────────┘
  *
- * Layout:
- * ┌─────────────────────────────────────────────────────┬───────────┐
- * │  HEADER BAR — room name | timer | participants     │           │
- * ├─────────────────────────────────────────────────────┤  SIDEBAR  │
- * │                                                     │  Chat /   │
- * │   MAIN CONTENT AREA                                 │  Partici- │
- * │   (Whiteboard composite or teacher self-cam)        │  pants    │
- * │                                                     │           │
- * │  STUDENT STRIP (scrollable row)                     │           │
- * │  [S1] [S2] [S3] [S4] [S5] ...                      │           │
- * ├─────────────────────────────────────────────────────┴───────────┤
- * │  CONTROL BAR — mic | cam | screen | whiteboard | end           │
- * └─────────────────────────────────────────────────────────────────┘
+ * Features:
+ *   - Responsive student grid (auto-cols, object-fit cover, no rotation)
+ *   - Whiteboard mode: fullscreen whiteboard + student thumbnail strip
+ *   - Self-cam floating PIP (top-left, mirrored)
+ *   - Collapsible sidebar with chat/participant tabs
+ *   - Professional Go Live setup banner
+ *   - Tablet connection status indicator
+ *   - Google Meet dark theme (#202124 base)
  */
 
 export interface TeacherViewProps {
@@ -67,37 +72,36 @@ export default function TeacherView({
   const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
 
-  // Find the teacher's screen device (tablet) if it's connected
+  // ── Teacher screen device (tablet) ──
   const teacherScreenDevice = useMemo(() => {
     return remoteParticipants.find((p) => {
       try {
-        const meta = JSON.parse(p.metadata || '{}');
-        return meta.device === 'screen' && meta.portal_role === 'teacher';
+        const m = JSON.parse(p.metadata || '{}');
+        return m.device === 'screen' && m.portal_role === 'teacher';
       } catch {
         return p.identity.endsWith('_screen') && p.identity.startsWith('teacher');
       }
-    }) || null;
+    }) ?? null;
   }, [remoteParticipants]);
 
-  // Separate students from others (filter out ghost and screen device participants)
+  // ── Students (filter out ghost/screen device participants) ──
   const students = useMemo(() => {
     return remoteParticipants.filter((p) => {
       try {
-        const meta = JSON.parse(p.metadata || '{}');
-        const role = meta.effective_role || meta.portal_role || '';
-        return role === 'student';
+        const m = JSON.parse(p.metadata || '{}');
+        return (m.effective_role || m.portal_role) === 'student';
       } catch {
         return p.identity.startsWith('student');
       }
     });
   }, [remoteParticipants]);
 
-  // Check if screen sharing is active (from this device or tablet)
-  const isLocalScreenSharing = localParticipant.isScreenShareEnabled;
-  const isTabletScreenSharing = !!teacherScreenDevice?.getTrackPublication(Track.Source.ScreenShare)?.track;
-  const hasAnyScreenShare = isLocalScreenSharing || isTabletScreenSharing;
+  // ── Screen share detection ──
+  const isLocalScreenShare = localParticipant.isScreenShareEnabled;
+  const isTabletScreenShare = !!teacherScreenDevice?.getTrackPublication(Track.Source.ScreenShare)?.track;
+  const hasScreenShare = isLocalScreenShare || isTabletScreenShare;
 
-  // ── Go Live handler ────────────────────────────────────────
+  // ── Go Live ──
   const handleGoLive = useCallback(async () => {
     setGoingLive(true);
     setGoLiveError('');
@@ -119,9 +123,20 @@ export default function TeacherView({
     }
   }, [roomId]);
 
+  // ── Student grid columns ──
+  const gridCols =
+    students.length <= 1 ? 'grid-cols-1'
+    : students.length <= 2 ? 'grid-cols-2'
+    : students.length <= 4 ? 'grid-cols-2'
+    : students.length <= 6 ? 'grid-cols-3'
+    : students.length <= 9 ? 'grid-cols-3'
+    : 'grid-cols-4';
+
+  // ─── Render ─────────────────────────────────────────────
   return (
-    <div className="flex h-screen flex-col bg-gray-950">
-      {/* Header */}
+    <div className="flex h-[100dvh] flex-col bg-[#202124] text-[#e8eaed]">
+
+      {/* ── Header ──────────────────────────────────────── */}
       <HeaderBar
         roomName={roomName}
         role="teacher"
@@ -132,60 +147,42 @@ export default function TeacherView({
         onTimeExpired={onTimeExpired}
       />
 
-      {/* ── Go Live Setup Banner ──────────────────────────────── */}
+      {/* ── Go Live Setup Banner ────────────────────────── */}
       {!isLive && (
-        <div className="border-b border-amber-800/50 bg-gradient-to-r from-amber-950/40 via-amber-900/30 to-amber-950/40 px-4 py-3">
-          <div className="mx-auto flex max-w-4xl items-center gap-4">
-            {/* Status indicators */}
-            <div className="flex flex-1 items-center gap-6">
-              {/* Laptop status */}
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs font-medium text-green-400">💻 Laptop connected</span>
-              </div>
-
-              {/* Tablet status */}
-              <div className="flex items-center gap-2">
-                {teacherScreenDevice ? (
-                  <>
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-xs font-medium text-green-400">📱 Tablet connected</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-gray-500" />
-                    <span className="text-xs font-medium text-gray-400">📱 Waiting for tablet...</span>
-                  </>
-                )}
-              </div>
-
-              {/* Student count */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">
-                  👥 {students.length} student{students.length !== 1 ? 's' : ''} waiting
-                </span>
-              </div>
+        <div className="border-b border-[#3c4043] bg-[#292a2d]">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+            {/* Connection status indicators */}
+            <div className="flex items-center gap-5 text-xs">
+              <StatusDot active label="💻 Laptop" />
+              <StatusDot active={!!teacherScreenDevice} label="📱 Tablet" pendingLabel="📱 Waiting…" />
+              <span className="text-[#9aa0a6]">
+                👥 {students.length} student{students.length !== 1 ? 's' : ''} waiting
+              </span>
             </div>
 
-            {/* Go Live button */}
+            {/* Go Live button + error */}
             <div className="flex items-center gap-3">
               {goLiveError && (
-                <span className="text-xs text-red-400">{goLiveError}</span>
+                <span className="text-xs text-[#ea4335]">{goLiveError}</span>
               )}
               {!teacherScreenDevice && (
-                <span className="text-xs text-amber-400/70">
-                  Tablet optional — you can go live without it
+                <span className="hidden text-xs text-[#9aa0a6] sm:inline">
+                  Tablet optional
                 </span>
               )}
               <button
                 onClick={handleGoLive}
                 disabled={goingLive}
-                className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500 hover:shadow-red-500/40 disabled:opacity-50"
+                className={cn(
+                  'flex items-center gap-2 rounded-full bg-[#ea4335] px-6 py-2.5',
+                  'text-sm font-bold text-white shadow-lg shadow-red-900/20',
+                  'transition-all hover:bg-[#c5221f] active:scale-95 disabled:opacity-50',
+                )}
               >
                 {goingLive ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Starting...
+                    Going live…
                   </>
                 ) : (
                   <>
@@ -199,113 +196,130 @@ export default function TeacherView({
         </div>
       )}
 
-      {/* Main body: content + sidebar */}
+      {/* ── Body (main + sidebar) ───────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Main content area */}
+
+        {/* Main content area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
-          {/* Main content area */}
           <div className="flex-1 overflow-hidden p-2">
-            {whiteboardActive && hasAnyScreenShare ? (
-              /* Whiteboard mode: show composite with screen share + teacher overlay */
-              <WhiteboardComposite
-                teacher={localParticipant as unknown as Participant}
-                teacherScreenDevice={teacherScreenDevice}
-                className="h-full w-full"
-              />
-            ) : students.length === 0 ? (
-              /* No students yet: show waiting message */
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mb-2 text-4xl">👥</div>
-                  <p className="text-gray-400 text-sm">Waiting for students to join...</p>
-                  <p className="text-gray-600 text-xs mt-1">{isLive ? 'Room is live' : 'Room not live yet'}</p>
+
+            {/* === Whiteboard mode: whiteboard + student strip === */}
+            {whiteboardActive && hasScreenShare ? (
+              <div className="flex h-full flex-col gap-2">
+                {/* Whiteboard */}
+                <div className="flex-1 min-h-0 overflow-hidden rounded-xl">
+                  <WhiteboardComposite
+                    teacher={localParticipant as unknown as Participant}
+                    teacherScreenDevice={teacherScreenDevice}
+                    className="h-full w-full"
+                  />
                 </div>
-              </div>
-            ) : (
-              /* Student grid: fills main area, auto-sizing squares */
-              <div
-                className={cn(
-                  'grid h-full w-full gap-2 auto-rows-fr',
-                  students.length === 1 && 'grid-cols-1',
-                  students.length === 2 && 'grid-cols-2',
-                  students.length >= 3 && students.length <= 4 && 'grid-cols-2',
-                  students.length >= 5 && students.length <= 6 && 'grid-cols-3',
-                  students.length >= 7 && students.length <= 9 && 'grid-cols-3',
-                  students.length >= 10 && 'grid-cols-4',
-                )}
-              >
-                {students.map((student) => (
-                  <div key={student.identity} className="relative min-h-0 min-w-0 overflow-hidden">
-                    {/* Rotate 90° CW: student phone is portrait but CSS-forced landscape */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div style={{ transform: 'rotate(90deg)', width: '140%', height: '140%' }}>
+                {/* Student thumbnail strip (scrollable) */}
+                {students.length > 0 && (
+                  <div className="flex h-[100px] gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+                    {students.map((s) => (
+                      <div
+                        key={s.identity}
+                        className="h-full w-[130px] flex-shrink-0 overflow-hidden rounded-lg"
+                      >
                         <VideoTile
-                          participant={student}
-                          size="large"
+                          participant={s}
+                          size="small"
                           showName={true}
                           showMicIndicator={true}
                           playAudio={true}
-                          className="!rounded-none border-gray-600"
+                          className="!w-full !h-full !rounded-lg"
                         />
                       </div>
-                    </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            /* === No students: waiting state === */
+            ) : students.length === 0 ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#3c4043]">
+                    <svg className="h-10 w-10 text-[#9aa0a6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-medium text-[#e8eaed]">Waiting for students…</h2>
+                  <p className="mt-2 text-sm text-[#9aa0a6]">
+                    {isLive ? 'Room is live — students can join now' : 'Go live to let students join'}
+                  </p>
+                </div>
+              </div>
+
+            /* === Student grid (responsive, no rotation) === */
+            ) : (
+              <div className={cn('grid h-full w-full gap-2 auto-rows-fr', gridCols)}>
+                {students.map((s) => (
+                  <div
+                    key={s.identity}
+                    className="relative min-h-0 min-w-0 overflow-hidden rounded-xl bg-[#292a2d]"
+                  >
+                    <VideoTile
+                      participant={s}
+                      size="large"
+                      showName={true}
+                      showMicIndicator={true}
+                      playAudio={true}
+                      className="!rounded-xl"
+                    />
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Teacher self-preview: small floating overlay in top-left */}
-          <div className="absolute top-3 left-3 z-30 shadow-lg ring-1 ring-white/20">
+          {/* Self-cam floating PIP (top-left) */}
+          <div className="absolute top-4 left-4 z-30 overflow-hidden rounded-xl shadow-xl ring-1 ring-white/[0.08] transition-shadow hover:ring-white/20">
             <VideoTile
               participant={localParticipant}
               size="small"
               mirror={true}
               showName={false}
               showMicIndicator={true}
-              className="!rounded-none !w-[120px] !h-[90px]"
+              className="!w-[140px] !h-[105px] !rounded-xl"
             />
           </div>
 
-          {/* Tablet connection status banner */}
-          {teacherScreenDevice && (
-            <div className="mx-2 mb-1 flex items-center gap-2 bg-green-900/40 px-3 py-1.5 text-xs text-green-400">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
-              Tablet connected — screen share available from {teacherScreenDevice.name || 'tablet'}
+          {/* Tablet connection badge */}
+          {teacherScreenDevice && isLive && (
+            <div className="mx-2 mb-1 flex items-center gap-2 rounded-lg bg-[#34a853]/10 px-3 py-1.5 text-xs text-[#34a853]">
+              <span className="h-2 w-2 rounded-full bg-[#34a853] animate-pulse" />
+              Tablet connected — screen share from {teacherScreenDevice.name || 'tablet'}
             </div>
           )}
         </div>
 
-        {/* Right: Sidebar (Chat / Participants) */}
+        {/* ── Right Sidebar ─────────────────────────────── */}
         {sidebarOpen && (
-          <div className="flex w-[300px] flex-col border-l border-gray-800">
-            {/* Sidebar tab buttons */}
-            <div className="flex border-b border-gray-800">
-              <button
-                onClick={() => setSidebarTab('chat')}
-                className={cn(
-                  'flex-1 py-2 text-xs font-medium transition-colors',
-                  sidebarTab === 'chat'
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:text-white'
-                )}
-              >
-                💬 Chat
-              </button>
-              <button
-                onClick={() => setSidebarTab('participants')}
-                className={cn(
-                  'flex-1 py-2 text-xs font-medium transition-colors',
-                  sidebarTab === 'participants'
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:text-white'
-                )}
-              >
-                👥 Participants
-              </button>
+          <div className="flex w-[320px] flex-col border-l border-[#3c4043] bg-[#202124]">
+            {/* Tab buttons */}
+            <div className="flex border-b border-[#3c4043]">
+              {(['chat', 'participants'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setSidebarTab(tab)}
+                  className={cn(
+                    'flex-1 py-2.5 text-xs font-medium capitalize transition-colors',
+                    sidebarTab === tab
+                      ? 'bg-[#3c4043] text-[#e8eaed]'
+                      : 'text-[#9aa0a6] hover:text-[#e8eaed] hover:bg-[#292a2d]',
+                  )}
+                >
+                  {tab === 'chat' ? '💬 Chat' : '👥 Participants'}
+                </button>
+              ))}
             </div>
 
-            {/* Sidebar content */}
+            {/* Tab content */}
             <div className="flex-1 overflow-hidden">
               {sidebarTab === 'chat' ? (
                 <ChatPanel
@@ -323,19 +337,43 @@ export default function TeacherView({
         )}
       </div>
 
-      {/* Control bar */}
+      {/* ── Control Bar ─────────────────────────────────── */}
       <ControlBar
         role="teacher"
         roomId={roomId}
         whiteboardActive={whiteboardActive}
         onToggleWhiteboard={() => setWhiteboardActive(!whiteboardActive)}
-        onToggleChat={() => {
-          setSidebarOpen(true);
-          setSidebarTab('chat');
-        }}
+        onToggleChat={() => { setSidebarOpen(true); setSidebarTab('chat'); }}
         onEndClass={onEndClass}
       />
     </div>
+  );
+}
+
+// ─── Helper sub-component ─────────────────────────────────
+
+/** Status indicator dot + label for the Go Live banner */
+function StatusDot({
+  active,
+  label,
+  pendingLabel,
+}: {
+  active: boolean;
+  label: string;
+  pendingLabel?: string;
+}) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span
+        className={cn(
+          'h-2 w-2 rounded-full',
+          active ? 'bg-[#34a853] animate-pulse' : 'bg-[#5f6368]',
+        )}
+      />
+      <span className={active ? 'text-[#e8eaed]' : 'text-[#9aa0a6]'}>
+        {active ? label : (pendingLabel ?? label)}
+      </span>
+    </span>
   );
 }
 

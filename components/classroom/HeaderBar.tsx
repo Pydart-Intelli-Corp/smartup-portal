@@ -97,11 +97,11 @@ export default function HeaderBar({
     <div className={cn('relative', className)}>
       {/* 5-minute warning banner */}
       {isWarning && !warningDismissed && (
-        <div className="flex items-center justify-center gap-3 bg-yellow-600 px-4 py-1.5 text-xs font-semibold text-white">
+        <div className="flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5 text-xs font-semibold text-[#202124]">
           <span>⚠ Class ends in {Math.ceil((remainingSeconds ?? 0) / 60)} minute{Math.ceil((remainingSeconds ?? 0) / 60) !== 1 ? 's' : ''}</span>
           <button
             onClick={() => setWarningDismissed(true)}
-            className="rounded bg-yellow-700/60 px-2 py-0.5 text-[10px] hover:bg-yellow-700 transition-colors"
+            className="rounded bg-black/15 px-2 py-0.5 text-[10px] hover:bg-black/25 transition-colors"
           >
             Dismiss
           </button>
@@ -110,16 +110,16 @@ export default function HeaderBar({
 
       {/* Time expired banner */}
       {isExpired && (
-        <div className="flex items-center justify-center bg-red-600 px-4 py-1.5 text-xs font-semibold text-white animate-pulse">
+        <div className="flex items-center justify-center bg-[#ea4335] px-4 py-1.5 text-xs font-semibold text-white animate-pulse">
           ⏰ Class time has ended — disconnecting...
         </div>
       )}
 
-      <div className="flex h-12 items-center justify-between border-b border-gray-800 bg-gray-900 px-4">
+      <div className="flex h-12 items-center justify-between border-b border-[#3c4043] bg-[#202124]/95 backdrop-blur-sm px-4">
         {/* Left: SmartUp + Room name */}
         <div className="flex items-center gap-3">
-          <span className="text-sm font-bold text-emerald-400">S</span>
-          <span className="truncate text-sm font-medium text-white">
+          <span className="text-sm font-bold text-[#34a853]">S</span>
+          <span className="truncate text-sm font-medium text-[#e8eaed]">
             {roomName}
           </span>
         </div>
@@ -143,27 +143,27 @@ export default function HeaderBar({
                 className={cn(
                   'flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-sm font-semibold',
                   isExpired
-                    ? 'animate-pulse bg-red-600/30 text-red-400'
+                    ? 'animate-pulse bg-[#ea4335]/20 text-[#ea4335]'
                     : isWarning
-                      ? 'bg-yellow-600/20 text-yellow-400'
-                      : 'text-white'
+                      ? 'bg-[#f9ab00]/15 text-[#f9ab00]'
+                      : 'text-[#e8eaed]'
                 )}
               >
                 <span>{formatTimer(remainingSeconds)}</span>
               </div>
 
               {/* Elapsed (smaller, secondary) */}
-              <span className="text-xs text-gray-500" title="Elapsed time">
+              <span className="text-xs text-[#5f6368]" title="Elapsed time">
                 {formatTimer(elapsedSeconds)}
               </span>
             </div>
           ) : (
             /* Fallback: just elapsed if no schedule info */
-            <span className="font-mono text-sm text-gray-300">{formatTimer(elapsedSeconds)}</span>
+            <span className="font-mono text-sm text-[#9aa0a6]">{formatTimer(elapsedSeconds)}</span>
           )}
 
           {/* Participant count */}
-          <div className="flex items-center gap-1 text-sm text-gray-400">
+          <div className="flex items-center gap-1 text-sm text-[#9aa0a6]">
             <span>👥</span>
             <span>{visibleCount}</span>
           </div>
@@ -177,8 +177,8 @@ export default function HeaderBar({
               className={cn(
                 'rounded px-2 py-1 text-sm transition-colors',
                 sidebarOpen
-                  ? 'bg-gray-700 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-[#3c4043] text-[#e8eaed]'
+                  : 'text-[#9aa0a6] hover:text-[#e8eaed]'
               )}
               title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
             >

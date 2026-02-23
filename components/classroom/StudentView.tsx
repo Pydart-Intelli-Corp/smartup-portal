@@ -4,8 +4,6 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   useLocalParticipant,
   useRemoteParticipants,
-  useTracks,
-  useDataChannel,
   VideoTrack,
   AudioTrack,
   type TrackReference,
@@ -25,22 +23,31 @@ import {
 } from './icons';
 
 /**
- * StudentView — Student classroom layout.
+ * StudentView — Google Meet-style student classroom.
  *
- * Layout:
- *   ┌──────────────────────────────┬──────┐
- *   │         Header Bar           │      │
- *   ├──────────────────────────────┤ Side │
- *   │                              │  bar │
- *   │   Whiteboard / Video         │      │
- *   │   (full area, clean)         │ 📷🎤 │
- *   │                              │ ✋💬 │
- *   │                              │ Leave│
- *   └──────────────────────────────┴──────┘
+ * Professional layout:
+ *   ┌──────────────────────────────────────────┐
+ *   │  Header  (room name • timer • count)     │
+ *   ├──────────────────────────────────────────┤
+ *   │                                          │
+ *   │   WHITEBOARD / TEACHER CAMERA            │
+ *   │   (full area, object-fit contain)        │
+ *   │                                  [T PIP] │
+ *   │ [Self PIP]                               │
+ *   │                                          │
+ *   ├──────────────────────────────────────────┤
+ *   │   🎤  📷  │  ✋  💬  │   Leave           │
+ *   └──────────────────────────────────────────┘
  *
- * Right sidebar contains: teacher camera, student self-cam,
- * mic/camera/hand-raise/chat/leave buttons.
- * Whiteboard gets full space without any overlapping elements.
+ * Features:
+ *   - Bottom control bar (Google Meet style, centered pill buttons)
+ *   - Floating teacher camera PIP when screen share is active
+ *   - Self-cam PIP (mirrored, counter-rotated when CSS-rotated)
+ *   - Chat panel slides from right
+ *   - Auto-hide controls on mobile (tap to show, 4s auto-hide)
+ *   - CSS landscape rotation fallback for mobile portrait + screen share
+ *   - Safe area support for notched devices (iOS)
+ *   - Cross-platform: mobile, tablet, desktop, all browsers
  */
 
 export interface StudentViewProps {
@@ -53,24 +60,22 @@ export interface StudentViewProps {
   onTimeExpired?: () => void;
 }
 
+// ─── Teacher detection helpers ────────────────────────────
 function isTeacherPrimary(p: RemoteParticipant): boolean {
   try {
-    const meta = JSON.parse(p.metadata || '{}');
-    const role = meta.effective_role || meta.portal_role;
-    const device = meta.device;
-    if (role === 'teacher' && device !== 'screen') return true;
-  } catch { /* fallback */ }
-  return p.identity.startsWith('teacher') && !p.identity.endsWith('_screen');
+    const m = JSON.parse(p.metadata || '{}');
+    return (m.effective_role || m.portal_role) === 'teacher' && m.device !== 'screen';
+  } catch { return p.identity.startsWith('teacher') && !p.identity.endsWith('_screen'); }
 }
 
 function isTeacherScreen(p: RemoteParticipant): boolean {
   try {
-    const meta = JSON.parse(p.metadata || '{}');
-    return meta.device === 'screen' && (meta.portal_role === 'teacher' || meta.effective_role === 'teacher_screen');
-  } catch { /* fallback */ }
-  return p.identity.endsWith('_screen') && p.identity.startsWith('teacher');
+    const m = JSON.parse(p.metadata || '{}');
+    return m.device === 'screen' && (m.portal_role === 'teacher' || m.effective_role === 'teacher_screen');
+  } catch { return p.identity.endsWith('_screen') && p.identity.startsWith('teacher'); }
 }
 
+// ─── Component ────────────────────────────────────────────
 export default function StudentView({
   roomId,
   roomName,
@@ -80,368 +85,430 @@ export default function StudentView({
   onLeave,
   onTimeExpired,
 }: StudentViewProps) {
+  // ── UI state ──
   const [chatOpen, setChatOpen] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
-  const [showCameraWarning, setShowCameraWarning] = useState(false);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Device & orientation detection ──
+  const [isMobile, setIsMobile] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [kbHeight, setKbHeight] = useState(0);
 
-  // Detect mobile/tablet device — rotation only applies to phones/tablets, never laptops/PCs
   useEffect(() => {
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const mobileUA = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    setIsMobileDevice(isTouchDevice && mobileUA);
+    const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const ua = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    setIsMobile(touch && ua);
   }, []);
 
-  // Detect portrait orientation for CSS-based landscape rotation
   useEffect(() => {
-    const checkOrientation = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-    };
-    checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-    return () => window.removeEventListener('resize', checkOrientation);
-  }, []);
-
-  // Try Screen Orientation API lock (works on some Android browsers) — mobile only
-  useEffect(() => {
-    if (!isMobileDevice) return;
-    const lockLandscape = async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const orientation = screen?.orientation as any;
-        if (orientation?.lock) {
-          await orientation.lock('landscape');
-        }
-      } catch { /* Not supported — ignore */ }
-    };
-    lockLandscape();
+    const check = () => setIsPortrait(window.innerHeight > window.innerWidth);
+    check();
+    window.addEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
     return () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (screen?.orientation as any)?.unlock?.();
-      } catch { /* ignore */ }
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
     };
   }, []);
 
-  // Detect virtual keyboard opening via visualViewport API
-  // In CSS-rotated mode the keyboard appears from the physical bottom
-  // (which is the visual right) — we shrink the view width to compensate
+  // Try Screen Orientation API lock (mobile only)
+  useEffect(() => {
+    if (!isMobile) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    try { (screen.orientation as any)?.lock?.('landscape').catch(() => {}); } catch {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return () => { try { (screen.orientation as any)?.unlock?.(); } catch {} };
+  }, [isMobile]);
+
+  // Virtual keyboard height detection (for CSS-rotated mode)
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vv = (window as any).visualViewport;
     if (!vv) return;
-    const onResize = () => {
-      // Keyboard open = viewport height shrinks relative to window height
+    const fn = () => {
       const diff = window.innerHeight - vv.height;
-      setKeyboardHeight(diff > 50 ? diff : 0);
+      setKbHeight(diff > 50 ? diff : 0);
     };
-    vv.addEventListener('resize', onResize);
-    return () => vv.removeEventListener('resize', onResize);
+    vv.addEventListener('resize', fn);
+    return () => vv.removeEventListener('resize', fn);
   }, []);
 
+  // ── LiveKit participants ──
   const { localParticipant } = useLocalParticipant();
-  const remoteParticipants = useRemoteParticipants();
-
-  const teacher = useMemo(() => remoteParticipants.find(isTeacherPrimary) || null, [remoteParticipants]);
-  const teacherScreenDevice = useMemo(() => remoteParticipants.find(isTeacherScreen) || null, [remoteParticipants]);
+  const remotes = useRemoteParticipants();
+  const teacher = useMemo(() => remotes.find(isTeacherPrimary) ?? null, [remotes]);
+  const screenDevice = useMemo(() => remotes.find(isTeacherScreen) ?? null, [remotes]);
 
   const hasScreenShare = useMemo(() => {
-    if (teacherScreenDevice) {
-      const pub = teacherScreenDevice.getTrackPublication(Track.Source.ScreenShare);
-      if (pub && !pub.isMuted) return true;
-    }
-    if (teacher) {
-      const pub = teacher.getTrackPublication(Track.Source.ScreenShare);
+    for (const src of [screenDevice, teacher]) {
+      if (!src) continue;
+      const pub = src.getTrackPublication(Track.Source.ScreenShare);
       if (pub && !pub.isMuted) return true;
     }
     return false;
-  }, [teacher, teacherScreenDevice]);
+  }, [teacher, screenDevice]);
 
-  const hasTeacherCamera = useMemo(() => {
+  const hasTeacherCam = useMemo(() => {
     if (!teacher) return false;
-    const pub = teacher.getTrackPublication(Track.Source.Camera);
-    return !!pub && !pub.isMuted;
+    const p = teacher.getTrackPublication(Track.Source.Camera);
+    return !!p && !p.isMuted;
   }, [teacher]);
 
-  // Teacher camera track ref for sidebar PIP
-  const teacherCameraPub = useMemo(() => {
+  const teacherCamPub = useMemo(() => {
     if (!teacher) return null;
-    const pub = teacher.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
-    return (pub && !pub.isMuted && pub.track) ? pub : null;
+    const p = teacher.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined;
+    return p && !p.isMuted && p.track ? p : null;
   }, [teacher]);
 
-  const toggleHandRaise = useCallback(async () => {
-    const newState = !handRaised;
-    setHandRaised(newState);
-    const msg = {
-      student_id: localParticipant.identity,
-      student_name: localParticipant.name || localParticipant.identity,
-      action: newState ? 'raise' : 'lower',
-    };
+  // ── Local media state ──
+  const isMicOn = localParticipant.isMicrophoneEnabled;
+  const isCamOn = localParticipant.isCameraEnabled;
+
+  // ── Handlers ──
+  const toggleMic = async () => {
+    try { await localParticipant.setMicrophoneEnabled(!isMicOn); } catch {}
+  };
+
+  const toggleCam = async () => {
+    try { await localParticipant.setCameraEnabled(!isCamOn); } catch {}
+  };
+
+  const toggleHand = useCallback(async () => {
+    const next = !handRaised;
+    setHandRaised(next);
     try {
-      const bytes = new TextEncoder().encode(JSON.stringify(msg));
-      await localParticipant.publishData(bytes, { topic: 'hand_raise', reliable: true });
-    } catch (err) {
-      console.error('Failed to send hand raise:', err);
-    }
+      await localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({
+          student_id: localParticipant.identity,
+          student_name: localParticipant.name || localParticipant.identity,
+          action: next ? 'raise' : 'lower',
+        })),
+        { topic: 'hand_raise', reliable: true },
+      );
+    } catch {}
   }, [handRaised, localParticipant]);
 
-  const toggleMic = async () => {
-    try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); }
-    catch (err) { console.error('[Student] Mic toggle failed:', err); }
-  };
+  // ── Controls auto-hide (mobile only) ──
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    if (isMobile) {
+      hideTimer.current = setTimeout(() => setControlsVisible(false), 4000);
+    }
+  }, [isMobile]);
 
-  const toggleCamera = async () => {
-    try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
-    catch (err) { console.error('[Student] Camera toggle failed:', err); }
-  };
+  useEffect(() => {
+    showControls();
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+  }, [showControls]);
 
-  const isMicOn = localParticipant.isMicrophoneEnabled;
-  const isCameraOn = localParticipant.isCameraEnabled;
+  // ── Force CSS landscape rotation (mobile portrait + screen share) ──
+  const forceRotate = hasScreenShare && isPortrait && isMobile;
 
-  // When screen share is active and device is portrait mobile/tablet, force landscape via CSS transform
-  // Never rotate on laptops/PCs — only on actual mobile devices
-  const forceRotate = hasScreenShare && isPortrait && isMobileDevice;
+  const wrapStyle: React.CSSProperties | undefined = forceRotate
+    ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: `calc(100vh - ${kbHeight}px)`,
+        height: '100vw',
+        transform: 'rotate(90deg)',
+        transformOrigin: 'top left',
+        marginLeft: '100vw',
+        overflow: 'hidden',
+      }
+    : undefined;
 
+  // ─── Render ─────────────────────────────────────────────
   return (
     <div
-      className="bg-gray-950"
-      style={
-        forceRotate
-          ? {
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: `calc(100vh - ${keyboardHeight}px)`,
-              height: '100vw',
-              transform: 'rotate(90deg)',
-              transformOrigin: 'top left',
-              marginLeft: '100vw',
-              overflow: 'hidden',
-            }
-          : { display: 'flex', flexDirection: 'column', height: '100vh' }
-      }
+      className={cn('bg-[#202124] text-[#e8eaed] select-none overflow-hidden', !forceRotate && 'flex flex-col h-[100dvh]')}
+      style={wrapStyle}
+      onPointerDown={showControls}
     >
-      {/* Header — hidden when rotated to maximize whiteboard space */}
+      {/* ── Header ──────────────────────────────────────── */}
       {!forceRotate && (
-        <HeaderBar roomName={roomName} role="student" scheduledStart={scheduledStart} durationMinutes={durationMinutes} onTimeExpired={onTimeExpired} />
+        <div
+          className={cn(
+            'relative z-40 transition-all duration-300 ease-out',
+            controlsVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none',
+          )}
+        >
+          <HeaderBar
+            roomName={roomName}
+            role="student"
+            scheduledStart={scheduledStart}
+            durationMinutes={durationMinutes}
+            onTimeExpired={onTimeExpired}
+          />
+        </div>
       )}
 
-      {/* Main body: content + sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* ── Main content area (whiteboard / video) ── */}
-        <div className="relative flex-1 overflow-hidden">
-          <div className="h-full p-1">
-            {hasScreenShare && teacher ? (
-              <WhiteboardComposite
-                teacher={teacher}
-                teacherScreenDevice={teacherScreenDevice}
-                hideOverlay={true}
-                className="h-full w-full rounded-lg"
-              />
-            ) : hasTeacherCamera && teacher ? (
-              <div className="flex h-full items-center justify-center">
-                <VideoTile
-                  participant={teacher}
-                  size="large"
-                  showName={true}
-                  showMicIndicator={true}
-                  playAudio={true}
-                  className="max-h-full max-w-full rounded-lg"
-                />
-              </div>
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mb-3 text-4xl">📚</div>
-                  <h2 className="text-lg font-semibold text-white">
-                    {teacher ? 'Class in progress — audio only' : 'Waiting for teacher to start...'}
-                  </h2>
-                  {teacher && (
-                    <p className="mt-1 text-sm text-gray-400">
-                      {teacher.name || teacher.identity}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Teacher audio (always play if teacher exists) */}
-            {teacher && teacher.getTrackPublication(Track.Source.Microphone)?.track && (
-              <AudioTrack
-                trackRef={{
-                  participant: teacher,
-                  publication: teacher.getTrackPublication(Track.Source.Microphone)!,
-                  source: Track.Source.Microphone,
-                } as TrackReference}
-              />
-            )}
-          </div>
-
-          {/* Hand raised indicator — bottom-left of main area */}
-          {handRaised && (
-            <div className="absolute bottom-4 left-4 z-10 rounded-lg bg-yellow-500/90 px-3 py-1.5 text-sm font-medium text-black">
-              🖐 Your hand is raised
-            </div>
-          )}
+      {/* Rotated mode: floating room badge */}
+      {forceRotate && (
+        <div className="absolute top-2 left-2 z-40 flex items-center gap-2 rounded-full bg-black/50 backdrop-blur-md px-3 py-1.5 ring-1 ring-white/[0.06]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+          </span>
+          <span className="text-[11px] font-medium text-white/90">{roomName}</span>
         </div>
+      )}
 
-        {/* ── Right Sidebar ── */}
-        <div className={cn(
-          'flex flex-col items-center gap-2 border-l border-gray-800 bg-gray-900/80',
-          forceRotate ? 'w-14 py-1' : 'w-16 py-2'
-        )}>
-          {/* Teacher camera PIP */}
-          {hasTeacherCamera && teacher && teacherCameraPub && (
-            <div className="w-12 h-12 rounded-md overflow-hidden ring-1 ring-blue-500/50 flex-shrink-0" title="Teacher">
-              <VideoTrack
-                trackRef={{
-                  participant: teacher,
-                  publication: teacherCameraPub,
-                  source: Track.Source.Camera,
-                } as TrackReference}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          )}
+      {/* ── Main content area ───────────────────────────── */}
+      <div className="relative flex-1 overflow-hidden">
 
-          {/* Student self-cam PIP — rotated -90° to correct for CSS landscape rotation */}
-          {isCameraOn && (
-            <div className="w-12 h-12 rounded-md overflow-hidden ring-1 ring-green-500/50 flex-shrink-0" title="You">
-              <div style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
-                <VideoTile
-                  participant={localParticipant}
-                  size="small"
-                  mirror={true}
-                  showName={false}
-                  showMicIndicator={false}
-                  className="h-full w-full !rounded-none"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="w-8 border-t border-gray-600/40" />
-
-          {/* Mic toggle */}
-          <SidebarMeetButton
-            on={isMicOn}
-            onClick={toggleMic}
-            title={isMicOn ? 'Mute' : 'Unmute'}
-            onIcon={<MicOnIcon className="h-4 w-4" />}
-            offIcon={<MicOffIcon className="h-4 w-4" />}
-            offColor="bg-[#ea4335]"
-          />
-
-          {/* Camera toggle */}
-          <SidebarMeetButton
-            on={isCameraOn}
-            onClick={toggleCamera}
-            title={isCameraOn ? 'Camera off' : 'Camera on'}
-            onIcon={<CameraOnIcon className="h-4 w-4" />}
-            offIcon={<CameraOffIcon className="h-4 w-4" />}
-            offColor="bg-[#ea4335]"
-          />
-
-          {/* Hand raise */}
-          <SidebarMeetButton
-            on={handRaised}
-            onClick={toggleHandRaise}
-            title={handRaised ? 'Lower hand' : 'Raise hand'}
-            onIcon={<HandRaiseIcon className="h-4 w-4" />}
-            offIcon={<HandRaiseIcon className="h-4 w-4" />}
-            onColor="bg-[#fbbf24]"
-            onTextColor="text-black"
-          />
-
-          {/* Chat toggle */}
-          <SidebarMeetButton
-            on={chatOpen}
-            onClick={() => setChatOpen(!chatOpen)}
-            title="Chat"
-            onIcon={<ChatIcon className="h-4 w-4" />}
-            offIcon={<ChatIcon className="h-4 w-4" />}
-            onColor="bg-[#1a73e8]"
-          />
-
-          {/* Spacer to push leave to bottom */}
-          <div className="flex-1" />
-
-          {/* Leave button */}
-          <button
-            onClick={() => setShowLeaveConfirm(true)}
-            title="Leave class"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ea4335] text-white transition-all hover:bg-[#d33426] active:scale-90 flex-shrink-0"
-          >
-            <LeaveIcon className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Chat panel (slides in from right of content area, before sidebar) */}
-        {chatOpen && (
-          <div className="w-[280px] border-l border-gray-800">
-            <ChatPanel
-              participantName={participantName}
-              participantRole="student"
-              onClose={() => setChatOpen(false)}
+        {/* Whiteboard / Teacher camera / Waiting state */}
+        <div className="absolute inset-0">
+          {hasScreenShare && teacher ? (
+            <WhiteboardComposite
+              teacher={teacher}
+              teacherScreenDevice={screenDevice}
+              hideOverlay={true}
+              className="h-full w-full"
             />
+          ) : hasTeacherCam && teacher ? (
+            <div className="flex h-full items-center justify-center bg-[#202124]">
+              <VideoTile
+                participant={teacher}
+                size="large"
+                showName={true}
+                showMicIndicator={true}
+                playAudio={true}
+                className="h-full w-full"
+              />
+            </div>
+          ) : (
+            /* Waiting / audio-only state */
+            <div className="flex h-full items-center justify-center bg-[#202124]">
+              <div className="text-center px-8">
+                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#3c4043]">
+                  <svg className="h-10 w-10 text-[#9aa0a6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-medium text-[#e8eaed]">
+                  {teacher ? 'Class in progress' : 'Waiting for teacher…'}
+                </h2>
+                <p className="mt-2 text-sm text-[#9aa0a6]">
+                  {teacher
+                    ? `${teacher.name || teacher.identity} — audio only`
+                    : 'The class will begin when the teacher starts sharing'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Teacher audio (always active when teacher present) */}
+        {teacher?.getTrackPublication(Track.Source.Microphone)?.track && (
+          <AudioTrack
+            trackRef={{
+              participant: teacher,
+              publication: teacher.getTrackPublication(Track.Source.Microphone)!,
+              source: Track.Source.Microphone,
+            } as TrackReference}
+          />
+        )}
+
+        {/* Teacher camera PIP (visible when screen share is active) */}
+        {hasScreenShare && hasTeacherCam && teacher && teacherCamPub && (
+          <div
+            className={cn(
+              'absolute z-30 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/[0.08] transition-all duration-200 hover:ring-white/20',
+              forceRotate
+                ? 'top-2 right-2 w-[120px] h-[80px]'
+                : 'top-16 right-3 w-[180px] h-[120px] sm:w-[220px] sm:h-[140px]',
+            )}
+          >
+            <VideoTrack
+              trackRef={{
+                participant: teacher,
+                publication: teacherCamPub,
+                source: Track.Source.Camera,
+              } as TrackReference}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+              <span className="text-[10px] font-medium text-white/90 drop-shadow-sm">
+                {teacher.name || teacher.identity}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Self-cam PIP */}
+        {isCamOn && (
+          <div
+            className={cn(
+              'absolute z-30 overflow-hidden rounded-xl ring-1 ring-white/[0.08] shadow-lg',
+              forceRotate
+                ? 'bottom-16 left-2 w-14 h-14'
+                : 'bottom-[92px] left-3 w-[100px] h-[100px] sm:w-[120px] sm:h-[120px]',
+            )}
+          >
+            <div
+              className="h-full w-full"
+              style={forceRotate ? { transform: 'rotate(-90deg) scaleX(-1)' } : { transform: 'scaleX(-1)' }}
+            >
+              <VideoTile
+                participant={localParticipant}
+                size="small"
+                mirror={false}
+                showName={false}
+                showMicIndicator={false}
+                className="!w-full !h-full !rounded-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Hand raised floating badge */}
+        {handRaised && (
+          <div
+            className={cn(
+              'absolute z-30 flex items-center gap-2 rounded-full bg-[#f9ab00] px-3.5 py-2 shadow-lg',
+              forceRotate ? 'bottom-16 right-2' : 'bottom-[92px] right-3',
+            )}
+          >
+            <span className="text-sm">🖐</span>
+            <span className="text-xs font-bold text-[#202124]">Hand raised</span>
           </div>
         )}
       </div>
 
-      {/* Leave confirmation dialog */}
-      {showLeaveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl bg-gray-800 p-6 text-center shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-white">Leave this class?</h3>
-            <p className="mb-4 text-sm text-gray-400">You can rejoin while the class is active.</p>
-            <div className="flex gap-3 justify-center">
+      {/* ── Bottom Control Bar ──────────────────────────── */}
+      <div
+        className={cn(
+          'absolute inset-x-0 bottom-0 z-40 transition-all duration-300 ease-out',
+          controlsVisible
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full opacity-0 pointer-events-none',
+        )}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div
+          className={cn(
+            'flex items-center justify-center bg-gradient-to-t from-[#202124] via-[#202124]/95 to-transparent',
+            forceRotate ? 'gap-2 px-3 pb-2 pt-6' : 'gap-3 px-4 pb-4 pt-8',
+          )}
+        >
+          {/* Mic */}
+          <RoundBtn
+            on={isMicOn}
+            onClick={toggleMic}
+            title={isMicOn ? 'Mute' : 'Unmute'}
+            onIcon={<MicOnIcon className="w-5 h-5" />}
+            offIcon={<MicOffIcon className="w-5 h-5" />}
+            offDanger
+            compact={forceRotate}
+          />
+          {/* Camera */}
+          <RoundBtn
+            on={isCamOn}
+            onClick={toggleCam}
+            title={isCamOn ? 'Stop video' : 'Start video'}
+            onIcon={<CameraOnIcon className="w-5 h-5" />}
+            offIcon={<CameraOffIcon className="w-5 h-5" />}
+            offDanger
+            compact={forceRotate}
+          />
+
+          <BarSep />
+
+          {/* Hand raise */}
+          <RoundBtn
+            on={handRaised}
+            onClick={toggleHand}
+            title={handRaised ? 'Lower hand' : 'Raise hand'}
+            onIcon={<HandRaiseIcon className="w-5 h-5" />}
+            offIcon={<HandRaiseIcon className="w-5 h-5" />}
+            onWarn
+            compact={forceRotate}
+          />
+          {/* Chat */}
+          <RoundBtn
+            on={chatOpen}
+            onClick={() => setChatOpen(!chatOpen)}
+            title="Chat"
+            onIcon={<ChatIcon className="w-5 h-5" />}
+            offIcon={<ChatIcon className="w-5 h-5" />}
+            onPrimary
+            compact={forceRotate}
+          />
+
+          <BarSep />
+
+          {/* Leave */}
+          <button
+            onClick={() => setShowLeaveDialog(true)}
+            className={cn(
+              'flex items-center gap-2 rounded-full bg-[#ea4335] font-medium text-white',
+              'transition-all duration-150 hover:bg-[#c5221f] active:scale-95',
+              forceRotate ? 'h-10 px-4 text-xs' : 'h-12 px-5 text-sm',
+            )}
+          >
+            <LeaveIcon className={forceRotate ? 'w-4 h-4' : 'w-5 h-5'} />
+            <span className={forceRotate ? 'hidden' : 'hidden sm:inline'}>Leave</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Chat Panel (slides from right) ──────────────── */}
+      {chatOpen && (
+        <div
+          className="absolute inset-0 z-[48] bg-black/40 sm:bg-transparent"
+          onClick={() => setChatOpen(false)}
+        />
+      )}
+      <div
+        className={cn(
+          'absolute top-0 bottom-0 right-0 z-[49] shadow-2xl',
+          'transition-transform duration-300 ease-out',
+          forceRotate ? 'w-[260px]' : 'w-[300px] sm:w-[340px]',
+          chatOpen ? 'translate-x-0' : 'translate-x-full',
+        )}
+      >
+        <ChatPanel
+          participantName={participantName}
+          participantRole="student"
+          onClose={() => setChatOpen(false)}
+        />
+      </div>
+
+      {/* ── Leave confirmation dialog ───────────────────── */}
+      {showLeaveDialog && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowLeaveDialog(false)}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/[0.06]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#ea4335]/10">
+              <LeaveIcon className="h-7 w-7 text-[#ea4335]" />
+            </div>
+            <h3 className="text-lg font-semibold text-[#e8eaed]">Leave this class?</h3>
+            <p className="mt-1 text-sm text-[#9aa0a6]">You can rejoin while the class is active.</p>
+            <div className="mt-6 flex gap-3">
               <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
+                onClick={() => setShowLeaveDialog(false)}
+                className="flex-1 rounded-full bg-[#3c4043] py-2.5 text-sm font-medium text-[#e8eaed] transition-colors hover:bg-[#4a4d51]"
               >
-                Stay
+                Cancel
               </button>
               <button
                 onClick={onLeave}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                className="flex-1 rounded-full bg-[#ea4335] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#c5221f]"
               >
-                Leave Class
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Camera warning dialog */}
-      {showCameraWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="max-w-sm rounded-xl bg-gray-800 p-6 text-center shadow-xl">
-            <div className="mb-3 text-3xl">📷</div>
-            <h3 className="mb-2 text-lg font-semibold text-white">Camera Required</h3>
-            <p className="mb-4 text-sm text-gray-400">
-              Your camera needs to be on during class for attendance. Your teacher has been
-              notified if you keep it off.
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setShowCameraWarning(false)}
-                className="rounded-lg bg-gray-700 px-4 py-2 text-sm text-white"
-              >
-                Keep Camera Off
-              </button>
-              <button
-                onClick={async () => {
-                  await localParticipant.setCameraEnabled(true);
-                  setShowCameraWarning(false);
-                }}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white"
-              >
-                Turn Camera On
+                Leave
               </button>
             </div>
           </div>
@@ -451,36 +518,56 @@ export default function StudentView({
   );
 }
 
-// ── Google Meet-style sidebar button ───────────────────────
-function SidebarMeetButton({
+// ─── Shared sub-components ────────────────────────────────
+
+/** Vertical separator in the control bar */
+function BarSep() {
+  return <div className="h-8 w-px bg-[#5f6368]/30" />;
+}
+
+/** Google Meet-style circular toggle button */
+function RoundBtn({
   on,
   onClick,
   title,
   onIcon,
   offIcon,
-  onColor = 'bg-[#3c4043]',
-  offColor = 'bg-[#3c4043]',
-  onTextColor = 'text-white',
-  offTextColor = 'text-white',
+  offDanger,
+  onWarn,
+  onPrimary,
+  compact,
 }: {
   on: boolean;
   onClick: () => void;
   title: string;
   onIcon: React.ReactNode;
   offIcon: React.ReactNode;
-  onColor?: string;
-  offColor?: string;
-  onTextColor?: string;
-  offTextColor?: string;
+  offDanger?: boolean;
+  onWarn?: boolean;
+  onPrimary?: boolean;
+  compact?: boolean;
 }) {
+  const size = compact ? 'h-10 w-10' : 'h-12 w-12';
+
+  let color: string;
+  if (on) {
+    if (onWarn) color = 'bg-[#f9ab00] text-[#202124] hover:bg-[#e09c00]';
+    else if (onPrimary) color = 'bg-[#1a73e8] text-white hover:bg-[#1557b0]';
+    else color = 'bg-[#3c4043] text-white hover:bg-[#4a4d51]';
+  } else {
+    color = offDanger
+      ? 'bg-[#ea4335] text-white hover:bg-[#c5221f]'
+      : 'bg-[#3c4043] text-white hover:bg-[#4a4d51]';
+  }
+
   return (
     <button
       onClick={onClick}
       title={title}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-full transition-all duration-150 active:scale-90 flex-shrink-0',
-        on ? `${onColor} ${onTextColor}` : `${offColor} ${offTextColor}`,
-        on ? 'hover:bg-[#4a4d51]' : (offColor === 'bg-[#ea4335]' ? 'hover:bg-[#d33426]' : 'hover:bg-[#4a4d51]'),
+        'flex items-center justify-center rounded-full transition-all duration-150 active:scale-90',
+        size,
+        color,
       )}
     >
       {on ? onIcon : offIcon}

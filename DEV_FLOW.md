@@ -2,27 +2,39 @@
 
 ---
 
-**Project:** `D:\smartup\smartup-portal`  
-**Spec Guide:** `D:\smartup\portal_dev` (build plan)  
-**Server Build:** `D:\smartup\server_build` (2 servers — media + portal)  
-**Last Updated:** February 21, 2026
+**Portal Project:** `G:\smartup\smartup-portal`  
+**Teacher App:** `G:\smartup\smartup-teacher`  
+**Spec Guide:** `G:\smartup\portal_dev` (build plan)  
+**Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
+**Last Updated:** February 22, 2026  
+**Latest Commit:** `e4b1387` — Disable video rotation on laptop/PC
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────┐     ┌─────────────────────┐
-│   SmartUp Portal     │     │   LiveKit Media     │
-│  class.smartup.live  │◄───►│  media.smartup.live │
-│                      │     │                     │
-│  Room CRUD & APIs    │     │  WebRTC Rooms       │
-│  8 Role Dashboards   │     │  Video/Audio        │
-│  LiveKit Tokens      │     │  Data Channels      │
-│  Email Notifications │     │  Screen Share       │
-│  Payment Gateway     │     └─────────────────────┘
-│  PostgreSQL Auth     │
-└──────────────────────┘
+┌──────────────────────────────┐     ┌─────────────────────────┐
+│     SmartUp Portal           │     │   LiveKit Media Server  │
+│  smartup.pydart.com          │◄───►│   76.13.244.54:7880     │
+│                              │     │                         │
+│  Next.js 16.1.6 (Turbopack)  │     │  WebRTC Rooms           │
+│  113 source files             │     │  Video / Audio          │
+│  ~16,500 LOC                 │     │  Data Channels (Chat)   │
+│  35 API Routes               │     │  Screen Share            │
+│  8 Role Dashboards           │     └─────────────────────────┘
+│  14 Classroom Components     │
+│  LiveKit Token Generation    │     ┌─────────────────────────┐
+│  Email Notifications (9 tpl) │     │  SmartUp Teacher App    │
+│  PostgreSQL Auth (bcrypt)    │     │  Flutter / Android       │
+│  Redis + BullMQ Queue        │     │  com.smartup.screenshare │
+└──────────────────────────────┘     │                         │
+                                     │  9 Dart files, ~1,637 LOC│
+                                     │  LiveKit screen share    │
+                                     │  FCM push notifications  │
+                                     │  Deep link from emails   │
+                                     │  Foreground service      │
+                                     └─────────────────────────┘
 ```
 
 **Two-Server Stack:**
@@ -30,7 +42,7 @@
 | Server | IP | Domain | Stack |
 |--------|-----|--------|-------|
 | LiveKit Media | `76.13.244.54` | `media.smartup.live` | LiveKit 1.9.11 · Nginx |
-| Portal | `76.13.244.60` | `class.smartup.live` | Next.js 16.1.6 · PostgreSQL 15 · Redis 7 · PM2 |
+| Portal | `76.13.244.60` | `smartup.pydart.com` | Next.js 16.1.6 · PostgreSQL 15 · Redis 7 · PM2 |
 
 ---
 
@@ -39,20 +51,22 @@
 | Step | Name | Spec Doc | Status |
 |------|------|----------|--------|
 | 01 | Project Setup | `01_PROJECT_SETUP.md` | ✅ Complete |
-| 02 | Database Schema | `02_DATABASE_SCHEMA.md` | ✅ Complete |
-| 03 | Auth & Sessions | `03_MOCK_AUTH.md` | ✅ Complete (DB-based) |
-| 04 | API Routes | `04_API_ROUTES.md` | ✅ 28/35 routes built |
-| 05 | Email System | `05_EMAIL_SYSTEM.md` | ✅ Complete |
+| 02 | Database Schema | `02_DATABASE_SCHEMA.md` | ✅ Complete (8 tables, 6 migrations) |
+| 03 | Auth & Sessions | `03_MOCK_AUTH.md` | ✅ Complete (DB-based bcrypt) |
+| 04 | API Routes | `04_API_ROUTES.md` | ✅ 34/35 routes fully implemented |
+| 05 | Email System | `05_EMAIL_SYSTEM.md` | ✅ Complete (9 templates, SMTP + queue) |
 | 06 | Payment Gateway | `06_PAYMENT_GATEWAY.md` | ⬜ Not started |
-| 07 | Room Lifecycle | `07_ROOM_LIFECYCLE.md` | ⬜ Not started |
-| 08 | Coordinator Workflow | `08_COORDINATOR_WORKFLOW.md` | 🟡 Partial (room list only) |
-| 09 | Join Flow | `09_JOIN_FLOW.md` | ⬜ Stubs only |
-| 10 | Teacher Classroom | `10_TEACHER_CLASSROOM.md` | ⬜ Stubs only |
-| 11 | Whiteboard Overlay | `11_WHITEBOARD_OVERLAY.md` | ⬜ Stubs only |
-| 12 | Student View | `12_STUDENT_VIEW.md` | ⬜ Stubs only |
-| 13 | Ghost Mode | `13_GHOST_MODE.md` | 🟡 Partial |
-| 14 | Test Dashboards | `14_TEST_DASHBOARDS.md` | ⬜ Not started |
-| — | HR Dashboard | (additional) | ✅ Complete |
+| 07 | Room Lifecycle | `07_ROOM_LIFECYCLE.md` | ✅ Complete (auto-exit, 5-min warning, join rejection, cron reminders) |
+| 08 | Coordinator Workflow | `08_COORDINATOR_WORKFLOW.md` | ✅ Complete (room CRUD, student add, notify, status poll) |
+| 09 | Join Flow | `09_JOIN_FLOW.md` | ✅ Complete (PreJoin lobby, camera preview, device select) |
+| 10 | Teacher Classroom | `10_TEACHER_CLASSROOM.md` | ✅ Complete (LiveKit, Go Live, control bar, chat, participants) |
+| 11 | Whiteboard Overlay | `11_WHITEBOARD_OVERLAY.md` | ✅ Complete (two-device setup, MediaPipe bg removal, draggable overlay) |
+| 12 | Student View | `12_STUDENT_VIEW.md` | ✅ Complete (teacher main stage, controls, chat, hand raise, mobile rotate) |
+| 13 | Ghost Mode | `13_GHOST_MODE.md` | ✅ Complete (silent observe, private notes, multi-room monitor grid) |
+| 14 | Test Dashboards | `14_TEST_DASHBOARDS.md` | ✅ Dev dashboard with role launcher, health panel, LiveKit test |
+| — | HR Dashboard | (additional) | ✅ Complete (full user CRUD, password reset, credential emails) |
+| — | Academic Operator | (additional) | ✅ Complete (room creation, teacher/coordinator/student assignment) |
+| — | Teacher Flutter App | (additional) | ✅ Complete (login, dashboard, classroom, FCM, deep link) |
 
 ---
 
@@ -63,7 +77,7 @@
 - **Login**: PostgreSQL DB auth via `lib/auth-db.ts` — compares bcrypt password hash in `portal_users.password_hash`
 - JWT sessions via `jose` (HS256, 8-hour expiry, httpOnly cookie `smartup-session`)
 - **HR creates users** with generated passwords; users receive credentials by email
-- Proxy route protection with role-based access control (`proxy.ts`)
+- Proxy route protection with role-based access control (`proxy.ts`, 116 lines)
 - Owner role can access all routes; `academic` is a legacy alias for `academic_operator`
 
 **Auth APIs:**
@@ -74,7 +88,7 @@
 | `/api/v1/auth/logout` | POST | Clear session cookie |
 | `/api/v1/auth/me` | GET | Return current user from JWT |
 
-**Portal Roles (8 total):**
+**Portal Roles (8 active + 2 internal):**
 
 | Portal Role | Dashboard | Color |
 |-------------|-----------|-------|
@@ -86,25 +100,27 @@
 | `student` | `/student` | violet |
 | `parent` | `/parent` | rose |
 | `ghost` | `/ghost` | gray |
-| `academic` | → `/academic-operator` | — |
+| `teacher_screen` | (internal — tablet device) | — |
+| `academic` | → `/academic-operator` (legacy alias) | — |
 
 **Test Accounts (password `Test@1234`):**
 
 | Email | Role | Name |
 |-------|------|------|
-| `abcdqrst404@gmail.com` | teacher | Priya M. |
-| `official.tishnu@gmail.com` | student | Rahul K. |
-| `official4tishnu@gmail.com` | coordinator | Seema R. |
+| `tishnuvichuz143@gmail.com` | owner | Admin Owner |
+| `official4tishnu@gmail.com` | coordinator | Seema Verma |
 | `dev.poornasree@gmail.com` | academic_operator | Dr. Mehta |
+| `tech.poornasree@gmail.com` | hr | Ayesha Khan |
+| `abcdqrst404@gmail.com` | teacher | Priya Sharma |
+| `official.tishnu@gmail.com` | student | Rahul Nair |
 | `idukki.karan404@gmail.com` | parent | Nair P. |
-| `tishnuvichuz143@gmail.com` | owner | Admin |
-| `info.pydart@gmail.com` | ghost | Nour |
+| `info.pydart@gmail.com` | ghost | Nour Observer |
 
 ---
 
 ### Database
 
-**8 tables** across 5 migrations on PostgreSQL 15:
+**8 tables** across 6 migrations on PostgreSQL 15:
 
 | Table | Migration | Purpose |
 |-------|-----------|---------|
@@ -112,292 +128,313 @@
 | `room_events` | 001 | Event log (created, started, ended, joined, left, etc.) |
 | `room_assignments` | 001 | Teacher/student assignments with payment status + join_token |
 | `payment_attempts` | 001 | Federal Bank payment records |
-| `email_log` | 001 | Email delivery tracking (7 template types) |
+| `email_log` | 001 | Email delivery tracking (9 template types) |
 | `school_config` | 001 | Key-value platform settings |
 | `portal_users` | 002 | User accounts with portal roles + `password_hash` |
-| `user_profiles` | 002 | Extended profile data (phone, subjects, grade, board, etc.) |
+| `user_profiles` | 004 | Extended profile data (phone, subjects, grade, board, etc.) |
 
 Plus `_migrations` tracking table, 22+ indexes, triggers, and CHECK constraints.
 
 **`portal_users` key columns:** `email` (PK), `full_name` (NOT `name`), `portal_role`, `password_hash`, `is_active`  
 **`user_profiles` key columns:** `email` (FK), `phone`, `whatsapp`, `subjects TEXT[]`, `qualification`, `experience_years`, `grade`, `section`, `board`, `parent_email`, `admission_date`, `assigned_region`, `notes`, `date_of_birth`  
-**`rooms` key columns:** `room_id`, `room_name`, `subject`, `grade`, `section`, `teacher_email`, `status`, `scheduled_start`, `duration_minutes`, `max_participants`, `notes_for_teacher`, `fee_paise`
+**`rooms` key columns:** `room_id`, `room_name`, `subject`, `grade`, `section`, `coordinator_email`, `teacher_email`, `status`, `scheduled_start`, `duration_minutes`, `max_participants`, `notes_for_teacher`, `fee_paise`, `open_at`, `expires_at`, `reminder_sent_at`  
+**`room_assignments` key columns:** `room_id`, `participant_type`, `participant_email`, `participant_name`, `join_token`, `payment_status` (CHECK: paid/unpaid/exempt/scholarship/unknown), `notification_sent_at`, `joined_at`, `left_at`
 
 > ⚠️ Always alias `full_name` in queries: `u.full_name AS name` — column is `full_name`, NOT `name`.
 
+**Migrations:**
+
+| File | Lines | What it does |
+|------|------:|-------------|
+| `001_initial.sql` | 278 | Core schema: rooms, room_events, room_assignments, payment_attempts, email_log, school_config |
+| `002_portal_users.sql` | 51 | portal_users + user_profiles tables |
+| `003_add_academic_operator.sql` | 37 | Adds academic_operator role to constraint; remaps academic |
+| `004_add_hr_role_and_profiles.sql` | 78 | HR role + user_profiles with subjects TEXT[], GIN index |
+| `004_password_hash.sql` | 28 | password_hash column for bcrypt auth |
+| `005_remove_frappe_columns.sql` | 61 | Drops all Frappe ERP integration columns |
+
 ---
 
-### API Routes
+### API Routes (35 total — 34 complete, 1 partial)
 
-**24 routes built:**
-
-| Route | Methods | Auth | Status |
-|-------|---------|------|--------|
-| `/api/v1/health` | GET | None | ✅ |
-| `/api/v1/auth/login` | POST | None | ✅ |
-| `/api/v1/auth/logout` | POST | None | ✅ |
-| `/api/v1/auth/me` | GET | Session | ✅ |
-| `/api/v1/room/join` | POST | Session | ✅ |
-| `/api/v1/token/validate` | POST | JWT body | ✅ |
-| `/api/v1/webhook/livekit` | POST | LiveKit sig | ✅ |
-| `/api/v1/coordinator/rooms` | GET, POST | Session | ✅ |
-| `/api/v1/coordinator/rooms/[room_id]` | GET, PATCH, DELETE | Session | ⬜ Empty stub |
-| `/api/v1/coordinator/rooms/[room_id]/students` | GET, POST | Session | ⬜ Empty stub |
-| `/api/v1/coordinator/rooms/[room_id]/notify` | POST | Session | ⬜ Empty stub |
-| `/api/v1/coordinator/rooms/[roomId]/notify-status` | GET | Session | ⬜ Empty stub |
-| `/api/v1/teacher/rooms` | GET | Session | ✅ |
-| `/api/v1/teacher/profile` | GET | Session | ✅ |
-| `/api/v1/student/rooms` | GET | Session | ✅ (with teacher JOIN) |
-| `/api/v1/student/profile` | GET | Session | ✅ |
-| `/api/v1/academic/rooms` | GET | Session | ✅ |
-| `/api/v1/parent/rooms` | GET | Session | ✅ |
-| `/api/v1/ghost/rooms` | GET | Session | ✅ |
-| `/api/v1/owner/overview` | GET | Session | ✅ |
-| `/api/v1/owner/user-stats` | GET | Session | ✅ |
-| `/api/v1/hr/stats` | GET | Session (hr/owner) | ✅ |
-| `/api/v1/hr/users` | GET, POST | Session (hr/owner) | ✅ |
-| `/api/v1/hr/users/[email]` | GET, PATCH | Session | ⬜ Empty stub |
-| `/api/v1/hr/users/[email]/reset-password` | POST | Session | ⬜ Empty stub |
-| `/api/v1/users/search` | GET | Session | ✅ |
-| `/api/v1/email/test` | POST | Dev only | ✅ |
-
-**Routes not yet built:**
-
-- `POST /api/v1/payment/initiate` — Federal Bank payment
-- `POST /api/v1/payment/callback` — Bank webhook
-- `GET /api/v1/payment/status` — Payment status check
-- `GET /api/v1/room/[room_id]/status` — Public room status
-- `POST /api/v1/admin/expire-rooms` — Room expiry cron
-- `POST /api/v1/dev/token` — Dev mock token
-- `GET /api/v1/dev/livekit-test` — LiveKit connectivity test
+| Route | Methods | Lines | Status |
+|-------|---------|------:|--------|
+| `/api/v1/health` | GET | 55 | ✅ Tests DB, Redis, LiveKit |
+| `/api/v1/auth/login` | POST | 78 | ✅ DB auth with bcrypt |
+| `/api/v1/auth/logout` | POST | 19 | ✅ Clear session cookie |
+| `/api/v1/auth/me` | GET | 33 | ✅ Current user from JWT |
+| `/api/v1/room/create` | POST | 126 | ✅ Create room + LiveKit room |
+| `/api/v1/room/join` | POST | 274 | ✅ Session or email-token auth, issues LiveKit token |
+| `/api/v1/room/reminders` | GET | 90 | ✅ Cron: 30-min + 5-min reminders |
+| `/api/v1/room/[room_id]` | DELETE | 87 | ✅ End class, delete LiveKit room |
+| `/api/v1/room/[room_id]/go-live` | POST | 114 | ✅ scheduled→live, sends go-live emails |
+| `/api/v1/room/participants/[identity]` | DELETE | 61 | ✅ Teacher kicks participant |
+| `/api/v1/room/participants/[identity]/mute` | POST | 70 | ✅ Teacher mutes audio |
+| `/api/v1/token/validate` | POST | 104 | ✅ Validate join-token JWT |
+| `/api/v1/webhook/livekit` | POST | 128 | ✅ Room started/finished, join/leave events |
+| `/api/v1/coordinator/rooms` | GET, POST | 272 | ✅ List + create rooms (mandatory teacher, students, coordinator) |
+| `/api/v1/coordinator/rooms/[room_id]` | GET, PATCH, DELETE | 181 | ✅ Room detail, update, cancel |
+| `/api/v1/coordinator/rooms/[room_id]/students` | GET, POST | 126 | ✅ List + add students |
+| `/api/v1/coordinator/rooms/[room_id]/notify` | POST | 150 | ✅ Generate tokens + send email invites |
+| `/api/v1/coordinator/rooms/[room_id]/notify-status` | GET | 34 | ✅ Poll email send progress |
+| `/api/v1/hr/users` | GET, POST | 243 | ✅ List + create users with credential emails |
+| `/api/v1/hr/users/[email]` | GET, PATCH, DELETE | 123 | ✅ User detail, update, deactivate |
+| `/api/v1/hr/users/[email]/reset-password` | POST | 74 | ✅ Reset password + email credentials |
+| `/api/v1/hr/stats` | GET | 71 | ✅ Role headcounts, orphan students |
+| `/api/v1/users/search` | GET | 85 | ✅ Search with subject filter + coordinator batch count |
+| `/api/v1/teacher/rooms` | GET | 31 | ✅ Teacher's assigned rooms |
+| `/api/v1/teacher/profile` | GET | 39 | ✅ Teacher's own profile |
+| `/api/v1/student/rooms` | GET | 40 | ✅ Student's rooms with payment status |
+| `/api/v1/student/profile` | GET | 40 | ✅ Student's own profile |
+| `/api/v1/ghost/rooms` | GET | 30 | ✅ All live/scheduled rooms |
+| `/api/v1/academic/rooms` | GET | 29 | ✅ All rooms (read-only) |
+| `/api/v1/parent/rooms` | GET | 32 | 🟡 Shows all rooms (TODO: parent→child filter) |
+| `/api/v1/owner/overview` | GET | 35 | ✅ All rooms for owner |
+| `/api/v1/owner/user-stats` | GET | 27 | ✅ User counts by role |
+| `/api/v1/email/test` | POST | 166 | ✅ Dev: test all email templates |
+| `/api/v1/dev/token` | POST | 158 | ✅ Dev: generate session + LiveKit token |
+| `/api/v1/dev/livekit-test` | GET | 44 | ✅ Dev: LiveKit connectivity test |
 
 ---
 
 ### Email System
 
 - **SMTP:** Gmail via `online.poornasree@gmail.com` (App Password)
-- **8 templates:** teacher_invite, student_invite, payment_confirmation, room_reminder, room_cancelled, room_rescheduled, coordinator_summary, **credentials** (new — HR user creation)
+- **9 templates:** teacher_invite, student_invite, payment_confirmation, room_reminder, room_cancelled, room_rescheduled, coordinator_summary, credentials, **room_started** (class is LIVE)
 - **Queue:** BullMQ on Redis, concurrency 5, priority levels
 - **Logging:** All emails tracked in `email_log` table with status (queued/sent/failed)
-- **All templates tested** ✅
+- **Auto-notifications (`lib/room-notifications.ts`):**
+  - On room creation → teacher invite + student invites
+  - 30 minutes before class → reminder to all participants
+  - 5 minutes before class → urgent reminder to all participants
+  - On go-live → "Class is LIVE now" email to students
+- **Cron endpoint:** `GET /api/v1/room/reminders?key=<JWT_SECRET>` — called every minute by server cron
 
 ---
 
 ### 8 Role Dashboards
 
-All dashboards use the shared `DashboardShell` component (sidebar, header, logout, role branding).
+All dashboards use the shared `DashboardShell` component (sidebar, header, logout, role branding, 191 lines).
 
-| Role | Page | Lines | Status | Features |
-|------|------|-------|--------|---------|
-| **Coordinator** | `/coordinator` | 390 | 🟡 Partial | Stats, room list with filter/search, room creation |
-| **Teacher** | `/teacher` | 684 | ✅ Full | 3 tabs: Overview (live banner, stats, countdown, today timeline), My Classes (search/filter/expandable rows), My Profile |
-| **Student** | `/student` | 738 | ✅ Full | 3 tabs: Overview (live join banner, payment alerts, stats, countdown, today timeline), My Classes (search/filter/expandable rows, payment badges), My Profile |
-| **Academic Operator** | `/academic-operator` | 838 | ✅ Full | All rooms table, live/upcoming/stats, subject filter, coordinator notes |
-| **HR** | `/hr` | 1111 | ✅ Full | 6 tabs: Overview (headcounts, alerts, recent), Teachers, Students, Parents, Coordinators, Academic Operators — create users with generated passwords, credentials email, search/filter, expand rows |
-| **Parent** | `/parent` | 180 | 🟡 Basic | Live rooms with Observe, upcoming, completed; no effectiveStatus, no tabs |
-| **Owner** | `/owner` | 214 | 🟡 Basic | User stats grid, live rooms, recent rooms |
-| **Ghost** | `/ghost` | 187 | 🟡 Basic | Info banner, live rooms with Enter Ghost, Oversight Console; + `/ghost/monitor` (grid/list, 30s refresh) |
+| Role | Page File | Lines | Status | Features |
+|------|-----------|------:|--------|----------|
+| **Academic Operator** | `AcademicOperatorDashboardClient.tsx` | 932 | ✅ Full | Room creation (mandatory teacher with subject filter, coordinator with batch count, student add/remove, auto-suggest room name, 12h AM/PM time picker), room list with detail/edit, filter/search, stats |
+| **HR** | `HRDashboardClient.tsx` | 1,036 | ✅ Full | 6 tabs: Overview (headcounts, alerts), Teachers, Students, Parents, Coordinators, Academic Operators — create users, edit, deactivate, reset password, credentials email |
+| **Student** | `StudentDashboardClient.tsx` | 672 | ✅ Full | 3 tabs: Overview (live join, payment alerts, stats, countdown, timeline), My Classes (filter/search/expandable), My Profile |
+| **Teacher** | `TeacherDashboardClient.tsx` | 624 | ✅ Full | 3 tabs: Overview (live banner, stats, countdown, timeline), My Classes (filter/search/expandable), My Profile |
+| **Join Flow** | `JoinRoomClient.tsx` | 356 | ✅ Full | PreJoin lobby with camera/mic preview, device selection, routes to classroom |
+| **Coordinator** | `CoordinatorDashboardClient.tsx` | 357 | ✅ Full | Room list, room creation, stats, sending notifications |
+| **Owner** | `OwnerDashboardClient.tsx` | 201 | ✅ Full | User stats grid, live rooms, room overview |
+| **Ghost** | `GhostDashboardClient.tsx` | 174 | ✅ Full | Live rooms with Enter Ghost, upcoming rooms |
+| **Ghost Monitor** | `GhostMonitorClient.tsx` | 187 | ✅ Full | Multi-room grid/list view, 30s auto-refresh |
+| **Parent** | `ParentDashboardClient.tsx` | 168 | 🟡 Basic | Live + upcoming + completed rooms, Observe button |
+| **Dev** | `dev/page.tsx` | 381 | ✅ Full | Role launcher, health panel, LiveKit test |
 
-**Dashboard patterns (Teacher/Student/Academic pattern — fully implemented):**
+**Dashboard patterns:**
 - `effectiveStatus(room)` — client-side: returns `'ended'` if `scheduled_start + duration_minutes*60_000 <= now` when DB status is `'scheduled'`
 - `Countdown` component — accepts `scheduledStart` + `durationMinutes`; shows "Starts in Xm Xs" before; "Started Xm ago" / "Ended Xm ago" after
-- Lazy profile load on first Profile tab open; 60-second auto-refresh for rooms
-- `res.text()` → `JSON.parse()` pattern for safe API fetch (handles empty response body)
+- 60-second auto-refresh for rooms
+- `res.text()` → `JSON.parse()` pattern for safe API fetch
 
 ---
 
-### HR Dashboard — Detail
+### Classroom System (14 components, ~3,443 LOC)
 
-**6 tabs** with full CRUD:
+| Component | Lines | Purpose |
+|-----------|------:|---------|
+| `ClassroomWrapper.tsx` | 314 | LiveKit `<Room>` provider, session/role routing, auto-exit at class end (3s delay), safety-net timer |
+| `TeacherView.tsx` | 342 | Teacher layout — self-cam, student grid (rotated 90° for phone cameras), whiteboard, sidebar panels, Go Live button |
+| `StudentView.tsx` | 490 | Student layout — teacher main stage, chat sidebar, hand raise, mobile-only CSS landscape rotation (not on laptop/PC) |
+| `GhostView.tsx` | 232 | Silent observation — no media, teacher screen + student grid, private notes textarea |
+| `ScreenDeviceView.tsx` | 216 | Teacher's second device (tablet) — single "Share Screen" button for whiteboard |
+| `HeaderBar.tsx` | 193 | Live countdown timer (clamps at 00:00), 5-min warning banner (yellow, dismissible), expired banner (red pulsing), `onTimeExpired` callback |
+| `ControlBar.tsx` | 295 | Google Meet-style SVG buttons — mic, camera, screen share, whiteboard, chat, end call. Fixed-position confirmation dialogs |
+| `ChatPanel.tsx` | 251 | Real-time chat via LiveKit data channel (topic `chat`), role-colored bubbles, auto-scroll |
+| `ParticipantList.tsx` | 231 | Participant sidebar — role badges, mic/camera status indicators, teacher mute/kick controls |
+| `PreJoinLobby.tsx` | 219 | Camera/mic permission + preview, audio/video device selectors, role badge, join button |
+| `TeacherOverlay.tsx` | 219 | AI-segmented teacher cutout (MediaPipe) → canvas overlay, draggable 4-corner positioning |
+| `WhiteboardComposite.tsx` | 128 | Tablet screen share as whiteboard + teacher camera overlay composite (two-device setup) |
+| `VideoTile.tsx` | 139 | Reusable video tile — live video or initials avatar circle, speaking glow indicator |
+| `icons.tsx` | 124 | Google Meet-style SVG vector icons — 8 icons for control bar |
 
-| Tab | API Used | Features |
-|-----|---------|---------|
-| Overview | `/hr/stats` | Headcount cards per role (total/active), 3 alerts (students without parent, teachers without subjects), 10 recent signups |
-| Teachers | `/hr/users?role=teacher` | List with search, expandable rows showing subjects, qualification, experience, WhatsApp; Create Teacher modal |
-| Students | `/hr/users?role=student` | List with search, expandable rows showing grade/section/board, parent email, admission date; Create Student modal |
-| Parents | `/hr/users?role=parent` | List, Create Parent modal |
-| Coordinators | `/hr/users?role=coordinator` | List, Create Coordinator modal |
-| Academic Operators | `/hr/users?role=academic_operator` | List, Create Academic Operator modal |
+**Two-device teacher setup:**
+1. Teacher logs in on laptop → `TeacherView` with webcam + student grid + controls
+2. Teacher uses tablet app (Flutter) → opens as `teacher_screen` via email deep link → `ScreenDeviceView` → shares screen
+3. `WhiteboardComposite` composites tablet screen share + teacher webcam overlay
+4. `TeacherOverlay` uses MediaPipe to segment teacher background → transparent cutout on canvas
 
-**User creation flow (HR):**
-1. Fill form with name, email, phone, role-specific fields
-2. Server generates 8-char random password (upper+lower+digit+special)
-3. bcrypt hash stored in `portal_users.password_hash`
-4. Profile data stored in `user_profiles`
-5. Credentials email sent to new user (template: name, email, generated password, login URL)
+**Student mobile behavior:**
+- Portrait phone + screen share active → CSS-rotates entire view 90° to landscape
+- Orientation lock via Screen Orientation API (Android browsers)
+- Virtual keyboard detection → adjusts viewport width
+- **Laptop/PC users**: rotation disabled — only triggers on actual mobile/tablet devices (touch + mobile UA check)
 
-**Stub routes still needed:**
-- `GET/PATCH /api/v1/hr/users/[email]` — view/edit individual user
-- `POST /api/v1/hr/users/[email]/reset-password` — reset password, resend credentials
-
----
-
-### Teacher Dashboard — Detail
-
-**3 tabs:**
-
-- **Overview**: Live class alert banner, stats grid (Live/Today/Upcoming/Done This Week), Next Class card with live countdown timer, Today's schedule timeline
-- **My Classes**: Search bar + filter tabs (All/Live/Scheduled/Ended/Cancelled) with counts, expandable rows showing date, duration, student count, coordinator notes, countdown for scheduled classes
-- **My Profile**: Avatar card with subject badges, contact/professional info (phone, WhatsApp, DOB, qualification, experience, region, notes)
-
-APIs: `GET /api/v1/teacher/rooms`, `GET /api/v1/teacher/profile`
-
----
-
-### Student Dashboard — Detail
-
-**3 tabs:**
-
-- **Overview**: Live join banner ("Join Class" → `/join/${room_id}`), pending payment alert, stats grid (Live/Today/Upcoming/Done This Week), Next Class card with countdown, today's schedule timeline
-- **My Classes**: Search bar + filter tabs (All/Live/Scheduled/Ended/Cancelled) with counts, expandable rows showing date, duration, teacher name, payment badge (Paid/Free/Pending), countdown, pending payment warning
-- **My Profile**: Avatar card with grade/section/board badges, contact info (phone, WhatsApp, DOB, board, grade, section, parent email, admission date)
-
-APIs: `GET /api/v1/student/rooms`, `GET /api/v1/student/profile`
+**Room lifecycle:**
+- Timer counts down to 00:00 (no negative/overtime display)
+- 5-min warning: yellow dismissible banner
+- At 00:00: red "disconnecting..." banner → 3s delay → auto-disconnect + redirect to `/ended?reason=expired`
+- Safety net: `setTimeout` based on scheduled end time
+- Join API rejects rooms past scheduled end (410)
+- `/ended` page shows ⏰ "Class Time Ended" for expired, ✅ "Class Ended" for normal
 
 ---
 
-### Coordinator Dashboard — Detail (Partial)
+### Hooks (3 files, ~331 LOC)
 
-**Current state (~390 lines):**
-- Room list with search and status filter
-- Room creation (subject, grade, scheduled time, duration)
-- Stats summary cards
-
-**Missing (all 4 coordinator sub-routes are empty stubs):**
-- Room detail / edit / cancel (`[room_id]` PATCH, DELETE)
-- Load students into room (`[room_id]/students` POST)
-- Send invite emails (`[room_id]/notify` POST)
-- Notify status polling (`[room_id]/notify-status` GET)
+| Hook | Lines | Purpose |
+|------|------:|---------|
+| `useSession.ts` | 41 | Client auth — fetches `/api/v1/auth/me`, returns `{ user, loading, logout }` |
+| `useTeacherOverlay.ts` | 276 | MediaPipe selfie segmenter — loads WASM model, per-frame processing → canvas output, GPU-accelerated |
+| `useWhiteboard.ts` | 14 | **Stub** — placeholder for whiteboard composite logic |
 
 ---
 
-### Join Flow (Step 09 — Stubs Only)
+### Lib Files (12 files, ~1,947 LOC)
 
-All files exist at 0 lines:
-
-- `app/(portal)/join/[room_id]/page.tsx` — empty stub
-- `app/(portal)/join/[room_id]/JoinRoomClient.tsx` — empty stub
-
-**Needs:** DB room lookup, session auth, status checks, PreJoinLobby with camera preview, device selection, render role-appropriate classroom view.
-
----
-
-### Classroom Components (Steps 10-12 — Stubs Only)
-
-All 11 files exist at 6 lines (placeholder JSX only):
-
-| Component | File |
-|-----------|------|
-| `ClassroomWrapper` | `components/classroom/ClassroomWrapper.tsx` |
-| `TeacherView` | `components/classroom/TeacherView.tsx` |
-| `StudentView` | `components/classroom/StudentView.tsx` |
-| `GhostView` | `components/classroom/GhostView.tsx` |
-| `WhiteboardComposite` | `components/classroom/WhiteboardComposite.tsx` |
-| `TeacherOverlay` | `components/classroom/TeacherOverlay.tsx` |
-| `ControlBar` | `components/classroom/ControlBar.tsx` |
-| `ChatPanel` | `components/classroom/ChatPanel.tsx` |
-| `ParticipantList` | `components/classroom/ParticipantList.tsx` |
-| `PreJoinLobby` | `components/classroom/PreJoinLobby.tsx` |
-| `VideoTile` | `components/classroom/VideoTile.tsx` |
-
-Stub hooks: `useTeacherOverlay` (MediaPipe background removal), `useWhiteboard` (whiteboard composite)
-
-Classroom page: `app/(portal)/classroom/[roomId]/page.tsx` — 0 lines
+| File | Lines | Key Exports | Purpose |
+|------|------:|-------------|---------|
+| `auth-db.ts` | 73 | `dbLogin()` | PostgreSQL bcrypt authentication |
+| `auth-utils.ts` | 52 | `getServerUser()`, `requireRole()` | Server-side user getter, role guard with redirect |
+| `db.ts` | 79 | `db.query()`, `db.withTransaction()` | PostgreSQL connection pool singleton (max 10, 10s statement timeout) |
+| `email.ts` | 277 | `sendEmail()`, 7 convenience senders, log helpers | Nodemailer SMTP with dev log mode, 30s retry, email_log tracking |
+| `email-queue.ts` | 262 | `enqueueEmail()`, `enqueueBatch()`, `getNotifyStatus()`, `startEmailWorker()` | BullMQ background queue, priority system, worker with concurrency 5 |
+| `email-templates.ts` | 484 | 9 template functions + type interfaces | HTML email templates with master layout, shared helpers |
+| `livekit.ts` | 259 | `createLiveKitToken()`, `ensureRoom()`, `deleteRoom()`, `GRANTS` | LiveKit SDK — role-based grant matrix (11 roles), room CRUD, webhook receiver |
+| `redis.ts` | 25 | `redis` | ioredis singleton with lazy connect |
+| `room-notifications.ts` | 211 | `sendCreationNotifications()`, `sendReminderNotifications()`, `sendGoLiveNotifications()` | Auto-emails on create, 30/5-min reminders, go-live |
+| `session.ts` | 37 | `signSession()`, `verifySession()`, `COOKIE_NAME` | JWT session — jose HS256, 8h expiry |
+| `users.ts` | 165 | `searchUsers()`, `searchTeachersBySubject()`, `searchCoordinatorsWithBatchCount()` | User CRUD, subject-filtered teacher search with GIN index, coordinator batch count |
+| `utils.ts` | 123 | `cn()`, `fmtTimeIST()`, `fmtDateLongIST()`, `toISTDateValue()`, `istToUTCISO()`, etc. | Tailwind merge, IST date/time formatting, room ID generator |
 
 ---
 
-## Missing Pages
+### UI Components (5 shadcn primitives)
 
-| Page | Spec | Purpose |
+| File | Lines | Purpose |
+|------|------:|---------|
+| `button.tsx` | 59 | Button with 6 variants (default, destructive, outline, ghost, secondary, link) |
+| `dialog.tsx` | 145 | Dialog/modal (Radix-based) |
+| `tabs.tsx` | 83 | Tabs component (Radix-based) |
+| `badge.tsx` | 43 | Badge with variants |
+| `input.tsx` | 18 | Styled input |
+
+---
+
+## SmartUp Teacher — Flutter App
+
+**Project:** `G:\smartup\smartup-teacher`  
+**Package:** `com.smartup.screenshare`  
+**Platform:** Android (min SDK 24 / Android 7.0)  
+**Dart SDK:** `^3.9.2`  
+**Total:** 9 Dart files, ~1,637 LOC + 2 native Kotlin files
+
+### Purpose
+
+Dedicated **tablet screen-sharing device** for teachers. The teacher uses their laptop for the web portal (webcam, controls, chat) and uses this Android app on a tablet to share their screen as the whiteboard. The app connects via LiveKit and broadcasts the tablet screen to all students in the classroom.
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `livekit_client` | ^2.6.3 | LiveKit WebRTC screen sharing |
+| `http` | ^1.6.0 | HTTP API client |
+| `shared_preferences` | ^2.5.4 | Session persistence |
+| `firebase_core` | ^4.4.0 | Firebase initialization |
+| `firebase_messaging` | ^16.1.1 | FCM push notifications |
+| `flutter_local_notifications` | ^20.1.0 | Local class reminders |
+| `app_links` | ^6.4.1 | Deep link handling (email join links) |
+| `intl` | ^0.20.2 | Date formatting |
+
+### Screens (3)
+
+| Screen | Lines | Purpose |
+|--------|------:|---------|
+| `LoginScreen` | 216 | Email/password login — validates teacher/owner role |
+| `DashboardScreen` | 302 | Lists scheduled/live/ended rooms, join button, logout |
+| `ClassroomScreen` | 292 | LiveKit connection, auto screen share (1080p/30fps), Go Live trigger, foreground service |
+
+### Services (4)
+
+| Service | Lines | Purpose |
+|---------|------:|---------|
+| `api.dart` | 229 | HTTP client to portal — login, getTeacherRooms, joinRoom, goLive. Cookie-based auth (`smartup-session`) |
+| `session.dart` | 59 | SharedPreferences persistence — token, userId, userName, userRole, fcmToken |
+| `notifications.dart` | 164 | FCM push + local notifications, class reminder scheduling (10-min + at-start) |
+| `deep_link.dart` | 226 | App Links handler for `https://smartup.pydart.com/join/*`. Auto-joins if logged in, prompts login if not |
+
+### Native Android (Kotlin)
+
+| File | Lines | Purpose |
+|------|------:|---------|
+| `MainActivity.kt` | 37 | Flutter activity + MethodChannel for foreground service start/stop |
+| `ScreenCaptureService.kt` | 78 | Android foreground service with MediaProjection type — required for screen capture on Android 10+ |
+
+### Permissions
+
+| Permission | Purpose |
+|-----------|---------|
+| `INTERNET` | Network |
+| `ACCESS_NETWORK_STATE` | Connectivity |
+| `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PROJECTION` | Screen capture service |
+| `WAKE_LOCK` | Keep screen on |
+| `POST_NOTIFICATIONS` | Push notifications |
+| `SCHEDULE_EXACT_ALARM` | Class reminders |
+
+### Deep Link Flow
+
+1. Teacher receives email invite with link: `https://smartup.pydart.com/join/ROOM_ID?token=TOKEN&device=tablet`
+2. Android App Link (`autoVerify=true`) opens the SmartUp Teacher app
+3. If logged in → auto-joins LiveKit room → starts screen share
+4. If not logged in → shows login screen → resumes join after auth
+
+---
+
+## Proxy / Middleware (`proxy.ts`, 116 lines)
+
+| Path Pattern | Behavior |
+|-------------|----------|
+| `/login`, `/expired`, `/api/v1/auth/login`, `/api/v1/health` | **Public** — always allowed |
+| `/api/*` | **Pass-through** — each route validates auth itself |
+| `/join/*` | **Allowed** — token-based auth, sets `x-join-route` header |
+| `/classroom/*` | **Allowed** — auth via sessionStorage token |
+| `/dev*` | **Dev only** — blocked in production |
+| All other routes | **Session required** — checks `smartup-session` cookie, redirects to `/login` if missing/invalid |
+
+**Role-based route map:**
+
+| Route | Allowed Roles |
+|-------|---------------|
+| `/coordinator` | coordinator, owner |
+| `/teacher` | teacher, owner |
+| `/student` | student, owner |
+| `/parent` | parent, owner |
+| `/ghost` | ghost, owner |
+| `/hr` | hr, owner |
+| `/academic-operator` | academic_operator, academic, owner |
+| `/owner` | owner |
+
+---
+
+## Types (`types/index.ts`, 97 lines)
+
+| Type | Kind | Purpose |
 |------|------|---------|
-| `/expired` | Step 07 | "This class has ended" |
-| `/cancelled` | Step 07 | "This class was cancelled" |
-| `/too-early` | Step 07 | Countdown timer before open_at |
-| `/payment-failed` | Step 06 | Retry payment / contact coordinator |
-| `/ghost/room/[roomId]` | Step 13 | Focused ghost room observation |
+| `PortalRole` | Union | 11 values: teacher, teacher_screen, student, coordinator, academic_operator, academic, hr, parent, owner, ghost |
+| `SmartUpUser` | Interface | Session: id, name, role, batch_id?, token? |
+| `SessionPayload` | Interface | JWT payload: extends SmartUpUser + iat, exp |
+| `ClassRoom` | Interface | Room entity: all DB columns |
+| `JoinTokenPayload` | Interface | Join URL JWT: sub, name, role, room_id, 6 permission booleans |
+| `ApiResponse<T>` | Generic | Standard `{ success, data?, error?, message? }` |
+| `GhostRoomSummary` | Interface | Ghost monitor card data |
 
 ---
 
-## File Inventory
-
-```
-smartup-portal/
-├── .env.local                              Environment (10+ vars)
-├── proxy.ts                                Route protection + role-based access (8 roles)
-├── next.config.ts                          CORS headers
-├── package.json                            Next.js 16.1.6 + bcryptjs + bullmq + jose + livekit
-│
-├── types/
-│   └── index.ts                            PortalRole (8 roles), SmartUpUser, ClassRoom, JoinTokenPayload, ApiResponse, GhostRoomSummary
-│
-├── lib/
-│   ├── auth-db.ts                          PostgreSQL bcrypt login — dbLogin()
-│   ├── auth-utils.ts                       getServerUser(), requireRole()
-│   ├── db.ts                               PostgreSQL pool — query(), getClient(), withTransaction()
-│   ├── email.ts                            Nodemailer SMTP — sendEmail() + 8 convenience senders
-│   ├── email-queue.ts                      BullMQ — enqueueEmail(), enqueueBatch(), startEmailWorker()
-│   ├── email-templates.ts                  8 HTML email templates + master layout (incl. credentials)
-│   ├── livekit.ts                          LiveKit SDK — token generation, room service, grants matrix
-│   ├── redis.ts                            ioredis singleton
-│   ├── session.ts                          JWT sign/verify (jose, HS256, 8h)
-│   ├── users.ts                            portal_users CRUD — upsert, search
-│   └── utils.ts                            cn(), formatTime(), generateRoomId(), isGhostRole()
-│
-├── hooks/
-│   ├── useSession.ts                       Client auth hook (user, loading, logout)
-│   ├── useTeacherOverlay.ts                Stub — MediaPipe background removal
-│   └── useWhiteboard.ts                    Stub — whiteboard composite logic
-│
-├── components/
-│   ├── auth/LoginForm.tsx                  Login form — email/password, dev panel
-│   ├── dashboard/DashboardShell.tsx        Shared layout — sidebar, header, role colors (190 lines)
-│   ├── classroom/                          11 stub components (6 lines each)
-│   └── ui/                                 5 shadcn primitives (button, dialog, tabs, input, badge)
-│
-├── app/
-│   ├── layout.tsx + page.tsx               Root layout (dark theme) + redirect to /login
-│   ├── globals.css                         Tailwind v4 + shadcn CSS vars
-│   ├── (auth)/login/page.tsx               Login page
-│   ├── (portal)/
-│   │   ├── layout.tsx                      Session guard wrapper
-│   │   ├── coordinator/                    page.tsx + CoordinatorDashboardClient.tsx (390 lines)
-│   │   ├── teacher/                        page.tsx + TeacherDashboardClient.tsx (684 lines) ✅ Full
-│   │   ├── student/                        page.tsx + StudentDashboardClient.tsx (738 lines) ✅ Full
-│   │   ├── academic-operator/              page.tsx + AcademicOperatorDashboardClient.tsx (838 lines) ✅ Full
-│   │   ├── hr/                             page.tsx + HRDashboardClient.tsx (1111 lines) ✅ Full
-│   │   ├── parent/                         page.tsx + ParentDashboardClient.tsx (180 lines) 🟡 Basic
-│   │   ├── owner/                          page.tsx + OwnerDashboardClient.tsx (214 lines) 🟡 Basic
-│   │   ├── ghost/                          page.tsx + GhostDashboardClient.tsx (187 lines) + /monitor
-│   │   ├── classroom/[roomId]/             page.tsx + /ended page.tsx (both 0 lines)
-│   │   ├── join/[room_id]/                 page.tsx + JoinRoomClient.tsx (both 0 lines)
-│   │   └── dev/                            page.tsx (17 lines, stub)
-│   └── api/v1/                             24+ API routes (see table above)
-│
-├── migrations/
-│   ├── 001_initial.sql                     6 tables + indexes + seed data
-│   ├── 002_portal_users.sql                portal_users + user_profiles tables
-│   ├── 003_add_academic_operator.sql       academic_operator role support
-│   ├── 004_password_hash.sql               password_hash column + bcrypt auth
-│   ├── 004_add_hr_role_and_profiles.sql    HR role + user_profiles table
-│   └── 005_remove_frappe_columns.sql       Drop all Frappe columns/tables
-│
-├── scripts/
-│   ├── migrate.ts                          Migration runner
-│   ├── seed-users.ts                       Portal users seeder
-│   ├── setup-livekit-service.sh            LiveKit systemd setup
-│   └── setup-redis-remote.sh              Redis remote access setup
-│
-└── USERS.md                                Test accounts & credentials
-```
-
----
-
-## Environment Variables
+## Environment Variables (17)
 
 ```env
 # App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-JWT_SECRET=<generated>
+NEXT_PUBLIC_APP_URL=https://smartup.pydart.com
+JWT_SECRET=<secret>
 
 # LiveKit
 NEXT_PUBLIC_LIVEKIT_URL=ws://76.13.244.54:7880
@@ -417,6 +454,7 @@ SMTP_USER=online.poornasree@gmail.com
 SMTP_PASS=<app-password>
 EMAIL_FROM_NAME=SmartUp Classes
 EMAIL_FROM_ADDRESS=online.poornasree@gmail.com
+PORTAL_BASE_URL=https://smartup.pydart.com
 EMAIL_MODE=smtp
 ```
 
@@ -430,7 +468,116 @@ EMAIL_MODE=smtp
 | Redis | 76.13.244.60 | 6379 | TCP (password auth) |
 | LiveKit | 76.13.244.54 | 7880 | WebSocket |
 | LiveKit WebRTC | 76.13.244.54 | 50000-60000 | UDP |
-| Next.js | localhost | 3000 | HTTP |
+| Next.js (PM2) | 76.13.244.60 | 3000 | HTTP → Nginx → HTTPS |
+
+---
+
+## File Inventory
+
+### Portal (`smartup-portal/`) — 113 source files, ~16,500 LOC
+
+```
+smartup-portal/
+├── .env.local                              17 environment variables
+├── proxy.ts                                Route protection + role-based access (116 lines)
+├── next.config.ts                          CORS headers + MediaPipe WASM headers (31 lines)
+├── package.json                            Next.js 16.1.6 + 17 deps + 11 devDeps
+│
+├── types/
+│   └── index.ts                            7 types: PortalRole, SmartUpUser, ClassRoom, etc. (97 lines)
+│
+├── lib/                                    12 files, ~1,947 lines
+│   ├── auth-db.ts                          PostgreSQL bcrypt login (73)
+│   ├── auth-utils.ts                       getServerUser(), requireRole() (52)
+│   ├── db.ts                               PostgreSQL pool singleton (79)
+│   ├── email.ts                            Nodemailer SMTP + 7 senders + log (277)
+│   ├── email-queue.ts                      BullMQ queue + worker (262)
+│   ├── email-templates.ts                  9 HTML templates with master layout (484)
+│   ├── livekit.ts                          LiveKit SDK, grants matrix, room CRUD (259)
+│   ├── redis.ts                            ioredis singleton (25)
+│   ├── room-notifications.ts              Auto-notify: create, remind, go-live (211)
+│   ├── session.ts                          JWT sign/verify, jose HS256 (37)
+│   ├── users.ts                            User CRUD, subject search, batch count (165)
+│   └── utils.ts                            cn(), IST formatters, ID generator (123)
+│
+├── hooks/                                  3 files, ~331 lines
+│   ├── useSession.ts                       Client auth hook (41)
+│   ├── useTeacherOverlay.ts                MediaPipe background removal (276)
+│   └── useWhiteboard.ts                    Stub — placeholder (14)
+│
+├── components/
+│   ├── auth/LoginForm.tsx                  Login form (153)
+│   ├── dashboard/DashboardShell.tsx        Shared layout (191)
+│   ├── classroom/                          14 files, ~3,443 lines (see Classroom section)
+│   └── ui/                                 5 shadcn primitives (348 lines total)
+│
+├── app/
+│   ├── layout.tsx + page.tsx               Root layout (dark) + redirect to /login
+│   ├── globals.css                         Tailwind v4 + shadcn CSS vars
+│   ├── (auth)/login/page.tsx               Login page (26)
+│   ├── (portal)/
+│   │   ├── layout.tsx                      Session guard wrapper (33)
+│   │   ├── coordinator/                    page.tsx (22) + CoordinatorDashboardClient.tsx (357)
+│   │   ├── teacher/                        page.tsx (19) + TeacherDashboardClient.tsx (624)
+│   │   ├── student/                        page.tsx (19) + StudentDashboardClient.tsx (672)
+│   │   ├── academic-operator/              page.tsx (22) + AcademicOperatorDashboardClient.tsx (932)
+│   │   ├── hr/                             page.tsx (16) + HRDashboardClient.tsx (1,036)
+│   │   ├── parent/                         page.tsx (19) + ParentDashboardClient.tsx (168)
+│   │   ├── owner/                          page.tsx (19) + OwnerDashboardClient.tsx (201)
+│   │   ├── ghost/                          page.tsx (19) + GhostDashboardClient.tsx (174) + /monitor (187)
+│   │   ├── classroom/[roomId]/             page.tsx (29) + /ended page.tsx (82)
+│   │   ├── join/[room_id]/                 page.tsx (140) + JoinRoomClient.tsx (356)
+│   │   └── dev/                            page.tsx (381)
+│   └── api/v1/                             35 API routes (see Routes table)
+│
+├── migrations/                             6 SQL files, ~533 lines
+├── scripts/                                6 files: migrate.ts, seed-users.ts, debug-login.ts, nginx config, shell scripts
+└── USERS.md                                Test accounts reference (124 lines)
+```
+
+### Teacher App (`smartup-teacher/`) — 9 Dart files, ~1,637 LOC
+
+```
+smartup-teacher/
+├── pubspec.yaml                            Flutter app, 8 runtime deps
+├── lib/
+│   ├── main.dart                           App entry, Firebase init, routing (67)
+│   ├── theme.dart                          Dark theme matching portal (82)
+│   ├── screens/
+│   │   ├── login_screen.dart               Email/password login (216)
+│   │   ├── dashboard_screen.dart           Room list, join, refresh (302)
+│   │   └── classroom_screen.dart           LiveKit room, screen share, foreground service (292)
+│   └── services/
+│       ├── api.dart                         HTTP client, 5 endpoints, data models (229)
+│       ├── session.dart                    SharedPreferences persistence (59)
+│       ├── notifications.dart              FCM + local notifications (164)
+│       └── deep_link.dart                  App Links handler for join URLs (226)
+├── android/
+│   ├── app/src/main/
+│   │   ├── AndroidManifest.xml             7 permissions, deep link, foreground service
+│   │   └── kotlin/.../
+│   │       ├── MainActivity.kt             MethodChannel for foreground service (37)
+│   │       └── ScreenCaptureService.kt     MediaProjection foreground service (78)
+│   └── app/build.gradle.kts               compileSdk=flutter, minSdk=24, Google Services
+└── test/                                   Default widget test
+```
+
+---
+
+## Git Commit History (latest 10)
+
+```
+e4b1387 Disable video rotation on laptop/PC — only rotate on mobile devices
+f2dbc2a Auto notifications: creation emails, 30/5-min reminders, go-live alerts
+0cf4413 Time picker: 12-hour format with AM/PM dropdowns
+f4630a1 Fix: student payment_status 'pending' -> 'unpaid' to match CHECK constraint
+c1f8c34 Room creation: mandatory teacher with subject filter, student assignment, auto-suggest room name
+b676f75 Remove overtime, add 5-min warning + auto-exit at end time, fix join page dual-banner bug
+015fb89 fix: center End Class and Leave dialogs with fixed positioning
+475c3ef feat: Google Meet-style SVG vector control buttons for teacher and student rooms
+804dbde feat: rotate student video 90deg CW in teacher view, -90deg self-cam in student sidebar
+2904a40 feat: student view right sidebar with controls and teacher PIP
+```
 
 ---
 
@@ -438,57 +585,54 @@ EMAIL_MODE=smtp
 
 | Severity | Location | Issue |
 |----------|----------|-------|
-| HIGH | `coordinator/rooms/[room_id]` etc. | 4 coordinator sub-routes are 0-byte empty files — return nothing |
-| HIGH | `join/[room_id]` | Join flow page is 0 bytes — users cannot join a class at all |
-| HIGH | `notify-status` route | 0-byte stub — no auth check |
-| HIGH | `token/validate` | Cookie set via `cookies()` may not work in route handlers |
-| MEDIUM | `coordinator PATCH/DELETE` | No room ownership check |
-| MEDIUM | `room/join` | Missing `open_at`/`expires_at` time window checks |
-| MEDIUM | `lib/livekit.ts` | `hidden` in VideoGrant is not a real LiveKit field |
-| MEDIUM | `lib/email.ts` | 30s blocking retry, TLS validation disabled in prod |
-| MEDIUM | Parent dashboard | No `effectiveStatus()` — shows stale "Scheduled" for ended classes |
-| MEDIUM | Owner/Ghost dashboards | No `effectiveStatus()` — shows stale "Scheduled" for ended classes |
-| LOW | `student/rooms` | Still exposes `join_token` in list response |
-| LOW | `email-queue.ts` | Worker never auto-started |
-| LOW | `hr/users/[email]` + `reset-password` | 0-byte stubs — HR cannot edit users or reset passwords |
+| MEDIUM | `parent/rooms` API | No parent→child filter — shows all rooms |
+| MEDIUM | Parent dashboard | No `effectiveStatus()` — stale "Scheduled" for ended classes |
+| LOW | `useWhiteboard.ts` | Stub hook — not wired into classroom yet |
+| LOW | `email-queue.ts` | BullMQ worker never auto-started (emails sent directly, not queued) |
+| LOW | Cron reminders | Server cron job for `/api/v1/room/reminders` needs to be set up via crontab |
+| LOW | `student/rooms` | Exposes `join_token` in list response |
 
 ---
 
-## What's Next — Build Order
+## What's Next — Priority Order
 
-1. **Coordinator sub-routes** (room detail/edit/cancel, load students, send invites, notify-status)
-2. **Join Flow** (`/join/[room_id]` — lobby, camera preview, device selection, role-appropriate classroom entry)
-3. **Parent/Owner/Ghost dashboards** (apply effectiveStatus + tabs pattern matching Teacher/Student)
+1. **Set up cron job** on portal server for `/api/v1/room/reminders` (every minute)
+2. **Parent dashboard upgrade** — apply effectiveStatus + parent→child filter
+3. **Owner dashboard upgrade** — apply effectiveStatus + tabs pattern
 4. **Step 06 — Payment Gateway** (Federal Bank integration, 3 routes)
-5. **Step 07 — Room Lifecycle** (expiry worker, time window validation, 5 status pages)
-6. **Step 10 — Teacher Classroom** (LiveKit TeacherView, ControlBar, ChatPanel, ParticipantList)
-7. **Step 11 — Whiteboard Overlay** (screen share composite, MediaPipe background removal)
-8. **Step 12 — Student View** (StudentView, hand raise, self-view PiP)
-9. **Step 13 — Ghost Mode** (focused room view `/ghost/room/[id]`)
-10. **Step 14 — Dev Tools** (`/dev` dashboard, mock token API, LiveKit test)
-11. **HR stub routes** (`hr/users/[email]` edit + reset-password)
-12. **Bug fixes** (notify-status auth, token/validate cookie, ownership checks)
+5. **Teacher app improvements** — FCM token registration to portal, notification targeting
+6. **Bug fixes** — parent rooms filter, join_token exposure, queue worker auto-start
 
 ---
 
 ## Dev Commands
 
 ```bash
-# Start dev server
-npm run dev          # runs: next dev
+# ── Portal (Next.js) ──────────────────────────────
+cd G:\smartup\smartup-portal
 
-# Type check (no errors as of Feb 21 2026)
-npx tsc --noEmit
+npm run dev                    # Start dev server (Turbopack)
+npx next build                 # Production build
+npx tsc --noEmit               # Type check
+npm run db:migrate             # Run migrations
+npm run db:seed                # Seed test users
+npm run db:reset               # Reset + re-migrate
 
-# Run migrations
-npm run db:migrate   # runs: npx tsx scripts/migrate.ts
+# ── Deploy to production ──────────────────────────
+git add -A && git commit -m "message" && git push origin master
+ssh smartup-portal "cd /var/www/smartup-portal && git pull origin master && npm run build && pm2 restart smartup-portal"
 
-# Seed test users
-npm run db:seed
+# ── Access servers ────────────────────────────────
+ssh smartup                    # Media server (76.13.244.54)
+ssh smartup-portal             # Portal server (76.13.244.60)
 
-# Reset + re-migrate DB
-npm run db:reset
+# ── Database ──────────────────────────────────────
+# From PowerShell (pipe SQL via stdin for quote safety):
+"SELECT * FROM rooms LIMIT 5;" | ssh smartup-portal "sudo -u postgres psql -d smartup_portal"
 
-# Access servers
-ssh smartup          # Media server (76.13.244.54)
-ssh smartup-portal   # Portal server (76.13.244.60)
+# ── Teacher App (Flutter) ─────────────────────────
+cd G:\smartup\smartup-teacher
+
+flutter run                    # Run on connected device
+flutter build apk --release    # Build release APK
+```

@@ -96,7 +96,7 @@ export default function ControlBar({
 
   return (
     <div className={cn(
-      'relative flex h-[72px] items-center justify-center gap-2 border-t border-gray-800/50 bg-[#202124] px-6',
+      'relative flex h-[72px] items-center justify-center gap-2 border-t border-[#3c4043]/50 bg-[#202124] px-6',
       className
     )}>
       {/* Microphone */}
@@ -120,7 +120,7 @@ export default function ControlBar({
       />
 
       {/* Divider */}
-      <div className="mx-1 h-8 w-px bg-gray-600/40" />
+      <div className="mx-1 h-8 w-px bg-[#5f6368]/30" />
 
       {/* Teacher: Screen share */}
       {role === 'teacher' && (
@@ -177,7 +177,7 @@ export default function ControlBar({
       )}
 
       {/* Divider */}
-      <div className="mx-1 h-8 w-px bg-gray-600/40" />
+      <div className="mx-1 h-8 w-px bg-[#5f6368]/30" />
 
       {/* Teacher: End Class */}
       {role === 'teacher' && (
