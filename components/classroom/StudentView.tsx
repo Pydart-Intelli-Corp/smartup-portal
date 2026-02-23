@@ -15,11 +15,13 @@ import { Track, VideoQuality, type RemoteParticipant, type RemoteTrackPublicatio
 import VideoTile from './VideoTile';
 import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import WhiteboardComposite from './WhiteboardComposite';
+import ChatPanel from './ChatPanel';
 import { cn } from '@/lib/utils';
 import {
   MicOnIcon, MicOffIcon,
   CameraOnIcon, CameraOffIcon,
   HandRaiseIcon,
+  ChatIcon,
   LeaveIcon,
 } from './icons';
 
@@ -97,6 +99,7 @@ export default function StudentView({
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [teacherPopup, setTeacherPopup] = useState(false);
   const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
+  const [chatOpen, setChatOpen] = useState(false);
   const hideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -194,11 +197,11 @@ export default function StudentView({
   const showOverlay = useCallback(() => {
     setOverlayVisible(true);
     if (hideRef.current) clearTimeout(hideRef.current);
-    // don't auto-hide while dialog is open
-    if (!showLeaveDialog) {
+    // don't auto-hide while dialog or chat is open
+    if (!showLeaveDialog && !chatOpen) {
       hideRef.current = setTimeout(() => setOverlayVisible(false), HIDE_DELAY);
     }
-  }, [showLeaveDialog]);
+  }, [showLeaveDialog, chatOpen]);
 
   // ── fullscreen toggle (must be after showOverlay) ──
   const toggleFullscreen = useCallback(async () => {
@@ -221,16 +224,16 @@ export default function StudentView({
     showOverlay();
   }, [showOverlay, isMobile, lockLandscape, unlockOrientation]);
 
-  // keep overlays visible while dialog is open
+  // keep overlays visible while dialog or chat is open
   useEffect(() => {
-    if (showLeaveDialog) {
+    if (showLeaveDialog || chatOpen) {
       setOverlayVisible(true);
       if (hideRef.current) clearTimeout(hideRef.current);
     } else {
       // restart auto-hide
       showOverlay();
     }
-  }, [showLeaveDialog, showOverlay]);
+  }, [showLeaveDialog, chatOpen, showOverlay]);
 
   // initial show
   useEffect(() => {
@@ -732,6 +735,10 @@ export default function StudentView({
           <OvBtn on={handRaised} onClick={toggleHand} title={handRaised ? 'Lower hand' : 'Raise hand'}
             onIcon={<HandRaiseIcon className="w-5 h-5" />} offIcon={<HandRaiseIcon className="w-5 h-5" />}
             onWarn compact={compact} />
+          {/* Chat */}
+          <OvBtn on={chatOpen} onClick={() => setChatOpen(!chatOpen)} title={chatOpen ? 'Close chat' : 'Chat'}
+            onIcon={<ChatIcon className="w-5 h-5" />} offIcon={<ChatIcon className="w-5 h-5" />}
+            onPrimary compact={compact} />
           {/* Fullscreen */}
           <OvBtn on={isFullscreen} onClick={toggleFullscreen}
             title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
@@ -764,6 +771,21 @@ export default function StudentView({
       </div>
 
       {/* === LAYER 3 — Panels & dialogs === */}
+
+      {/* Chat panel — slides from right */}
+      <div
+        className={cn(
+          'fixed top-0 right-0 z-[80] h-full w-[320px] max-w-[85vw] bg-[#202124] shadow-2xl ring-1 ring-white/[0.08] transition-transform duration-300 ease-out',
+          chatOpen ? 'translate-x-0' : 'translate-x-full',
+        )}
+      >
+        <ChatPanel
+          participantName={participantName}
+          participantRole="student"
+          onClose={() => setChatOpen(false)}
+          className="h-full"
+        />
+      </div>
 
       {/* Leave dialog */}
       {showLeaveDialog && (

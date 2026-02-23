@@ -667,7 +667,6 @@ export default function TeacherView({
         roomId={roomId}
         whiteboardActive={whiteboardActive}
         onToggleWhiteboard={() => setWhiteboardActive(!whiteboardActive)}
-        onToggleChat={() => { setSidebarOpen(true); setSidebarTab('chat'); }}
         onEndClass={onEndClass}
       />
     </div>
