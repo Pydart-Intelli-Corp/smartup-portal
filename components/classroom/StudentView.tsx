@@ -78,6 +78,35 @@ function fmtCountdown(sec: number): string {
 const HIDE_DELAY = 3500;          // ms before overlays auto-hide
 const WARNING_THRESHOLD = 5 * 60; // 5 min warning
 
+// ─── sound effects (Web Audio API — no files needed) ──────
+function playTone(freq: number, durationMs: number, type: OscillatorType = 'sine') {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationMs / 1000);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + durationMs / 1000);
+    setTimeout(() => ctx.close(), durationMs + 100);
+  } catch {}
+}
+
+function playHandRaiseSound() {
+  // Rising two-tone chime
+  playTone(880, 200, 'sine');
+  setTimeout(() => playTone(1174, 300, 'sine'), 150);
+}
+
+function playHandLowerSound() {
+  // Falling single tone
+  playTone(660, 250, 'triangle');
+}
+
 // ─── component ────────────────────────────────────────────
 export default function StudentView({
   roomId,
@@ -93,6 +122,7 @@ export default function StudentView({
   const [chatOpen, setChatOpen] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [teacherPopup, setTeacherPopup] = useState(false);
   const hideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -265,6 +295,8 @@ export default function StudentView({
   const toggleHand = useCallback(async () => {
     const next = !handRaised;
     setHandRaised(next);
+    // Play sound effect
+    if (next) playHandRaiseSound(); else playHandLowerSound();
     try {
       await localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({
@@ -304,12 +336,81 @@ export default function StudentView({
       {/* === LAYER 0 — Full-screen content (always visible) === */}
       <div className="absolute inset-0">
         {hasScreenShare && teacher ? (
-          <WhiteboardComposite
-            teacher={teacher}
-            teacherScreenDevice={screenDevice}
-            hideOverlay={true}
-            className="h-full w-full"
-          />
+          /* ── Split layout: Whiteboard LEFT, cameras RIGHT ── */
+          <div className="flex h-full w-full">
+            {/* Whiteboard — takes most of the space */}
+            <div className={cn('h-full overflow-hidden', compact ? 'flex-1' : 'flex-[3]')}>
+              <WhiteboardComposite
+                teacher={teacher}
+                teacherScreenDevice={screenDevice}
+                hideOverlay={true}
+                className="h-full w-full"
+              />
+            </div>
+            {/* Camera strip — right side */}
+            <div className={cn(
+              'flex flex-col gap-1.5 bg-[#181818] overflow-hidden',
+              compact ? 'w-[90px] p-1' : 'flex-1 max-w-[280px] p-2',
+            )}>
+              {/* Teacher camera */}
+              {hasTeacherCam && teacherCamPub ? (
+                <div
+                  className={cn(
+                    'relative flex-1 min-h-0 overflow-hidden rounded-xl ring-1 ring-white/10 cursor-pointer transition-all hover:ring-[#1a73e8]/60',
+                    compact && 'rounded-lg',
+                  )}
+                  onClick={() => setTeacherPopup(true)}
+                >
+                  <VideoTrack
+                    trackRef={{ participant: teacher, publication: teacherCamPub, source: Track.Source.Camera } as TrackReference}
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                    <span className={cn('font-medium text-white/90 drop-shadow-sm', compact ? 'text-[8px]' : 'text-[11px]')}>
+                      {teacher.name || teacher.identity}
+                    </span>
+                  </div>
+                  {/* Expand hint icon */}
+                  {!compact && (
+                    <div className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/40 text-white/70 backdrop-blur-sm">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+                        <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-1 items-center justify-center rounded-xl bg-[#202124] ring-1 ring-white/10">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5f6368] text-sm font-semibold text-white">
+                    {(teacher?.name || teacher?.identity || 'T').charAt(0).toUpperCase()}
+                  </div>
+                </div>
+              )}
+              {/* Self camera */}
+              <div className={cn(
+                'relative overflow-hidden rounded-xl ring-1 ring-white/10',
+                compact ? 'h-[60px] rounded-lg' : 'flex-1 min-h-0',
+              )}>
+                {isCamOn ? (
+                  <div className="h-full w-full" style={forceRotate ? { transform: 'rotate(-90deg) scaleX(-1)' } : { transform: 'scaleX(-1)' }}>
+                    <VideoTile participant={localParticipant} size="large" mirror={false} showName={false} showMicIndicator={false} className="!w-full !h-full !rounded-none !border-0" />
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-[#202124]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5f6368] text-sm font-semibold text-white">
+                      {(participantName || 'S').charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                  <span className={cn('font-medium text-white/90 drop-shadow-sm', compact ? 'text-[8px]' : 'text-[11px]')}>
+                    You {!isMicOn && '\uD83D\uDD07'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : hasTeacherCam && teacher ? (
           <div className="flex h-full items-center justify-center bg-[#202124]">
             <VideoTile
@@ -411,14 +512,15 @@ export default function StudentView({
         </div>
       </div>
 
-      {/* -- Teacher camera PIP (overlay, fades with controls) -- */}
-      {hasScreenShare && hasTeacherCam && teacher && teacherCamPub && (
+      {/* -- Teacher camera PIP (only when NO screen share — replaced by right panel when WB is active) -- */}
+      {!hasScreenShare && hasTeacherCam && teacher && teacherCamPub && (
         <div
           className={cn(
-            'absolute z-40 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10 transition-all duration-500',
+            'absolute z-40 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10 transition-all duration-500 cursor-pointer',
             show ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none',
             compact ? 'top-2 right-2 w-[100px] h-[68px]' : 'top-14 right-3 w-[160px] h-[100px] sm:w-[200px] sm:h-[126px]',
           )}
+          onClick={() => setTeacherPopup(true)}
         >
           <VideoTrack
             trackRef={{ participant: teacher, publication: teacherCamPub, source: Track.Source.Camera } as TrackReference}
@@ -432,8 +534,8 @@ export default function StudentView({
         </div>
       )}
 
-      {/* -- Self-cam PIP (overlay, fades with controls) -- */}
-      {isCamOn && (
+      {/* -- Self-cam PIP (only when NO screen share — in split mode self-cam is in right panel) -- */}
+      {!hasScreenShare && isCamOn && (
         <div
           className={cn(
             'absolute z-40 overflow-hidden rounded-xl ring-1 ring-white/10 shadow-lg transition-all duration-500',
@@ -545,6 +647,38 @@ export default function StudentView({
               <button onClick={() => setShowLeaveDialog(false)} className="flex-1 rounded-full bg-[#3c4043] py-2.5 text-sm font-medium text-[#e8eaed] hover:bg-[#4a4d51]">Cancel</button>
               <button onClick={onLeave} className="flex-1 rounded-full bg-[#ea4335] py-2.5 text-sm font-medium text-white hover:bg-[#c5221f]">Leave</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Teacher camera enlarged popup */}
+      {teacherPopup && teacher && teacherCamPub && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setTeacherPopup(false)}
+        >
+          <div
+            className="relative w-[90vw] max-w-[800px] aspect-video overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <VideoTrack
+              trackRef={{ participant: teacher, publication: teacherCamPub, source: Track.Source.Camera } as TrackReference}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+              <span className="text-sm font-medium text-white drop-shadow-sm">
+                {teacher.name || teacher.identity}
+              </span>
+            </div>
+            {/* Close button */}
+            <button
+              onClick={() => setTeacherPopup(false)}
+              className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white/80 backdrop-blur-sm hover:bg-black/70 transition-colors"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
