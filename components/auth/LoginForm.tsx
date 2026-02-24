@@ -64,21 +64,22 @@ export default function LoginForm() {
     <div className="w-full max-w-md">
       {/* Header */}
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 text-2xl font-bold text-white">
-          S
-        </div>
-        <h1 className="text-2xl font-bold text-white">SmartUp</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <img 
+          src="/logo/IMG_3582.PNG" 
+          alt="SmartUp" 
+          className="mx-auto mb-4 h-20 object-contain" 
+        />
+        <p className="mt-1 text-sm text-muted-foreground">
           Live Classes for Class 1–12 (CBSE / ICSE)
         </p>
       </div>
 
       {/* Login Card */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email */}
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-gray-300">
+            <label htmlFor="email" className="text-sm font-medium text-foreground/90">
               Email Address
             </label>
             <Input
@@ -90,13 +91,13 @@ export default function LoginForm() {
               disabled={loading}
               autoComplete="email"
               required
-              className="h-11 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:border-blue-500 focus-visible:ring-blue-500/30"
+              className="h-11 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/30"
             />
           </div>
 
           {/* Password */}
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-gray-300">
+            <label htmlFor="password" className="text-sm font-medium text-foreground/90">
               Password
             </label>
             <div className="relative">
@@ -109,12 +110,12 @@ export default function LoginForm() {
                 disabled={loading}
                 autoComplete="current-password"
                 required
-                className="h-11 pr-10 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:border-blue-500 focus-visible:ring-blue-500/30"
+                className="h-11 pr-10 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/30"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -126,7 +127,7 @@ export default function LoginForm() {
           <Button
             type="submit"
             disabled={loading || !email || !password}
-            className="h-11 w-full bg-blue-600 text-white hover:bg-blue-500 disabled:bg-blue-600/50"
+            className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-primary/50"
           >
             {loading ? (
               <>

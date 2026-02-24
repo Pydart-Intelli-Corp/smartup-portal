@@ -72,28 +72,28 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Monitor className="h-6 w-6 text-gray-400" /> Oversight Console
+            <Monitor className="h-6 w-6 text-muted-foreground" /> Oversight Console
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Monitor all live classes — auto-refreshes every 30 seconds
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setViewMode('grid')}
-            className={`rounded-lg p-2 ${viewMode === 'grid' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-white'}`}
+            className={`rounded-lg p-2 ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Grid3X3 className="h-4 w-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`rounded-lg p-2 ${viewMode === 'list' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-white'}`}
+            className={`rounded-lg p-2 ${viewMode === 'list' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <List className="h-4 w-4" />
           </button>
           <button
             onClick={fetchRooms}
-            className="flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white"
+            className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -111,14 +111,14 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
       </div>
 
       {loading && rooms.length === 0 ? (
-        <div className="flex items-center justify-center py-20 text-gray-500">
+        <div className="flex items-center justify-center py-20 text-muted-foreground">
           <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading rooms...
         </div>
       ) : live.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-20 text-center">
-          <Monitor className="mb-3 h-10 w-10 text-gray-600" />
-          <p className="text-gray-400">No live classes at the moment</p>
-          <p className="mt-1 text-sm text-gray-600">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
+          <Monitor className="mb-3 h-10 w-10 text-muted-foreground/60" />
+          <p className="text-muted-foreground">No live classes at the moment</p>
+          <p className="mt-1 text-sm text-muted-foreground/80">
             Live classes will appear here automatically
           </p>
         </div>
@@ -132,29 +132,29 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
             return (
               <div
                 key={room.room_id}
-                className="rounded-xl border border-green-800/50 bg-gray-900 overflow-hidden"
+                className="rounded-xl border border-green-800/50 bg-card overflow-hidden"
               >
                 {/* Simulated video placeholder */}
-                <div className="relative bg-gray-800 h-36 flex items-center justify-center">
+                <div className="relative bg-muted h-36 flex items-center justify-center">
                   <Radio className="h-8 w-8 text-green-500 animate-pulse" />
                   <div className="absolute top-2 left-2 flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                     <Radio className="h-2.5 w-2.5" /> LIVE
                   </div>
-                  <div className="absolute top-2 right-2 text-[10px] text-gray-400 bg-black/50 rounded px-1.5 py-0.5">
+                  <div className="absolute top-2 right-2 text-[10px] text-muted-foreground bg-black/50 rounded px-1.5 py-0.5">
                     {elapsed}m elapsed
                   </div>
                 </div>
                 <div className="p-3">
                   <h3 className="font-medium text-sm truncate">{room.room_name}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {room.subject} · {room.grade}
                   </p>
-                  <p className="text-xs text-gray-600 mt-0.5">
+                  <p className="text-xs text-muted-foreground/80 mt-0.5">
                     Teacher: {room.teacher_email || '—'}
                   </p>
                   <a
                     href={`/classroom/${room.room_id}?mode=ghost`}
-                    className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-gray-700 py-2 text-xs font-medium text-gray-300 hover:bg-gray-600"
+                    className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-accent py-2 text-xs font-medium text-foreground/80 hover:bg-accent/80"
                   >
                     <Eye className="h-3.5 w-3.5" /> Enter Ghost Mode
                   </a>
@@ -173,19 +173,19 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
             return (
               <div
                 key={room.room_id}
-                className="flex items-center gap-4 rounded-xl border border-green-800/50 bg-gray-900 p-4"
+                className="flex items-center gap-4 rounded-xl border border-green-800/50 bg-card p-4"
               >
                 <Radio className="h-6 w-6 text-green-400 animate-pulse flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium truncate">{room.room_name}</h3>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {room.subject} · {room.grade} · Teacher: {room.teacher_email || '—'}
                   </p>
                 </div>
-                <span className="text-xs text-gray-500 flex-shrink-0">{elapsed}m</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0">{elapsed}m</span>
                 <a
                   href={`/classroom/${room.room_id}?mode=ghost`}
-                  className="flex items-center gap-1 rounded-lg bg-gray-700 px-3 py-2 text-xs font-medium text-gray-300 hover:bg-gray-600 flex-shrink-0"
+                  className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-accent/80 flex-shrink-0"
                 >
                   <Eye className="h-3.5 w-3.5" /> Enter Ghost
                 </a>

@@ -47,10 +47,10 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
 
   if (roomResult.rows.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <h1 className="text-xl font-bold text-red-400">Batch Not Found</h1>
-          <p className="mt-2 text-gray-400">This batch does not exist or may have been deleted.</p>
+          <p className="mt-2 text-muted-foreground">This batch does not exist or may have been deleted.</p>
         </div>
       </div>
     );
@@ -61,10 +61,10 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
   // Check if room is cancelled
   if (room.status === 'cancelled') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <h1 className="text-xl font-bold text-red-400">Batch Cancelled</h1>
-          <p className="mt-2 text-gray-400">This class has been cancelled by the coordinator.</p>
+          <p className="mt-2 text-muted-foreground">This class has been cancelled by the coordinator.</p>
         </div>
       </div>
     );
@@ -73,11 +73,11 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
   // Check if room has ended
   if (room.status === 'ended') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mb-3 text-4xl">✅</div>
-          <h1 className="text-xl font-bold text-white">Class Ended</h1>
-          <p className="mt-2 text-gray-400">This class session has already ended.</p>
+          <h1 className="text-xl font-bold text-foreground">Class Ended</h1>
+          <p className="mt-2 text-muted-foreground">This class session has already ended.</p>
         </div>
       </div>
     );

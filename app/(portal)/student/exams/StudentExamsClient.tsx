@@ -78,26 +78,26 @@ export default function StudentExamsClient({ userName, userEmail, userRole }: Pr
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <GraduationCap className="h-6 w-6 text-violet-400" /> My Exams
             </h1>
-            <p className="text-sm text-gray-400 mt-1">View and take your assigned exams</p>
+            <p className="text-sm text-muted-foreground mt-1">View and take your assigned exams</p>
           </div>
           <button onClick={fetchExams} disabled={loading}
-            className="flex items-center gap-1 rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 disabled:opacity-50">
+            className="flex items-center gap-1 rounded border border-border bg-muted px-3 py-1.5 text-xs text-foreground/80 hover:bg-accent disabled:opacity-50">
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 rounded-lg bg-gray-800/50 p-1 w-fit">
+        <div className="flex gap-1 rounded-lg bg-muted/50 p-1 w-fit">
           {[
             { key: 'available' as const, label: 'Available', count: available.length },
             { key: 'completed' as const, label: 'Completed', count: completed.length },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`rounded-md px-4 py-1.5 text-sm font-medium transition
-                ${tab === t.key ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                ${tab === t.key ? 'bg-violet-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}>
               {t.label} ({t.count})
             </button>
           ))}
@@ -109,46 +109,46 @@ export default function StudentExamsClient({ userName, userEmail, userRole }: Pr
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
           </div>
         ) : currentList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <FileText className="h-12 w-12 mb-3 opacity-40" />
             <p className="text-sm">No {tab} exams</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {currentList.map(exam => (
-              <div key={exam.id} className="rounded-xl border border-gray-700 bg-gray-800/50 p-5 flex flex-col">
+              <div key={exam.id} className="rounded-xl border border-border bg-muted/50 p-5 flex flex-col">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-white text-sm">{exam.title}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">{exam.subject} · Grade {exam.grade}</p>
+                    <h3 className="font-semibold text-foreground text-sm">{exam.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{exam.subject} · Grade {exam.grade}</p>
                   </div>
                   {exam.attempt_status === 'graded' && (
-                    <span className={`text-xl font-bold ${GRADE_COLORS[exam.attempt_grade || ''] || 'text-gray-400'}`}>
+                    <span className={`text-xl font-bold ${GRADE_COLORS[exam.attempt_grade || ''] || 'text-muted-foreground'}`}>
                       {exam.attempt_grade}
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-3 text-xs text-gray-400 mb-4">
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-4">
                   <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {exam.duration_minutes}m</span>
                   <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> {exam.total_marks} marks</span>
                   <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Pass: {exam.passing_marks}</span>
                 </div>
 
                 {exam.scheduled_at && (
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-muted-foreground mb-3">
                     Scheduled: {new Date(exam.scheduled_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
                   </p>
                 )}
 
                 {exam.attempt_status === 'graded' ? (
                   <div className="mt-auto">
-                    <div className="flex items-center justify-between rounded-lg bg-gray-900/50 p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-card/50 p-3">
                       <div>
-                        <p className="text-xs text-gray-500">Score</p>
-                        <p className="text-sm font-semibold text-white">
+                        <p className="text-xs text-muted-foreground">Score</p>
+                        <p className="text-sm font-semibold text-foreground">
                           {exam.attempt_score}/{exam.total_marks}
-                          <span className="text-gray-400 ml-1">({exam.attempt_percentage}%)</span>
+                          <span className="text-muted-foreground ml-1">({exam.attempt_percentage}%)</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-1">

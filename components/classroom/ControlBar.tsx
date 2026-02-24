@@ -178,7 +178,7 @@ export default function ControlBar({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
             <h3 className="mb-2 text-lg font-semibold text-white">End class for everyone?</h3>
-            <p className="mb-4 text-sm text-gray-400">This will disconnect all students.</p>
+            <p className="mb-4 text-sm text-muted-foreground">This will disconnect all students.</p>
             {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
             <div className="flex gap-3 justify-center">
               <button
@@ -204,7 +204,7 @@ export default function ControlBar({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
             <h3 className="mb-2 text-lg font-semibold text-white">Leave this class?</h3>
-            <p className="mb-4 text-sm text-gray-400">You can rejoin while the class is active.</p>
+            <p className="mb-4 text-sm text-muted-foreground">You can rejoin while the class is active.</p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowLeaveConfirm(false)}

@@ -132,38 +132,38 @@ function UserSearchDropdown({
   return (
     <div ref={ref} className="relative">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input type="text" value={q} placeholder={placeholder}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 py-2 pl-9 pr-4 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+          className="w-full rounded-lg border border-border bg-muted py-2 pl-9 pr-4 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500 focus:outline-none"
         />
-        {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-500" />}
+        {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
       </div>
       {open && results.length > 0 && (
-        <div className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-gray-700 shadow-2xl" style={{ backgroundColor: '#1a1f2e' }}>
+        <div className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border shadow-2xl" style={{ backgroundColor: '#1a1f2e' }}>
           {results.map((u) => (
             <button key={u.email} type="button" onMouseDown={() => handleSelect(u)}
-              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-700/50 transition-colors"
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
             >
               <Avatar name={u.name} size={8} color={role === 'teacher' ? 'bg-emerald-600' : role === 'coordinator' ? 'bg-blue-600' : 'bg-violet-600'} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-white">{u.name}</p>
+                  <p className="text-sm font-medium text-foreground">{u.name}</p>
                   {u.matchesSubject && (
                     <span className="rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">✓ {subject}</span>
                   )}
                   {role === 'coordinator' && typeof u.batchCount === 'number' && (
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                      u.batchCount === 0 ? 'bg-gray-700 text-gray-400' : u.batchCount <= 3 ? 'bg-blue-900/60 text-blue-400' : 'bg-amber-900/60 text-amber-400'
+                      u.batchCount === 0 ? 'bg-muted text-muted-foreground' : u.batchCount <= 3 ? 'bg-blue-900/60 text-blue-400' : 'bg-amber-900/60 text-amber-400'
                     }`}>{u.batchCount} batch{u.batchCount !== 1 ? 'es' : ''}</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 {u.subjects && u.subjects.length > 0 && (
                   <div className="mt-0.5 flex flex-wrap gap-1">
                     {u.subjects.map((s: string) => (
-                      <span key={s} className={`rounded px-1 py-0.5 text-[9px] font-medium ${s === subject ? 'bg-emerald-900/50 text-emerald-400' : 'bg-gray-700 text-gray-400'}`}>{s}</span>
+                      <span key={s} className={`rounded px-1 py-0.5 text-[9px] font-medium ${s === subject ? 'bg-emerald-900/50 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>{s}</span>
                     ))}
                   </div>
                 )}
@@ -173,7 +173,7 @@ function UserSearchDropdown({
         </div>
       )}
       {open && !searching && results.length === 0 && q.length > 1 && (
-        <div className="absolute z-30 mt-1 w-full rounded-xl border border-gray-700 px-4 py-3 text-sm text-gray-500 shadow-xl" style={{ backgroundColor: '#1a1f2e' }}>
+        <div className="absolute z-30 mt-1 w-full rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground shadow-xl" style={{ backgroundColor: '#1a1f2e' }}>
           No {role}s found
         </div>
       )}
@@ -223,8 +223,8 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
     ]}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Rooms</h1>
-          <p className="text-sm text-gray-400">Create batches, assign teachers &amp; students</p>
+          <h1 className="text-2xl font-bold text-foreground">Rooms</h1>
+          <p className="text-sm text-muted-foreground">Create batches, assign teachers &amp; students</p>
         </div>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 transition-colors"
@@ -235,13 +235,13 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Total',     value: stats.total,     color: 'border-gray-700',   text: 'text-white'     },
+          { label: 'Total',     value: stats.total,     color: 'border-border',   text: 'text-foreground'     },
           { label: 'Live',      value: stats.live,      color: 'border-green-700',  text: 'text-green-400' },
           { label: 'Scheduled', value: stats.scheduled, color: 'border-amber-700',  text: 'text-amber-400' },
-          { label: 'Ended',     value: stats.ended,     color: 'border-gray-600',   text: 'text-gray-400'  },
+          { label: 'Ended',     value: stats.ended,     color: 'border-border',   text: 'text-muted-foreground'  },
         ].map((s) => (
-          <div key={s.label} className={`rounded-xl border ${s.color} bg-gray-900/60 p-4`}>
-            <p className="text-xs text-gray-400">{s.label}</p>
+          <div key={s.label} className={`rounded-xl border ${s.color} bg-card/60 p-4`}>
+            <p className="text-xs text-muted-foreground">{s.label}</p>
             <p className={`mt-1 text-3xl font-bold ${s.text}`}>{s.value}</p>
           </div>
         ))}
@@ -252,20 +252,20 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
           {['all', 'live', 'scheduled', 'ended', 'cancelled'].map((f) => (
             <button key={f} onClick={() => setFilter(f)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                filter === f ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                filter === f ? 'bg-amber-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >{f}</button>
           ))}
         </div>
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input type="text" placeholder="Search rooms, subject, grade..." value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800/50 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-muted/50 py-2 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500 focus:outline-none"
           />
         </div>
         <button onClick={fetchRooms}
-          className="flex shrink-0 items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors"
+          className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
@@ -273,14 +273,14 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
 
       <div className="space-y-2">
         {loading && rooms.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-gray-500">
+          <div className="flex items-center justify-center py-20 text-muted-foreground">
             <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading rooms...
           </div>
         ) : filteredRooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-16 text-center">
-            <Calendar className="mb-3 h-10 w-10 text-gray-600" />
-            <p className="text-gray-300 font-medium">No rooms found</p>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+            <Calendar className="mb-3 h-10 w-10 text-muted-foreground/60" />
+            <p className="text-foreground/80 font-medium">No rooms found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               {rooms.length === 0 ? 'Click \u201cNew Room\u201d to schedule the first class' : 'Try a different filter or search'}
             </p>
           </div>
@@ -312,19 +312,19 @@ function AOPRoomCard({ room, expanded, onToggle, onRefresh, router }: {
   const badge = STATUS_BADGE[room.status] ?? STATUS_BADGE.scheduled;
   const BadgeIcon = badge.icon;
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden hover:border-gray-700 transition-colors">
+    <div className="rounded-xl border border-border bg-card overflow-hidden hover:border-border/80 transition-colors">
       <div className="flex items-center gap-3 p-4 cursor-pointer select-none" onClick={onToggle}>
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${badge.bg}`}>
           <BadgeIcon className={`h-5 w-5 ${badge.text}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-white truncate">{room.room_name}</h3>
+            <h3 className="font-semibold text-foreground truncate">{room.room_name}</h3>
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase border ${badge.bg} ${badge.text}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />{room.status}
             </span>
           </div>
-          <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+          <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />{room.subject}</span>
             <span className="flex items-center gap-1"><GraduationCap className="h-3 w-3" />{room.grade}{room.section ? ` \u2014 ${room.section}` : ''}</span>
             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(room.scheduled_start)}</span>
@@ -341,7 +341,7 @@ function AOPRoomCard({ room, expanded, onToggle, onRefresh, router }: {
             ><Eye className="h-3 w-3" /> Observe</button>
           )}
         </div>
-        <div className="shrink-0 text-gray-500 hover:text-gray-300 transition-colors">
+        <div className="shrink-0 text-muted-foreground hover:text-foreground/80 transition-colors">
           {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
         </div>
       </div>
@@ -397,11 +397,11 @@ function AOPRoomDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
   };
 
   return (
-    <div className="border-t border-gray-800 bg-gray-950/50">
-      <div className="flex items-center gap-1 border-b border-gray-800 px-4 pt-3">
+    <div className="border-t border-border bg-background/50">
+      <div className="flex items-center gap-1 border-b border-border px-4 pt-3">
         {(['overview', 'students', 'edit'] as AOPTab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`rounded-t-lg px-4 py-2 text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`rounded-t-lg px-4 py-2 text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground/80'}`}
           >{t}</button>
         ))}
         <div className="ml-auto flex items-center gap-2 pb-2">
@@ -422,7 +422,7 @@ function AOPRoomDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
                   <button onClick={handleCancel} disabled={cancelling}
                     className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-50"
                   >{cancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Yes, Cancel'}</button>
-                  <button onClick={() => setCancelConfirm(false)} className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 hover:text-white">No</button>
+                  <button onClick={() => setCancelConfirm(false)} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">No</button>
                 </div>
               )}
             </>
@@ -447,7 +447,7 @@ function AOPOverviewTab({ room, teacher, students, loadingDetails }: { room: Roo
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Room Info</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Room Info</h4>
         {[
           ['Room ID', room.room_id, true],
           ['Subject', room.subject, false],
@@ -457,41 +457,41 @@ function AOPOverviewTab({ room, teacher, students, loadingDetails }: { room: Roo
           ['Max Participants', String(room.max_participants), false],
         ].map(([l, v, m]) => (
           <div key={l as string} className="flex items-start gap-2 text-sm">
-            <span className="w-28 shrink-0 text-xs text-gray-500">{l as string}</span>
-            <span className={`text-gray-200 ${m ? 'font-mono text-xs' : ''}`}>{v as string}</span>
+            <span className="w-28 shrink-0 text-xs text-muted-foreground">{l as string}</span>
+            <span className={`text-foreground/80 ${m ? 'font-mono text-xs' : ''}`}>{v as string}</span>
           </div>
         ))}
         {room.notes_for_teacher && (
           <div className="flex items-start gap-2 text-sm">
-            <span className="w-28 shrink-0 text-xs text-gray-500">Notes</span>
-            <span className="text-gray-200">{room.notes_for_teacher}</span>
+            <span className="w-28 shrink-0 text-xs text-muted-foreground">Notes</span>
+            <span className="text-foreground/80">{room.notes_for_teacher}</span>
           </div>
         )}
       </div>
       <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Assignments</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assignments</h4>
         {loadingDetails ? (
-          <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
         ) : (
           <>
-            <div className="rounded-lg border border-gray-800 p-3">
-              <p className="mb-2 text-xs text-gray-500">Teacher</p>
+            <div className="rounded-lg border border-border p-3">
+              <p className="mb-2 text-xs text-muted-foreground">Teacher</p>
               {teacher ? (
                 <div className="flex items-center gap-2">
                   <Avatar name={teacher.participant_name} size={7} color="bg-emerald-600" />
                   <div>
-                    <p className="text-sm font-medium text-white">{teacher.participant_name}</p>
-                    <p className="text-xs text-gray-500">{teacher.participant_email}</p>
+                    <p className="text-sm font-medium text-foreground">{teacher.participant_name}</p>
+                    <p className="text-xs text-muted-foreground">{teacher.participant_email}</p>
                   </div>
                 </div>
               ) : (
                 <p className="text-xs text-amber-400">\u26a0 No teacher assigned \u2014 go to Edit tab</p>
               )}
             </div>
-            <div className="rounded-lg border border-gray-800 p-3">
-              <p className="mb-1 text-xs text-gray-500">Students</p>
-              <p className="text-2xl font-bold text-white">{students.length}</p>
-              <p className="text-xs text-gray-500">assigned</p>
+            <div className="rounded-lg border border-border p-3">
+              <p className="mb-1 text-xs text-muted-foreground">Students</p>
+              <p className="text-2xl font-bold text-foreground">{students.length}</p>
+              <p className="text-xs text-muted-foreground">assigned</p>
             </div>
           </>
         )}
@@ -538,38 +538,38 @@ function AOPStudentsTab({ room, students, onRefresh }: { room: Room; students: A
     <div className="space-y-4">
       {canEdit && (
         <div>
-          <p className="mb-2 text-xs flex items-center gap-1 text-gray-400"><UserPlus className="h-3 w-3" /> Add student</p>
+          <p className="mb-2 text-xs flex items-center gap-1 text-muted-foreground"><UserPlus className="h-3 w-3" /> Add student</p>
           <UserSearchDropdown role="student" placeholder="Search student by name or email..." onSelect={handleAdd} excludeEmails={students.map((s) => s.participant_email)} />
-          {adding && <p className="mt-1 text-xs text-gray-500 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Adding...</p>}
+          {adding && <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Adding...</p>}
         </div>
       )}
       {msg && (
         <div className={`rounded-lg px-3 py-2 text-xs ${msg.startsWith('\u2713') ? 'bg-green-950/50 border border-green-800 text-green-400' : 'bg-red-950/50 border border-red-800 text-red-400'}`}>{msg}</div>
       )}
       <div>
-        <p className="mb-2 text-xs text-gray-500">{students.length} student{students.length !== 1 ? 's' : ''} assigned</p>
+        <p className="mb-2 text-xs text-muted-foreground">{students.length} student{students.length !== 1 ? 's' : ''} assigned</p>
         {students.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-700 py-8 text-center">
-            <Users className="mx-auto mb-2 h-6 w-6 text-gray-600" />
-            <p className="text-sm text-gray-400">No students assigned</p>
+          <div className="rounded-xl border border-dashed border-border py-8 text-center">
+            <Users className="mx-auto mb-2 h-6 w-6 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">No students assigned</p>
           </div>
         ) : (
           <div className="space-y-1.5">
             {students.map((s) => (
-              <div key={s.participant_email} className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-800/30 px-3 py-2">
+              <div key={s.participant_email} className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
                 <Avatar name={s.participant_name} size={8} color="bg-violet-600" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">{s.participant_name}</p>
-                  <p className="text-xs text-gray-500 truncate">{s.participant_email}</p>
+                  <p className="text-sm font-medium text-foreground">{s.participant_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.participant_email}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-semibold uppercase ${
-                    s.payment_status === 'paid' ? 'text-green-400' : s.payment_status === 'free' ? 'text-blue-400' : s.payment_status === 'exempt' ? 'text-purple-400' : 'text-gray-500'
+                    s.payment_status === 'paid' ? 'text-green-400' : s.payment_status === 'free' ? 'text-blue-400' : s.payment_status === 'exempt' ? 'text-purple-400' : 'text-muted-foreground'
                   }`}>{s.payment_status}</span>
                   {s.notification_sent_at && <span className="flex items-center gap-1 text-[10px] text-emerald-500"><Mail className="h-2.5 w-2.5" /> Notified</span>}
                   {canEdit && (
                     <button onClick={() => handleRemove(s.participant_email)} disabled={removing === s.participant_email}
-                      className="ml-1 rounded p-1 text-gray-600 hover:bg-red-950/50 hover:text-red-400 transition-colors"
+                      className="ml-1 rounded p-1 text-muted-foreground/60 hover:bg-red-950/50 hover:text-red-400 transition-colors"
                     >
                       {removing === s.participant_email ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
                     </button>
@@ -598,14 +598,14 @@ function TimePicker12({ value, onChange, disabled }: { value: string; onChange: 
     onChange(`${String(h).padStart(2, '0')}:${String(newMin).padStart(2, '0')}`);
   };
 
-  const sel = 'rounded-lg border border-gray-700 bg-gray-800 px-2 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none disabled:opacity-50';
+  const sel = 'rounded-lg border border-border bg-muted px-2 py-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none disabled:opacity-50';
 
   return (
     <div className="mt-1 flex items-center gap-1.5">
       <select value={h12} disabled={disabled} onChange={(e) => update(Number(e.target.value), min, period)} className={sel}>
         {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h}</option>)}
       </select>
-      <span className="text-gray-400 font-medium">:</span>
+      <span className="text-muted-foreground font-medium">:</span>
       <select value={min} disabled={disabled} onChange={(e) => update(h12, Number(e.target.value), period)} className={sel}>
         {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
       </select>
@@ -656,58 +656,58 @@ function AOPEditRoomTab({ room, onSaved }: { room: Room; onSaved: () => void }) 
         </div>
       )}
       <div>
-        <label className="text-xs text-gray-400">Room Name</label>
+        <label className="text-xs text-muted-foreground">Room Name</label>
         <input type="text" value={form.room_name} disabled={!canEdit} onChange={(e) => f('room_name', e.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:border-amber-500 focus:outline-none" />
+          className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:border-amber-500 focus:outline-none" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-400">Subject</label>
+          <label className="text-xs text-muted-foreground">Subject</label>
           <select value={form.subject} disabled={!canEdit} onChange={(e) => f('subject', e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none">
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:outline-none">
             {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-400">Grade</label>
+          <label className="text-xs text-muted-foreground">Grade</label>
           <select value={form.grade} disabled={!canEdit} onChange={(e) => f('grade', e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none">
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:outline-none">
             {grades.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-400">Section</label>
+        <label className="text-xs text-muted-foreground">Section</label>
         <input type="text" value={form.section} disabled={!canEdit} placeholder="e.g. A, Morning Batch" onChange={(e) => f('section', e.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:border-amber-500 focus:outline-none" />
+          className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:border-amber-500 focus:outline-none" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-400">Date</label>
+          <label className="text-xs text-muted-foreground">Date</label>
           <input type="date" value={form.scheduled_date} disabled={!canEdit} onChange={(e) => f('scheduled_date', e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none" />
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:outline-none" />
         </div>
         <div>
-          <label className="text-xs text-gray-400">Start Time</label>
+          <label className="text-xs text-muted-foreground">Start Time</label>
           <TimePicker12 value={form.start_time} disabled={!canEdit} onChange={(v) => f('start_time', v)} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-400">Duration</label>
+          <label className="text-xs text-muted-foreground">Duration</label>
           <select value={form.duration_minutes} disabled={!canEdit} onChange={(e) => f('duration_minutes', Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none">
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:outline-none">
             {durations.map((d) => <option key={d} value={d}>{d} minutes</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-400">Max Participants</label>
+          <label className="text-xs text-muted-foreground">Max Participants</label>
           <input type="number" min={1} max={500} value={form.max_participants} disabled={!canEdit} onChange={(e) => f('max_participants', Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:outline-none" />
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:outline-none" />
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-400">
+        <label className="text-xs text-muted-foreground">
           Teacher {form.teacher_email && <span className="text-emerald-400">\u2014 {form.teacher_email}</span>}
         </label>
         {canEdit ? (
@@ -716,18 +716,18 @@ function AOPEditRoomTab({ room, onSaved }: { room: Room; onSaved: () => void }) 
             {form.teacher_email && (
               <div className="mt-2 flex items-center justify-between rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-sm">
                 <span className="text-emerald-300">{form.teacher_name || form.teacher_email}</span>
-                <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-muted-foreground hover:text-red-400"><X className="h-4 w-4" /></button>
               </div>
             )}
           </div>
         ) : (
-          <p className="mt-1 text-sm text-gray-300">{form.teacher_email || '\u2014'}</p>
+          <p className="mt-1 text-sm text-foreground/80">{form.teacher_email || '\u2014'}</p>
         )}
       </div>
       <div>
-        <label className="text-xs text-gray-400">Notes for Teacher</label>
+        <label className="text-xs text-muted-foreground">Notes for Teacher</label>
         <textarea rows={3} value={form.notes_for_teacher} disabled={!canEdit} onChange={(e) => f('notes_for_teacher', e.target.value)}
-          placeholder="Any specific instructions..." className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white disabled:opacity-50 focus:border-amber-500 focus:outline-none resize-none" />
+          placeholder="Any specific instructions..." className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground disabled:opacity-50 focus:border-amber-500 focus:outline-none resize-none" />
       </div>
       {msg && (
         <div className={`rounded-lg px-3 py-2 text-xs ${msg.startsWith('\u2713') ? 'bg-green-950/50 border border-green-800 text-green-400' : 'bg-red-950/50 border border-red-800 text-red-400'}`}>{msg}</div>
@@ -811,13 +811,13 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/70 backdrop-blur-sm p-4 pt-8">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <h2 className="text-lg font-bold text-white">Create New Room</h2>
-            <p className="text-xs text-gray-500">Fill in the class details, assign teacher & students</p>
+            <h2 className="text-lg font-bold text-foreground">Create New Room</h2>
+            <p className="text-xs text-muted-foreground">Fill in the class details, assign teacher & students</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-auto">
           {error && <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-2.5 text-sm text-red-400">{error}</div>}
@@ -825,16 +825,16 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
           {/* ── Subject & Grade (first, since teacher depends on subject) ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-400">Subject <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-muted-foreground">Subject <span className="text-red-400">*</span></label>
               <select value={form.subject} onChange={(e) => handleSubjectChange(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none">
+                className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none">
                 {subjects.map((s) => <option key={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-400">Grade <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-muted-foreground">Grade <span className="text-red-400">*</span></label>
               <select value={form.grade} onChange={(e) => f('grade', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none">
+                className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none">
                 {grades.map((g) => <option key={g}>{g}</option>)}
               </select>
             </div>
@@ -842,43 +842,43 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
           {/* ── Room Name (auto-suggested) ── */}
           <div>
-            <label className="text-xs font-medium text-gray-400">Room Name <span className="text-red-400">*</span></label>
+            <label className="text-xs font-medium text-muted-foreground">Room Name <span className="text-red-400">*</span></label>
             <input type="text" required value={form.room_name} onChange={(e) => f('room_name', e.target.value)}
               placeholder="e.g. Grade 10 Maths — Quadratic Equations"
-              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none" />
+              className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500 focus:outline-none" />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-400">Section / Batch <span className="text-gray-600">(optional)</span></label>
+            <label className="text-xs font-medium text-muted-foreground">Section / Batch <span className="text-muted-foreground/60">(optional)</span></label>
             <input type="text" value={form.section} onChange={(e) => f('section', e.target.value)}
               placeholder="e.g. A, Morning Batch, Group 1"
-              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none" />
+              className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500 focus:outline-none" />
           </div>
 
           {/* ── Date & Time ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-400">Date <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-muted-foreground">Date <span className="text-red-400">*</span></label>
               <input type="date" required min={toISTDateValue(new Date())} value={form.scheduled_date} onChange={(e) => f('scheduled_date', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
+                className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-400">Start Time <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-muted-foreground">Start Time <span className="text-red-400">*</span></label>
               <TimePicker12 value={form.start_time} onChange={(v) => f('start_time', v)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-400">Duration <span className="text-red-400">*</span></label>
+              <label className="text-xs font-medium text-muted-foreground">Duration <span className="text-red-400">*</span></label>
               <select value={form.duration_minutes} onChange={(e) => f('duration_minutes', Number(e.target.value))}
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none">
+                className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none">
                 {durations.map((d) => <option key={d} value={d}>{d} minutes</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-400">Max Students</label>
+              <label className="text-xs font-medium text-muted-foreground">Max Students</label>
               <input type="number" min={1} max={500} value={form.max_participants} onChange={(e) => f('max_participants', Number(e.target.value))}
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
+                className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none" />
             </div>
           </div>
 
@@ -887,7 +887,7 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
             <label className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
               <GraduationCap className="h-3.5 w-3.5" /> Assign Teacher <span className="text-red-400">*</span>
             </label>
-            <p className="mb-2 text-[10px] text-gray-500">Teachers who teach <strong className="text-emerald-400">{form.subject}</strong> are shown first</p>
+            <p className="mb-2 text-[10px] text-muted-foreground">Teachers who teach <strong className="text-emerald-400">{form.subject}</strong> are shown first</p>
             {!form.teacher_email ? (
               <UserSearchDropdown
                 role="teacher"
@@ -902,10 +902,10 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
                   <Avatar name={form.teacher_name} size={7} color="bg-emerald-600" />
                   <div>
                     <p className="text-sm font-medium text-emerald-300">{form.teacher_name}</p>
-                    <p className="text-xs text-gray-500">{form.teacher_email}</p>
+                    <p className="text-xs text-muted-foreground">{form.teacher_email}</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setForm((p) => ({ ...p, teacher_email: '', teacher_name: '' }))} className="text-muted-foreground hover:text-red-400"><X className="h-4 w-4" /></button>
               </div>
             )}
           </div>
@@ -913,9 +913,9 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
           {/* ── Assign Batch Coordinator (optional) ── */}
           <div className="rounded-xl border border-blue-800/50 bg-blue-950/10 p-4">
             <label className="text-xs font-medium text-blue-400 flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Batch Coordinator <span className="text-gray-600">(optional)</span>
+              <Users className="h-3.5 w-3.5" /> Batch Coordinator <span className="text-muted-foreground/60">(optional)</span>
             </label>
-            <p className="mb-2 text-[10px] text-gray-500">Assign a coordinator to manage this room. Shows their active batch load.</p>
+            <p className="mb-2 text-[10px] text-muted-foreground">Assign a coordinator to manage this room. Shows their active batch load.</p>
             {!form.coordinator_email ? (
               <UserSearchDropdown
                 role="coordinator"
@@ -931,13 +931,13 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-blue-300">{form.coordinator_name}</p>
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                        form.coordinator_batch_count === 0 ? 'bg-gray-700 text-gray-400' : form.coordinator_batch_count <= 3 ? 'bg-blue-900/60 text-blue-400' : 'bg-amber-900/60 text-amber-400'
+                        form.coordinator_batch_count === 0 ? 'bg-muted text-muted-foreground' : form.coordinator_batch_count <= 3 ? 'bg-blue-900/60 text-blue-400' : 'bg-amber-900/60 text-amber-400'
                       }`}>{form.coordinator_batch_count} active batch{form.coordinator_batch_count !== 1 ? 'es' : ''}</span>
                     </div>
-                    <p className="text-xs text-gray-500">{form.coordinator_email}</p>
+                    <p className="text-xs text-muted-foreground">{form.coordinator_email}</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setForm((p) => ({ ...p, coordinator_email: '', coordinator_name: '', coordinator_batch_count: 0 }))} className="text-gray-500 hover:text-red-400"><X className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setForm((p) => ({ ...p, coordinator_email: '', coordinator_name: '', coordinator_batch_count: 0 }))} className="text-muted-foreground hover:text-red-400"><X className="h-4 w-4" /></button>
               </div>
             )}
           </div>
@@ -945,9 +945,9 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
           {/* ── Add Students (optional) ── */}
           <div className="rounded-xl border border-violet-800/50 bg-violet-950/10 p-4">
             <label className="text-xs font-medium text-violet-400 flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Add Students <span className="text-gray-600">(optional)</span>
+              <Users className="h-3.5 w-3.5" /> Add Students <span className="text-muted-foreground/60">(optional)</span>
             </label>
-            <p className="mb-2 text-[10px] text-gray-500">You can also add students after creating the room</p>
+            <p className="mb-2 text-[10px] text-muted-foreground">You can also add students after creating the room</p>
             <UserSearchDropdown
               role="student"
               placeholder="Search student by name or email..."
@@ -956,15 +956,15 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
             />
             {students.length > 0 && (
               <div className="mt-3 space-y-1.5">
-                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">{students.length} student{students.length !== 1 ? 's' : ''} added</p>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{students.length} student{students.length !== 1 ? 's' : ''} added</p>
                 {students.map((s) => (
-                  <div key={s.email} className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-800/30 px-3 py-2">
+                  <div key={s.email} className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
                     <Avatar name={s.name} size={7} color="bg-violet-600" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{s.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{s.email}</p>
+                      <p className="text-sm font-medium text-foreground">{s.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{s.email}</p>
                     </div>
-                    <button type="button" onClick={() => removeStudent(s.email)} className="text-gray-600 hover:text-red-400 transition-colors">
+                    <button type="button" onClick={() => removeStudent(s.email)} className="text-muted-foreground/60 hover:text-red-400 transition-colors">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -974,12 +974,12 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-400">Notes for Teacher <span className="text-gray-600">(optional)</span></label>
+            <label className="text-xs font-medium text-muted-foreground">Notes for Teacher <span className="text-muted-foreground/60">(optional)</span></label>
             <textarea rows={2} value={form.notes_for_teacher} onChange={(e) => f('notes_for_teacher', e.target.value)}
-              placeholder="Any specific instructions..." className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none resize-none" />
+              placeholder="Any specific instructions..." className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500 focus:outline-none resize-none" />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-gray-700 py-2.5 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-white transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-muted-foreground hover:border-border/80 hover:text-foreground transition-colors">Cancel</button>
             <button type="submit" disabled={submitting}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50 transition-colors">
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</> : <><PlusCircle className="h-4 w-4" /> Create Room</>}

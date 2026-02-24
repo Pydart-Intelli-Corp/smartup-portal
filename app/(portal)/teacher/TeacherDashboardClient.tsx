@@ -57,7 +57,7 @@ interface Props {
 const STATUS_BADGE: Record<string, { border: string; text: string; bg: string; label: string }> = {
   scheduled: { border: 'border-blue-700',  bg: 'bg-blue-900/40',   text: 'text-blue-300',   label: 'Scheduled' },
   live:      { border: 'border-green-700', bg: 'bg-green-900/40',  text: 'text-green-300',  label: 'Live'      },
-  ended:     { border: 'border-gray-600',  bg: 'bg-gray-800',      text: 'text-gray-400',   label: 'Ended'     },
+  ended:     { border: 'border-border',    bg: 'bg-muted',         text: 'text-muted-foreground', label: 'Ended' },
   cancelled: { border: 'border-red-700',   bg: 'bg-red-900/40',    text: 'text-red-400',    label: 'Cancelled' },
 };
 
@@ -85,9 +85,9 @@ function effectiveStatus(room: Room): string {
 
 // ── Small Reusable Components ────────────────────────────────────
 
-function Avatar({ name, size = 8, color = 'bg-emerald-600' }: { name: string; size?: number; color?: string }) {
+function Avatar({ name, size = 8, color = 'bg-primary' }: { name: string; size?: number; color?: string }) {
   return (
-    <div className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full ${color} text-sm font-bold text-white`}>
+    <div className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full ${color} text-sm font-bold text-primary-foreground`}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
@@ -162,8 +162,8 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
             {liveRooms.map((room) => (
               <div key={room.room_id} className="flex items-center justify-between gap-4 rounded-xl bg-black/30 px-4 py-3">
                 <div>
-                  <p className="font-semibold text-white">{room.room_name}</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="font-semibold text-foreground">{room.room_name}</p>
+                  <p className="text-sm text-muted-foreground">
                     {room.subject} · {room.grade}{room.section ? ` · ${room.section}` : ''} · {room.student_count} students
                   </p>
                 </div>
@@ -185,10 +185,10 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
           { label: 'Live Now',         value: liveRooms.length,     border: 'border-green-700', bg: 'bg-green-950/30',  text: 'text-green-400' },
           { label: "Today's Classes",  value: todayRooms.length,    border: 'border-blue-700',  bg: 'bg-blue-950/30',   text: 'text-blue-400'  },
           { label: 'Upcoming',         value: upcomingRooms.length, border: 'border-amber-700', bg: 'bg-amber-950/30',  text: 'text-amber-400' },
-          { label: 'Done This Week',   value: doneThisWeek.length,  border: 'border-gray-700',  bg: 'bg-gray-900',      text: 'text-gray-300'  },
+          { label: 'Done This Week',   value: doneThisWeek.length,  border: 'border-border',  bg: 'bg-card',      text: 'text-foreground'  },
         ].map((s) => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.border} ${s.bg}`}>
-            <p className="text-xs text-gray-400">{s.label}</p>
+            <p className="text-xs text-muted-foreground">{s.label}</p>
             <p className={`mt-1 text-3xl font-bold ${s.text}`}>{s.value}</p>
           </div>
         ))}
@@ -196,7 +196,7 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
 
       {/* Next Class Card */}
       {nextClass && (
-        <div className="rounded-xl border border-blue-800 bg-gray-900 p-5">
+        <div className="rounded-xl border border-blue-800 bg-card p-5">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-blue-300">
             <Timer className="h-4 w-4" /> Next Class
           </h3>
@@ -205,18 +205,18 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
               <Calendar className="h-7 w-7 text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-white">{nextClass.room_name}</p>
-              <p className="text-sm text-gray-400">
+              <p className="truncate font-semibold text-foreground">{nextClass.room_name}</p>
+              <p className="text-sm text-muted-foreground">
                 {nextClass.subject} · {nextClass.grade}{nextClass.section ? ` · ${nextClass.section}` : ''}
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(nextClass.scheduled_start)}</span>
                 <span>{fmtDuration(nextClass.duration_minutes)}</span>
                 <span className="flex items-center gap-1"><Users className="h-3 w-3" />{nextClass.student_count} enrolled</span>
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <p className="mb-1 text-xs text-gray-500">
+              <p className="mb-1 text-xs text-muted-foreground">
                 {new Date(nextClass.scheduled_start) > new Date() ? 'Starts in' : 'Status'}
               </p>
               <p className="font-mono text-lg font-bold text-blue-400">
@@ -227,7 +227,7 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
           {nextClass.notes_for_teacher && (
             <div className="mt-3 rounded-lg border border-amber-800/50 bg-amber-950/30 px-3 py-2">
               <p className="mb-0.5 text-xs font-medium text-amber-400">Notes from coordinator:</p>
-              <p className="text-sm text-gray-300">{nextClass.notes_for_teacher}</p>
+              <p className="text-sm text-foreground">{nextClass.notes_for_teacher}</p>
             </div>
           )}
         </div>
@@ -236,7 +236,7 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
       {/* Today's Schedule Timeline */}
       {todayRooms.length > 0 && (
         <div>
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Calendar className="h-4 w-4" /> Today&apos;s Schedule
           </h3>
           <div className="space-y-2">
@@ -251,11 +251,11 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
                       <p className={`text-sm font-bold ${s.text}`}>
                         {fmtTimeIST(room.scheduled_start)}
                       </p>
-                      <p className="mt-0.5 text-[10px] text-gray-500">{fmtDuration(room.duration_minutes)}</p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">{fmtDuration(room.duration_minutes)}</p>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-white">{room.room_name}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="truncate font-medium text-foreground">{room.room_name}</p>
+                      <p className="text-xs text-muted-foreground">
                         {room.subject} · {room.grade} · {room.student_count} students
                       </p>
                     </div>
@@ -277,10 +277,10 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
 
       {/* Empty state */}
       {rooms.length === 0 && (
-        <div className="rounded-xl border border-dashed border-gray-700 py-16 text-center">
-          <BookOpen className="mx-auto mb-3 h-12 w-12 text-gray-600" />
-          <p className="text-gray-400">No classes assigned yet</p>
-          <p className="mt-1 text-sm text-gray-600">Contact your coordinator to get classes assigned</p>
+        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+          <BookOpen className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
+          <p className="text-muted-foreground">No classes assigned yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Contact your coordinator to get classes assigned</p>
         </div>
       )}
     </div>
@@ -323,13 +323,13 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
     <div className="space-y-4">
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
           placeholder="Search by class name, subject, grade..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-gray-700 bg-gray-800/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
+          className="w-full rounded-xl border border-border bg-muted py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
       </div>
 
@@ -340,12 +340,12 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
             key={s}
             onClick={() => setFilter(s)}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-              filter === s ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+              filter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
             }`}
           >
             {s === 'live' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />}
             {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-            <span className={`rounded-full px-1.5 text-[10px] font-bold ${filter === s ? 'bg-white/20' : 'bg-gray-700'}`}>
+            <span className={`rounded-full px-1.5 text-[10px] font-bold ${filter === s ? 'bg-white/20' : 'bg-background'}`}>
               {counts[s]}
             </span>
           </button>
@@ -354,9 +354,9 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
 
       {/* Room List */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-700 py-12 text-center">
-          <BookOpen className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-          <p className="text-sm text-gray-400">
+        <div className="rounded-xl border border-dashed border-border py-12 text-center">
+          <BookOpen className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
             {search ? 'No classes match your search' : 'No classes in this category'}
           </p>
         </div>
@@ -370,7 +370,7 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
               <div
                 key={room.room_id}
                 className={`rounded-xl border transition-colors ${
-                  isExpanded ? `${s.border} ${s.bg}` : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+                  isExpanded ? `${s.border} ${s.bg}` : 'border-border bg-card hover:border-border'
                 }`}
               >
                 {/* Clickable row header */}
@@ -385,8 +385,8 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
                     {es === 'scheduled' && <Calendar     className={`h-5 w-5 ${s.text}`} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-white">{room.room_name}</p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <p className="truncate font-medium text-foreground">{room.room_name}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span>{room.subject} · {room.grade}{room.section ? ` · ${room.section}` : ''}</span>
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(room.scheduled_start)}</span>
                       <span className="flex items-center gap-1"><Users className="h-3 w-3" />{room.student_count}/{room.max_participants}</span>
@@ -395,7 +395,7 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="hidden text-right sm:block">
                       <p className={`text-xs font-semibold ${s.text}`}>{s.label}</p>
-                      <p className="text-xs text-gray-500">{fmtDuration(room.duration_minutes)}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDuration(room.duration_minutes)}</p>
                     </div>
                     {es === 'live' && (
                       <a
@@ -406,28 +406,28 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
                         Enter
                       </a>
                     )}
-                    {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </div>
                 </button>
 
                 {/* Expanded detail panel */}
                 {isExpanded && (
-                  <div className="space-y-3 border-t border-gray-800 px-4 pb-4 pt-3">
+                  <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
                     <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Date &amp; Time</p>
-                        <p className="text-white">{fmtDate(room.scheduled_start)}</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Date &amp; Time</p>
+                        <p className="text-foreground">{fmtDate(room.scheduled_start)}</p>
                       </div>
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Duration</p>
-                        <p className="text-white">{fmtDuration(room.duration_minutes)}</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Duration</p>
+                        <p className="text-foreground">{fmtDuration(room.duration_minutes)}</p>
                       </div>
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Students</p>
-                        <p className="text-white">{room.student_count} enrolled / {room.max_participants} max</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Students</p>
+                        <p className="text-foreground">{room.student_count} enrolled / {room.max_participants} max</p>
                       </div>
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Status</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Status</p>
                         <StatusBadge status={es} />
                       </div>
                     </div>
@@ -437,7 +437,7 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
                         <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-400">
                           <Info className="h-3.5 w-3.5" /> Notes from coordinator
                         </p>
-                        <p className="text-sm text-gray-300">{room.notes_for_teacher}</p>
+                        <p className="text-sm text-foreground">{room.notes_for_teacher}</p>
                       </div>
                     )}
 
@@ -522,30 +522,30 @@ function ClassPortionForm({
       </p>
       <div className="space-y-2">
         <div>
-          <label className="mb-0.5 block text-xs text-gray-500">Topics Covered</label>
+          <label className="mb-0.5 block text-xs text-muted-foreground">Topics Covered</label>
           <input
             type="text"
             value={portion}
             onChange={e => setPortion(e.target.value)}
             placeholder="e.g. Chapter 5 — Quadratic Equations (completed)"
-            className="w-full rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded border border-border bg-muted px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
         </div>
         <div>
-          <label className="mb-0.5 block text-xs text-gray-500">Remarks</label>
+          <label className="mb-0.5 block text-xs text-muted-foreground">Remarks</label>
           <textarea
             value={remarks}
             onChange={e => setRemarks(e.target.value)}
             placeholder="Post-class notes, observations, homework assigned..."
             rows={2}
-            className="w-full rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none resize-none"
+            className="w-full rounded border border-border bg-muted px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
           />
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleSave}
             disabled={saving || (!portion.trim() && !remarks.trim())}
-            className="flex items-center gap-1 rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="flex items-center gap-1 rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? <Spinner className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
             Save
@@ -566,7 +566,7 @@ function ClassPortionForm({
 function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-500">
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
         <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading profile…
       </div>
     );
@@ -574,10 +574,10 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
 
   if (!profile) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-700 py-16 text-center">
-        <User className="mx-auto mb-3 h-10 w-10 text-gray-600" />
-        <p className="text-gray-400">Profile not found</p>
-        <p className="mt-1 text-sm text-gray-600">Your profile will appear here once HR has filled in your details.</p>
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <User className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+        <p className="text-muted-foreground">Profile not found</p>
+        <p className="mt-1 text-sm text-muted-foreground">Your profile will appear here once HR has filled in your details.</p>
       </div>
     );
   }
@@ -591,11 +591,11 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
     value?: string | number | null;
     icon: React.ElementType;
   }) => (
-    <div className="flex items-start gap-3 border-b border-gray-800 py-3 last:border-0">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+    <div className="flex items-start gap-3 border-b border-border py-3 last:border-0">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <div>
-        <p className="mb-0.5 text-xs text-gray-500">{label}</p>
-        <p className={`text-sm ${value != null && value !== '' ? 'text-white' : 'italic text-gray-600'}`}>
+        <p className="mb-0.5 text-xs text-muted-foreground">{label}</p>
+        <p className={`text-sm ${value != null && value !== '' ? 'text-foreground' : 'italic text-muted-foreground'}`}>
           {value != null && value !== '' ? String(value) : 'Not set'}
         </p>
       </div>
@@ -605,13 +605,13 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
   return (
     <div className="max-w-2xl space-y-5">
       {/* Header Card */}
-      <div className="rounded-2xl border border-emerald-800 bg-gradient-to-br from-emerald-950/40 to-gray-900 p-6">
+      <div className="rounded-2xl border border-emerald-800 bg-gradient-to-br from-emerald-950/40 to-card p-6">
         <div className="flex items-center gap-5">
-          <Avatar name={profile.name} size={16} color="bg-emerald-600" />
+          <Avatar name={profile.name} size={16} color="bg-primary" />
           <div>
-            <h2 className="text-2xl font-bold text-white">{profile.name}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{profile.name}</h2>
             <p className="mt-0.5 text-sm text-emerald-400">Teacher</p>
-            <p className="mt-1 text-xs text-gray-500">{profile.email}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{profile.email}</p>
           </div>
         </div>
         {profile.subjects && profile.subjects.length > 0 && (
@@ -626,7 +626,7 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
       </div>
 
       {/* Detail Fields */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900 px-5">
+      <div className="rounded-xl border border-border bg-card px-5">
         <Field label="Phone"        value={profile.phone}          icon={Phone}        />
         <Field label="WhatsApp"     value={profile.whatsapp}       icon={Phone}        />
         <Field
@@ -736,12 +736,12 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
       {/* Page Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-foreground">
             {activeTab === 'overview' ? 'Teacher Dashboard'
               : activeTab === 'classes' ? 'My Classes'
               : 'My Profile'}
           </h1>
-          <p className="mt-0.5 text-sm text-gray-400">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {activeTab === 'overview'
               ? `Welcome back, ${userName.split(' ')[0]}`
               : activeTab === 'classes'
@@ -753,7 +753,7 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
           onClick={fetchRooms}
           disabled={loadingRooms}
           title="Refresh"
-          className="flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-500 hover:text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loadingRooms ? 'animate-spin' : ''}`} />
           Refresh
@@ -761,7 +761,7 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
       </div>
 
       {/* Tab Bar */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-gray-800 bg-gray-900/60 p-1">
+      <div className="mb-6 flex gap-1 rounded-xl border border-border bg-card/60 p-1">
         {(
           [
             { key: 'overview' as const, label: 'Overview',   icon: LayoutDashboard },
@@ -779,8 +779,8 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
             onClick={() => setActiveTab(key)}
             className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === key
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -799,34 +799,34 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
         <div className="space-y-4">
           {loadingPay ? (
             <div className="flex items-center justify-center py-16">
-              <RefreshCw className="h-6 w-6 animate-spin text-emerald-500" />
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : payslips.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Briefcase className="h-12 w-12 mb-3 opacity-40" />
               <p className="text-sm">No payslips available yet</p>
             </div>
           ) : (
             <div className="space-y-3">
               {payslips.map(s => (
-                <div key={s.id} className="rounded-xl border border-gray-700 bg-gray-800/50 p-4">
+                <div key={s.id} className="rounded-xl border border-border bg-muted/50 p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-white">{s.period_label || 'Payslip'}</h4>
+                    <h4 className="font-medium text-foreground">{s.period_label || 'Payslip'}</h4>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       s.status === 'paid' ? 'bg-green-500/20 text-green-400' :
                       s.status === 'finalized' ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'
                     }`}>{s.status}</span>
                   </div>
                   {s.period_start && (
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-muted-foreground mb-3">
                       {new Date(s.period_start).toLocaleDateString('en-IN')} — {new Date(s.period_end).toLocaleDateString('en-IN')}
                     </p>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div><p className="text-[10px] text-gray-500">Classes</p><p className="text-sm text-white font-semibold">{s.classes_conducted}</p></div>
-                    <div><p className="text-[10px] text-gray-500">Base Pay</p><p className="text-sm text-green-400 font-semibold">₹{(s.base_pay_paise/100).toLocaleString('en-IN')}</p></div>
-                    <div><p className="text-[10px] text-gray-500">Incentive</p><p className="text-sm text-blue-400 font-semibold">₹{(s.incentive_paise/100).toLocaleString('en-IN')}</p></div>
-                    <div><p className="text-[10px] text-gray-500">Total</p><p className="text-sm text-white font-bold">₹{(s.total_paise/100).toLocaleString('en-IN')}</p></div>
+                    <div><p className="text-[10px] text-muted-foreground">Classes</p><p className="text-sm text-foreground font-semibold">{s.classes_conducted}</p></div>
+                    <div><p className="text-[10px] text-muted-foreground">Base Pay</p><p className="text-sm text-green-400 font-semibold">₹{(s.base_pay_paise/100).toLocaleString('en-IN')}</p></div>
+                    <div><p className="text-[10px] text-muted-foreground">Incentive</p><p className="text-sm text-blue-400 font-semibold">₹{(s.incentive_paise/100).toLocaleString('en-IN')}</p></div>
+                    <div><p className="text-[10px] text-muted-foreground">Total</p><p className="text-sm text-foreground font-bold">₹{(s.total_paise/100).toLocaleString('en-IN')}</p></div>
                   </div>
                   {(s.classes_cancelled > 0 || s.classes_missed > 0) && (
                     <div className="flex gap-4 mt-2 text-xs">

@@ -52,16 +52,16 @@ export default function ClassEndedPage() {
   const isExpired = reason === 'expired';
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md text-center">
         <div className="mb-5 text-5xl">{isExpired ? '⏰' : '✅'}</div>
         <h1 className="mb-2 text-2xl font-bold text-white">
           {isExpired ? 'Class Time Ended' : 'Class Ended'}
         </h1>
         {roomName && (
-          <p className="mb-1 text-gray-400">{roomName}</p>
+          <p className="mb-1 text-muted-foreground">{roomName}</p>
         )}
-        <p className="mb-6 text-sm text-gray-500">
+        <p className="mb-6 text-sm text-muted-foreground">
           {isExpired
             ? 'The scheduled class time has ended. All participants have been automatically disconnected.'
             : 'The class session has ended. All participants have been disconnected.'}

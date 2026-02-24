@@ -122,13 +122,13 @@ export default function PreJoinLobby({
     <div className={cn('flex flex-col items-center justify-center gap-6', className)}>
       {/* Room info */}
       <div className="text-center">
-        <h2 className="text-xl font-bold text-white">{roomName}</h2>
+        <h2 className="text-xl font-bold text-foreground">{roomName}</h2>
         <div className="mt-2 flex items-center justify-center gap-2">
-          <span className="text-sm text-gray-400">{participantName}</span>
+          <span className="text-sm text-muted-foreground">{participantName}</span>
           <span
             className={cn(
               'rounded px-2 py-0.5 text-xs font-bold uppercase text-white',
-              roleColors[role] || 'bg-gray-600'
+              roleColors[role] || 'bg-muted'
             )}
           >
             {role.replace('_', ' ')}
@@ -138,7 +138,7 @@ export default function PreJoinLobby({
 
       {/* Camera preview */}
       {!isGhost && (
-        <div className="relative w-[400px] overflow-hidden rounded-xl bg-gray-800">
+        <div className="relative w-[400px] overflow-hidden rounded-xl bg-muted">
           {cameraOn && !cameraError ? (
             <video
               ref={videoRef}
@@ -150,10 +150,10 @@ export default function PreJoinLobby({
           ) : (
             <div className="flex h-[300px] items-center justify-center">
               <div className="text-center">
-                <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-gray-700 text-2xl font-bold text-white mx-auto">
+                <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-accent text-2xl font-bold text-foreground mx-auto">
                   {participantName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {cameraError || 'Camera is off'}
                 </p>
               </div>
@@ -166,7 +166,7 @@ export default function PreJoinLobby({
               onClick={toggleCamera}
               className={cn(
                 'rounded-full px-3 py-1.5 text-sm',
-                cameraOn ? 'bg-gray-700 text-white' : 'bg-red-600 text-white'
+                cameraOn ? 'bg-accent text-foreground' : 'bg-red-600 text-white'
               )}
             >
               {cameraOn ? '📷' : '🚫'}
@@ -175,7 +175,7 @@ export default function PreJoinLobby({
               onClick={toggleMic}
               className={cn(
                 'rounded-full px-3 py-1.5 text-sm',
-                micOn ? 'bg-gray-700 text-white' : 'bg-red-600 text-white'
+                micOn ? 'bg-accent text-foreground' : 'bg-red-600 text-white'
               )}
             >
               {micOn ? '🎤' : '🔇'}
@@ -186,10 +186,10 @@ export default function PreJoinLobby({
 
       {/* Ghost info */}
       {isGhost && (
-        <div className="w-[400px] rounded-xl bg-gray-800 p-6 text-center">
+        <div className="w-[400px] rounded-xl bg-muted p-6 text-center">
           <div className="mb-3 text-4xl">👻</div>
-          <h3 className="text-lg font-semibold text-white">Ghost Mode</h3>
-          <p className="mt-2 text-sm text-gray-400">
+          <h3 className="text-lg font-semibold text-foreground">Ghost Mode</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
             You will observe silently. No camera or microphone will be used.
             You are invisible to all participants.
           </p>

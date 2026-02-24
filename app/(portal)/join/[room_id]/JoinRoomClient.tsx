@@ -172,8 +172,8 @@ export default function JoinRoomClient({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 shadow-2xl overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-center">
           <Video className="mx-auto mb-3 h-10 w-10 text-white/80" />
@@ -186,16 +186,16 @@ export default function JoinRoomClient({
         {/* Room info */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-gray-800 p-3 text-center">
-              <Calendar className="mx-auto mb-1 h-4 w-4 text-gray-500" />
+            <div className="rounded-lg border border-border p-3 text-center">
+              <Calendar className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
               <p className="text-sm font-medium" suppressHydrationWarning>
                 {mounted
                   ? fmtDateShortIST(startDate)
                   : '\u00A0'}
               </p>
             </div>
-            <div className="rounded-lg border border-gray-800 p-3 text-center">
-              <Clock className="mx-auto mb-1 h-4 w-4 text-gray-500" />
+            <div className="rounded-lg border border-border p-3 text-center">
+              <Clock className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
               <p className="text-sm font-medium" suppressHydrationWarning>
                 {mounted
                   ? `${fmtTimeIST(startDate)} · ${durationMinutes}m`
@@ -205,20 +205,20 @@ export default function JoinRoomClient({
           </div>
 
           {teacherEmail && (
-            <div className="flex items-center gap-2 rounded-lg border border-gray-800 p-3">
-              <Users className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-400">Teacher assigned</span>
+            <div className="flex items-center gap-2 rounded-lg border border-border p-3">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Teacher assigned</span>
             </div>
           )}
 
           {/* User info */}
-          <div className="flex items-center gap-3 rounded-lg bg-gray-800/50 p-3">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
               {userName.charAt(0).toUpperCase()}
             </div>
             <div>
               <p className="text-sm font-medium">{userName}</p>
-              <p className="text-xs text-gray-500">{userEmail} · {userRole}</p>
+              <p className="text-xs text-muted-foreground">{userEmail} · {userRole}</p>
             </div>
           </div>
 
@@ -260,14 +260,14 @@ export default function JoinRoomClient({
                 </div>
 
                 {/* Countdown display */}
-                <div className="mt-3 flex items-center justify-center gap-2 rounded-md bg-gray-900/60 py-3" suppressHydrationWarning>
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-md bg-card/60 py-3" suppressHydrationWarning>
                   <Clock className="h-4 w-4 text-amber-400/70" />
                   {msUntilLobby > 3600000 ? (
-                    <span className="text-sm text-gray-300">
+                    <span className="text-sm text-foreground/80">
                       Lobby opens in <span className="font-bold text-amber-300">{fmtCountdown(msUntilLobby)}</span>
                     </span>
                   ) : (
-                    <span className="text-sm text-gray-300">
+                    <span className="text-sm text-foreground/80">
                       Lobby opens in <span className="font-mono font-bold text-amber-300">{fmtCountdown(msUntilLobby)}</span>
                     </span>
                   )}
@@ -275,21 +275,21 @@ export default function JoinRoomClient({
 
                 {/* Timeline */}
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded bg-gray-800/50 px-2 py-1.5 text-center">
-                    <span className="text-gray-500">Lobby opens</span>
-                    <p className="font-medium text-gray-300">{fmtTimeIST(lobbyOpenTime)}</p>
+                  <div className="rounded bg-muted/50 px-2 py-1.5 text-center">
+                    <span className="text-muted-foreground">Lobby opens</span>
+                    <p className="font-medium text-foreground/80">{fmtTimeIST(lobbyOpenTime)}</p>
                   </div>
-                  <div className="rounded bg-gray-800/50 px-2 py-1.5 text-center">
-                    <span className="text-gray-500">Class starts</span>
-                    <p className="font-medium text-gray-300">{fmtTimeIST(startDate)}</p>
+                  <div className="rounded bg-muted/50 px-2 py-1.5 text-center">
+                    <span className="text-muted-foreground">Class starts</span>
+                    <p className="font-medium text-foreground/80">{fmtTimeIST(startDate)}</p>
                   </div>
                 </div>
               </div>
 
               {/* Helpful tip */}
-              <div className="flex items-start gap-2 rounded-lg bg-gray-800/30 px-3 py-2">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500" />
-                <p className="text-xs text-gray-500">
+              <div className="flex items-start gap-2 rounded-lg bg-muted/30 px-3 py-2">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
                   You can join the lobby <strong>15 minutes</strong> before the scheduled start time.
                   This page will update automatically — no need to refresh.
                 </p>
@@ -298,7 +298,7 @@ export default function JoinRoomClient({
           )}
 
           {isEnded && (
-            <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/50 p-3 text-gray-400">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-3 text-muted-foreground">
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm font-medium">This class has already ended</span>
             </div>
@@ -330,9 +330,9 @@ export default function JoinRoomClient({
                 </div>
               </div>
 
-              <div className="flex items-start gap-2 rounded-lg bg-gray-800/30 px-3 py-2">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500" />
-                <p className="text-xs text-gray-500">
+              <div className="flex items-start gap-2 rounded-lg bg-muted/30 px-3 py-2">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
                   Checking every few seconds... You&apos;ll join automatically — no need to refresh.
                 </p>
               </div>
@@ -353,7 +353,7 @@ export default function JoinRoomClient({
               'w-full rounded-xl py-3 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2',
               waitingForTeacher
                 ? 'bg-blue-900 text-blue-300 cursor-wait'
-                : 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500'
+                : 'bg-blue-600 hover:bg-blue-700 disabled:bg-muted disabled:text-muted-foreground'
             )}
           >
             {waitingForTeacher ? (

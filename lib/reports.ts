@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 // Generates reports: attendance, revenue, teacher performance,
 // student progress, batch summary, exam analytics, payroll
+// Includes AI-style natural language summaries for each report.
 //
 // Usage:
 //   import { generateReport, getReports } from '@/lib/reports';
@@ -68,11 +69,14 @@ export async function generateReport(
   }
 
   // Store report
+  const narrativeSummary = generateNarrativeSummary(reportType, data, title);
+  const reportData = { ...data, narrative_summary: narrativeSummary };
+
   const result = await db.query(
     `INSERT INTO generated_reports (report_type, title, period_start, period_end, data, created_by)
      VALUES ($1, $2, $3, $4, $5::jsonb, $6)
      RETURNING *`,
-    [reportType, title, periodStart, periodEnd, JSON.stringify(data), createdBy]
+    [reportType, title, periodStart, periodEnd, JSON.stringify(reportData), createdBy]
   );
 
   return result.rows[0];
@@ -103,6 +107,125 @@ export async function getReports(filters?: {
 export async function getReport(reportId: string) {
   const result = await db.query(`SELECT * FROM generated_reports WHERE id = $1`, [reportId]);
   return result.rows[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI-Style Narrative Summary Generator
+// Produces human-readable natural language summaries for reports
+// ═══════════════════════════════════════════════════════════════
+
+function generateNarrativeSummary(
+  reportType: ReportType,
+  data: Record<string, unknown>,
+  title: string
+): string {
+  switch (reportType) {
+    case 'attendance': {
+      const summary = (data.summary as Record<string, number>) || {};
+      const students = (data.students as Array<Record<string, unknown>>) || [];
+      const total = summary.total_classes || 0;
+      const completed = summary.completed || 0;
+      const rate = total > 0 ? ((completed / total) * 100).toFixed(1) : '0';
+      const topStudents = students.slice(0, 3).map(s => s.full_name || s.participant_email).join(', ');
+      return `${title}\n\nDuring this period, ${total} classes were scheduled with ${completed} completed successfully (${rate}% completion rate). ${summary.cancelled || 0} classes were cancelled. ${students.length} students participated — the most active being ${topStudents || 'N/A'}. ${Number(rate) >= 80 ? 'Overall attendance is healthy and above target.' : 'Attendance rates need improvement — consider sending reminders to students with low participation.'}`;
+    }
+
+    case 'revenue': {
+      const byCurrency = (data.by_currency as Array<Record<string, unknown>>) || [];
+      const monthly = (data.monthly_breakdown as Array<Record<string, unknown>>) || [];
+      const summaries = byCurrency.map(c => {
+        const paid = Number(c.paid_invoices || 0);
+        const pending = Number(c.pending_invoices || 0);
+        const overdue = Number(c.overdue_invoices || 0);
+        const revenue = (Number(c.total_revenue_paise || 0) / 100).toFixed(2);
+        return `${c.currency || 'INR'}: ${paid} paid invoices totalling ${revenue}, ${pending} pending, ${overdue} overdue`;
+      });
+      return `${title}\n\n${summaries.join('. ') || 'No revenue data found for this period.'}. ${monthly.length > 0 ? `Revenue was tracked across ${monthly.length} month(s).` : ''} ${byCurrency.some(c => Number(c.overdue_invoices || 0) > 0) ? 'Action needed: There are overdue invoices requiring follow-up with parents.' : 'All collections are on track.'}`;
+    }
+
+    case 'teacher_performance': {
+      const teachers = (data.teachers as Array<Record<string, unknown>>) || [];
+      if (teachers.length === 0) return `${title}\n\nNo teacher performance data available for this period.`;
+      const topTeacher = teachers[0];
+      const totalClasses = teachers.reduce((sum, t) => sum + Number(t.completed_classes || 0), 0);
+      const totalCancelled = teachers.reduce((sum, t) => sum + Number(t.cancelled_classes || 0), 0);
+      return `${title}\n\n${teachers.length} teachers were active during this period, conducting a total of ${totalClasses} classes. The most active teacher was ${topTeacher.teacher_name || topTeacher.teacher_email} with ${topTeacher.completed_classes} completed classes serving ${topTeacher.unique_students} unique students. ${totalCancelled > 0 ? `${totalCancelled} classes were cancelled across all teachers — investigate if any teacher has a high cancellation rate.` : 'No cancellations recorded — excellent reliability.'}`;
+    }
+
+    case 'student_progress': {
+      const exams = (data.exam_performance as Array<Record<string, unknown>>) || [];
+      if (exams.length === 0) return `${title}\n\nNo student exam data available for this period.`;
+      const avgScore = exams.reduce((sum, e) => sum + Number(e.avg_percentage || 0), 0) / exams.length;
+      const topStudent = exams[0];
+      return `${title}\n\n${exams.length} students took exams during this period with an overall average score of ${avgScore.toFixed(1)}%. ${topStudent.student_name || topStudent.student_email} leads with ${Number(topStudent.avg_percentage || 0).toFixed(1)}% average, having passed ${topStudent.exams_passed || 0} out of ${topStudent.exams_taken || 0} exams. ${avgScore >= 70 ? 'Academic performance is strong overall.' : 'Average scores are below 70% — additional tutoring or revision sessions may be beneficial.'}`;
+    }
+
+    case 'batch_summary': {
+      const batches = (data.batches as Array<Record<string, unknown>>) || [];
+      const activeBatches = batches.filter(b => b.status === 'ended' || b.status === 'live');
+      return `${title}\n\n${batches.length} batches operated during this period with ${activeBatches.length} active/completed. Subjects covered include ${[...new Set(batches.map(b => b.subject))].filter(Boolean).join(', ') || 'various'}. ${batches.length > 0 ? `Average class had ${Math.round(batches.reduce((s, b) => s + Number(b.student_count || 0), 0) / batches.length)} enrolled students.` : ''}`;
+    }
+
+    case 'exam_analytics': {
+      const exams = (data.exams as Array<Record<string, unknown>>) || [];
+      if (exams.length === 0) return `${title}\n\nNo exams conducted during this period.`;
+      const totalAttempts = exams.reduce((s, e) => s + Number(e.total_attempts || 0), 0);
+      const avgPct = exams.reduce((s, e) => s + Number(e.avg_percentage || 0), 0) / exams.length;
+      const totalPassed = exams.reduce((s, e) => s + Number(e.passed || 0), 0);
+      const totalFailed = exams.reduce((s, e) => s + Number(e.failed || 0), 0);
+      const passRate = (totalPassed + totalFailed) > 0 ? ((totalPassed / (totalPassed + totalFailed)) * 100).toFixed(1) : '0';
+      return `${title}\n\n${exams.length} exams were conducted with ${totalAttempts} total student attempts. The overall pass rate is ${passRate}% with an average score of ${avgPct.toFixed(1)}%. ${Number(passRate) >= 75 ? 'The pass rate is healthy.' : 'The pass rate is below 75% — consider reviewing exam difficulty or providing additional study materials.'}`;
+    }
+
+    case 'payroll_summary': {
+      const periods = (data.periods as Array<Record<string, unknown>>) || [];
+      if (periods.length === 0) return `${title}\n\nNo payroll data available for this period.`;
+      const totalPayroll = periods.reduce((s, p) => s + Number(p.total_payroll || 0), 0);
+      const totalTeachers = periods.reduce((s, p) => s + Number(p.teacher_count || 0), 0);
+      const totalClasses = periods.reduce((s, p) => s + Number(p.total_classes_conducted || 0), 0);
+      return `${title}\n\nTotal payroll processed: ₹${(totalPayroll / 100).toFixed(2)} across ${totalTeachers} teacher payslips. ${totalClasses} classes were conducted. ${periods.some(p => p.period_status === 'draft') ? 'Some payroll periods are still in draft — finalize and mark as paid.' : 'All payroll periods are finalized.'}`;
+    }
+
+    case 'session_report': {
+      const sessions = (data.sessions as Array<Record<string, unknown>>) || [];
+      if (sessions.length === 0) return `${title}\n\nNo session data available.`;
+      const session = sessions[0];
+      const att = session.attendance as Record<string, unknown> || {};
+      return `${title}\n\nClass "${session.batch_name}" (${session.subject}, ${session.grade}) was conducted by ${session.teacher}. Duration: ${session.actual_duration_minutes} minutes (scheduled: ${session.scheduled_duration} min). Attendance: ${att.present || 0}/${att.total_students || 0} students present (${att.attendance_rate || 0}% rate), ${att.late || 0} late arrivals. Topic covered: ${session.class_portion || 'Not recorded'}. Teacher remarks: ${session.class_remarks || 'No remarks'}. ${Number(session.contact_violations || 0) > 0 ? `⚠️ ${session.contact_violations} contact violation(s) detected during this session.` : 'No contact violations.'}`;
+    }
+
+    case 'parent_monthly': {
+      const students = (data.students as Array<Record<string, unknown>>) || [];
+      if (students.length === 0) return `${title}\n\nNo student data available for this report.`;
+      return students.map(s => {
+        const att = s.attendance as Record<string, number> || {};
+        const academic = s.academic as Record<string, number> || {};
+        const fees = s.fees as Record<string, number> || {};
+        const violations = Number(s.contact_violations || 0);
+        const topics = (s.topics_covered as Array<Record<string, unknown>>) || [];
+
+        let summary = `Student: ${s.student_name}\n`;
+        summary += `Attendance: ${att.attendance_rate || 0}% (${att.present || 0} present, ${att.absent || 0} absent, ${att.late || 0} late out of ${att.total_sessions || 0} sessions). Average time in class: ${att.avg_time_in_class_minutes || 0} minutes.\n`;
+        summary += `Academic Performance: ${academic.exams_taken || 0} exams taken with ${academic.avg_percentage || 0}% average score. Best: ${academic.best_score || 0}%, Lowest: ${academic.worst_score || 0}%.\n`;
+        summary += `Fee Status: ${fees.paid || 0} invoices paid, ${fees.pending || 0} pending, ${fees.overdue || 0} overdue. Total paid: ₹${fees.total_paid_inr || 0}, Outstanding: ₹${fees.outstanding_inr || 0}.\n`;
+        if (topics.length > 0) {
+          summary += `Topics covered: ${topics.map(t => t.class_portion).filter(Boolean).join(', ')}.\n`;
+        }
+        if (violations > 0) {
+          summary += `⚠️ ${violations} unauthorized contact attempt(s) detected — please discuss appropriate communication channels with your child.\n`;
+        }
+        summary += att.attendance_rate >= 80 && academic.avg_percentage >= 60
+          ? 'Overall: Your child is performing well. Keep up the good work!'
+          : att.attendance_rate < 75
+            ? 'Overall: Attendance needs improvement. Regular attendance is crucial for academic success.'
+            : 'Overall: Academic performance could be improved. Consider additional study time or tutoring support.';
+        return summary;
+      }).join('\n\n---\n\n');
+    }
+
+    default:
+      return `${title}\n\nReport generated successfully.`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

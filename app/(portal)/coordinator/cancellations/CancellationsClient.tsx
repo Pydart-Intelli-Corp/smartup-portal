@@ -132,8 +132,8 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
       { label: 'Cancellations', href: '/coordinator/cancellations', icon: XCircle, active: true },
     ]}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Cancellation Requests</h1>
-        <p className="text-sm text-gray-400">
+        <h1 className="text-2xl font-bold text-foreground">Cancellation Requests</h1>
+        <p className="text-sm text-muted-foreground">
           Review and approve/reject class cancellation requests
           {pendingCount > 0 && <span className="ml-2 text-yellow-400">({pendingCount} pending action)</span>}
         </p>
@@ -146,7 +146,7 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
             key={f}
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              filter === f ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              filter === f ? 'bg-blue-600 text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'
             }`}
           >
             {f.replace('_', ' ')}
@@ -156,7 +156,7 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
 
       {/* Refresh */}
       <div className="mb-4 flex justify-end">
-        <button onClick={fetchRequests} className="flex items-center gap-1 text-xs text-gray-400 hover:text-white">
+        <button onClick={fetchRequests} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <RefreshCw className="h-3 w-3" /> Refresh
         </button>
       </div>
@@ -166,7 +166,7 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
           <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">No cancellation requests</div>
+        <div className="py-12 text-center text-muted-foreground">No cancellation requests</div>
       ) : (
         <div className="space-y-3">
           {filtered.map(req => (
@@ -183,8 +183,8 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
                       {req.status.replace('_', ' ')}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-300 mt-1">{req.reason}</p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                  <p className="text-sm text-foreground/80 mt-1">{req.reason}</p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>By: {req.requested_by} ({req.requester_role})</span>
                     <span>Date: {new Date(req.created_at).toLocaleDateString()}</span>
                   </div>
@@ -193,7 +193,7 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
                   )}
                   {/* Approval chain display for teacher_initiated */}
                   {req.cancellation_type === 'teacher_initiated' && req.coordinator_decision && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                       <CheckCircle2 className="h-3 w-3 text-green-400" />
                       Coordinator: {req.coordinator_decision}
                       {req.admin_decision && <><span>→</span> Admin: {req.admin_decision}</>}

@@ -216,10 +216,10 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   // Error state
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mb-3 text-4xl">⚠️</div>
-          <h2 className="mb-2 text-lg font-semibold text-white">{error}</h2>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">{error}</h2>
           <button
             onClick={() => router.push(`/join/${roomId}`)}
             className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
@@ -234,10 +234,10 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   // Loading state
   if (!token || !livekitUrl) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-gray-600 border-t-white mx-auto" />
-          <p className="mt-2 text-sm text-gray-400">Connecting to classroom...</p>
+          <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground mx-auto" />
+          <p className="mt-2 text-sm text-muted-foreground">Connecting to classroom...</p>
         </div>
       </div>
     );

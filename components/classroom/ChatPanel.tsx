@@ -211,14 +211,14 @@ export default function ChatPanel({
   };
 
   return (
-    <div className={cn('flex h-full flex-col bg-gray-900', className)}>
+    <div className={cn('flex h-full flex-col bg-card', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
-        <span className="text-sm font-medium text-white">Class Chat</span>
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <span className="text-sm font-medium text-foreground">Class Chat</span>
         {onClose && (
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-sm"
+            className="text-muted-foreground hover:text-foreground text-sm"
           >
             ✕
           </button>
@@ -228,7 +228,7 @@ export default function ChatPanel({
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
         {messages.length === 0 && (
-          <p className="text-center text-xs text-gray-500 mt-8">
+          <p className="text-center text-xs text-muted-foreground mt-8">
             No messages yet. Say hello!
           </p>
         )}
@@ -238,15 +238,15 @@ export default function ChatPanel({
             className={cn('flex flex-col', msg.isLocal ? 'items-end' : 'items-start')}
           >
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-xs font-medium text-gray-400">
+              <span className="text-xs font-medium text-muted-foreground">
                 {msg.isLocal ? 'You' : msg.sender}
               </span>
               {!msg.isLocal && msg.role && (
-                <span className="text-[10px] uppercase text-gray-500">
+                <span className="text-[10px] uppercase text-muted-foreground">
                   ({msg.role})
                 </span>
               )}
-              <span className="text-[10px] text-gray-600">
+              <span className="text-[10px] text-muted-foreground/80">
                 {formatTime(msg.timestamp)}
               </span>
             </div>
@@ -255,7 +255,7 @@ export default function ChatPanel({
                 'max-w-[85%] rounded-lg px-3 py-1.5 text-sm',
                 msg.isLocal
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-200'
+                  : 'bg-muted text-foreground/90'
               )}
             >
               {msg.text}
@@ -280,7 +280,7 @@ export default function ChatPanel({
       )}
 
       {/* Input area */}
-      <div className="border-t border-gray-800 px-3 py-2">
+      <div className="border-t border-border px-3 py-2">
         <div className="flex gap-2">
           <input
             type="text"
@@ -288,7 +288,7 @@ export default function ChatPanel({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-1 rounded-lg bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             maxLength={500}
           />
           <button

@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   SMARTUP BRAND THEME
+   Primary: Green (#22C55E) - from logo top
+   Accent:  Teal  (#14B8A6) - from logo bottom  
+   Gradient: Green → Teal (brand signature)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -45,75 +52,234 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  /* SmartUp Brand Colors */
+  --color-brand-green: var(--brand-green);
+  --color-brand-green-dark: var(--brand-green-dark);
+  --color-brand-green-light: var(--brand-green-light);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-dark: var(--brand-teal-dark);
+  --color-brand-teal-light: var(--brand-teal-light);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-live: var(--live);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   LIGHT THEME (SmartUp Branded)
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  
+  /* SmartUp Brand Palette */
+  --brand-green: oklch(0.723 0.191 145);       /* #22C55E - Primary Green */
+  --brand-green-dark: oklch(0.627 0.194 145);  /* #16A34A - Darker Green */
+  --brand-green-light: oklch(0.792 0.209 148); /* #4ADE80 - Lighter Green */
+  --brand-teal: oklch(0.679 0.132 175);        /* #14B8A6 - Accent Teal */
+  --brand-teal-dark: oklch(0.600 0.130 175);   /* #0D9488 - Darker Teal */
+  --brand-teal-light: oklch(0.750 0.140 180);  /* #2DD4BF - Lighter Teal */
+  
+  /* Semantic Colors */
+  --success: oklch(0.723 0.191 145);           /* Green */
+  --warning: oklch(0.795 0.184 86);            /* Amber */
+  --info: oklch(0.623 0.214 255);              /* Blue */
+  --live: oklch(0.723 0.191 145);              /* Green pulse for live status */
+  
+  /* Core Theme */
+  --background: oklch(0.985 0 0);              /* Near white */
+  --foreground: oklch(0.145 0 0);              /* Near black */
+  --card: oklch(1 0 0);                        /* White */
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  
+  /* Primary = SmartUp Green */
+  --primary: oklch(0.723 0.191 145);
+  --primary-foreground: oklch(1 0 0);          /* White text on green */
+  
+  /* Secondary = SmartUp Teal */
+  --secondary: oklch(0.679 0.132 175);
+  --secondary-foreground: oklch(1 0 0);        /* White text on teal */
+  
+  /* Muted = Light gray with slight green tint */
+  --muted: oklch(0.96 0.005 145);
+  --muted-foreground: oklch(0.45 0.02 145);
+  
+  /* Accent = Light teal tint */
+  --accent: oklch(0.94 0.03 175);
+  --accent-foreground: oklch(0.20 0.05 175);
+  
+  --destructive: oklch(0.577 0.245 27.325);    /* Red for errors */
+  --border: oklch(0.90 0.01 145);              /* Slight green tint */
+  --input: oklch(0.95 0.005 145);
+  --ring: oklch(0.723 0.191 145);              /* Green ring on focus */
+  
+  /* Chart Colors - Brand inspired */
+  --chart-1: oklch(0.723 0.191 145);           /* Green */
+  --chart-2: oklch(0.679 0.132 175);           /* Teal */
+  --chart-3: oklch(0.623 0.214 255);           /* Blue */
+  --chart-4: oklch(0.795 0.184 86);            /* Amber */
+  --chart-5: oklch(0.645 0.246 16);            /* Orange */
+  
+  /* Sidebar - Branded */
+  --sidebar: oklch(0.145 0.02 145);            /* Dark with green tint */
+  --sidebar-foreground: oklch(0.92 0 0);
+  --sidebar-primary: oklch(0.723 0.191 145);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.20 0.03 145);
+  --sidebar-accent-foreground: oklch(0.92 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.723 0.191 145);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   DARK THEME (SmartUp Branded)
+   ───────────────────────────────────────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  /* SmartUp Brand Palette (slightly brighter for dark mode) */
+  --brand-green: oklch(0.760 0.200 148);       /* Brighter green */
+  --brand-green-dark: oklch(0.680 0.190 145);
+  --brand-green-light: oklch(0.820 0.190 150);
+  --brand-teal: oklch(0.720 0.140 178);        /* Brighter teal */
+  --brand-teal-dark: oklch(0.650 0.130 175);
+  --brand-teal-light: oklch(0.780 0.130 180);
+  
+  /* Semantic Colors */
+  --success: oklch(0.760 0.200 148);
+  --warning: oklch(0.820 0.180 86);
+  --info: oklch(0.680 0.200 255);
+  --live: oklch(0.760 0.200 148);
+  
+  /* Core Theme */
+  --background: oklch(0.12 0.01 145);          /* Very dark with green tint */
+  --foreground: oklch(0.96 0 0);               /* Near white */
+  --card: oklch(0.16 0.015 145);               /* Card background */
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.16 0.015 145);
+  --popover-foreground: oklch(0.96 0 0);
+  
+  /* Primary = SmartUp Green */
+  --primary: oklch(0.760 0.200 148);
+  --primary-foreground: oklch(0.12 0.02 145);  /* Dark text on green */
+  
+  /* Secondary = SmartUp Teal */
+  --secondary: oklch(0.720 0.140 178);
+  --secondary-foreground: oklch(0.12 0.02 145);
+  
+  /* Muted = Dark gray with green tint */
+  --muted: oklch(0.22 0.015 145);
+  --muted-foreground: oklch(0.65 0.02 145);
+  
+  /* Accent = Dark teal tint */
+  --accent: oklch(0.25 0.03 175);
+  --accent-foreground: oklch(0.92 0 0);
+  
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --ring: oklch(0.760 0.200 148);
+  
+  /* Chart Colors - Brighter for dark mode */
+  --chart-1: oklch(0.760 0.200 148);           /* Green */
+  --chart-2: oklch(0.720 0.140 178);           /* Teal */
+  --chart-3: oklch(0.680 0.200 255);           /* Blue */
+  --chart-4: oklch(0.820 0.180 86);            /* Amber */
+  --chart-5: oklch(0.700 0.230 16);            /* Orange */
+  
+  /* Sidebar - Dark branded */
+  --sidebar: oklch(0.14 0.015 145);
+  --sidebar-foreground: oklch(0.92 0 0);
+  --sidebar-primary: oklch(0.760 0.200 148);
+  --sidebar-primary-foreground: oklch(0.12 0 0);
+  --sidebar-accent: oklch(0.22 0.02 145);
+  --sidebar-accent-foreground: oklch(0.92 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.760 0.200 148);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SMARTUP UTILITY CLASSES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Brand Gradient - Logo signature green→teal */
+.bg-brand-gradient {
+  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-teal) 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-teal) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-brand-gradient {
+  border-image: linear-gradient(135deg, var(--brand-green), var(--brand-teal)) 1;
+}
+
+/* Status Badge Variants */
+.status-live {
+  background: oklch(0.760 0.200 148 / 20%);
+  color: var(--brand-green);
+  border: 1px solid oklch(0.760 0.200 148 / 40%);
+}
+
+.status-scheduled {
+  background: oklch(0.680 0.200 255 / 20%);
+  color: var(--info);
+  border: 1px solid oklch(0.680 0.200 255 / 40%);
+}
+
+.status-ended {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+
+.status-cancelled {
+  background: oklch(0.704 0.191 22 / 20%);
+  color: var(--destructive);
+  border: 1px solid oklch(0.704 0.191 22 / 40%);
+}
+
+.status-success {
+  background: oklch(0.760 0.200 148 / 20%);
+  color: var(--success);
+  border: 1px solid oklch(0.760 0.200 148 / 40%);
+}
+
+.status-warning {
+  background: oklch(0.820 0.180 86 / 20%);
+  color: var(--warning);
+  border: 1px solid oklch(0.820 0.180 86 / 40%);
+}
+
+.status-info {
+  background: oklch(0.680 0.200 255 / 20%);
+  color: var(--info);
+  border: 1px solid oklch(0.680 0.200 255 / 40%);
+}
+
+/* Live Pulse Animation */
+.live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Primary Button Gradient (Optional branded button) */
+.btn-brand {
+  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-teal) 100%);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-brand:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 @layer base {

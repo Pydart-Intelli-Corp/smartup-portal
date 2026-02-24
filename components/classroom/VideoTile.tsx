@@ -81,7 +81,7 @@ export default function VideoTile({
         'relative overflow-hidden rounded-lg bg-[#202124] border-2 transition-all duration-200',
         isSpeaking ? 'border-[#34a853] shadow-[0_0_12px_rgba(52,168,83,0.3)]' : 'border-[#3c4043]',
         SIZE_CLASSES[size],
-        onClick && 'cursor-pointer hover:border-gray-500',
+        onClick && 'cursor-pointer hover:border-border',
         className
       )}
       onClick={onClick}

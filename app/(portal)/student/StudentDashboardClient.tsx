@@ -58,7 +58,7 @@ interface Props {
 const STATUS_BADGE: Record<string, { border: string; text: string; bg: string; label: string }> = {
   scheduled: { border: 'border-violet-700', bg: 'bg-violet-900/40', text: 'text-violet-300', label: 'Scheduled' },
   live:      { border: 'border-green-700',  bg: 'bg-green-900/40',  text: 'text-green-300',  label: 'Live'      },
-  ended:     { border: 'border-gray-600',   bg: 'bg-gray-800',      text: 'text-gray-400',   label: 'Ended'     },
+  ended:     { border: 'border-border',     bg: 'bg-muted',         text: 'text-muted-foreground', label: 'Ended' },
   cancelled: { border: 'border-red-700',    bg: 'bg-red-900/40',    text: 'text-red-400',    label: 'Cancelled' },
 };
 
@@ -92,9 +92,9 @@ function effectiveStatus(a: Assignment): string {
 
 // ── Small Components ───────────────────────────────────────────
 
-function Avatar({ name, size = 8, color = 'bg-violet-600' }: { name: string; size?: number; color?: string }) {
+function Avatar({ name, size = 8, color = 'bg-primary' }: { name: string; size?: number; color?: string }) {
   return (
-    <div className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full ${color} text-sm font-bold text-white`}>
+    <div className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full ${color} text-sm font-bold text-primary-foreground`}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
@@ -178,8 +178,8 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
             {liveRooms.map((a) => (
               <div key={a.room_id} className="flex items-center justify-between gap-4 rounded-xl bg-black/30 px-4 py-3">
                 <div>
-                  <p className="font-semibold text-white">{a.room_name}</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="font-semibold text-foreground">{a.room_name}</p>
+                  <p className="text-sm text-muted-foreground">
                     {a.subject} · {a.grade}
                     {a.section ? ` · ${a.section}` : ''}
                     {a.teacher_name ? ` · ${a.teacher_name}` : ''}
@@ -214,10 +214,10 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
           { label: 'Live Now',        value: liveRooms.length,    border: 'border-green-700',  bg: 'bg-green-950/30',  text: 'text-green-400'  },
           { label: "Today's Classes", value: todayClasses.length, border: 'border-violet-700', bg: 'bg-violet-950/30', text: 'text-violet-400' },
           { label: 'Upcoming',        value: upcoming.length,     border: 'border-blue-700',   bg: 'bg-blue-950/30',   text: 'text-blue-400'   },
-          { label: 'Done This Week',  value: doneThisWeek.length, border: 'border-gray-700',   bg: 'bg-gray-900',      text: 'text-gray-300'   },
+          { label: 'Done This Week',  value: doneThisWeek.length, border: 'border-border',   bg: 'bg-card',      text: 'text-foreground'   },
         ].map((s) => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.border} ${s.bg}`}>
-            <p className="text-xs text-gray-400">{s.label}</p>
+            <p className="text-xs text-muted-foreground">{s.label}</p>
             <p className={`mt-1 text-3xl font-bold ${s.text}`}>{s.value}</p>
           </div>
         ))}
@@ -225,7 +225,7 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
 
       {/* Next Class Card */}
       {nextClass && (
-        <div className="rounded-xl border border-violet-800 bg-gray-900 p-5">
+        <div className="rounded-xl border border-violet-800 bg-card p-5">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-violet-300">
             <Timer className="h-4 w-4" /> Next Class
           </h3>
@@ -234,12 +234,12 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
               <Calendar className="h-7 w-7 text-violet-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-white">{nextClass.room_name}</p>
-              <p className="text-sm text-gray-400">
+              <p className="truncate font-semibold text-foreground">{nextClass.room_name}</p>
+              <p className="text-sm text-muted-foreground">
                 {nextClass.subject} · {nextClass.grade}
                 {nextClass.section ? ` · ${nextClass.section}` : ''}
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(nextClass.scheduled_start)}</span>
                 <span>{fmtDuration(nextClass.duration_minutes)}</span>
                 {nextClass.teacher_name && (
@@ -248,7 +248,7 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <p className="mb-1 text-xs text-gray-500">
+              <p className="mb-1 text-xs text-muted-foreground">
                 {new Date(nextClass.scheduled_start) > new Date() ? 'Starts in' : 'Status'}
               </p>
               <p className="font-mono text-lg font-bold text-violet-400">
@@ -265,7 +265,7 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
       {/* Today's Schedule */}
       {todayClasses.length > 0 && (
         <div>
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Calendar className="h-4 w-4" /> Today&apos;s Schedule
           </h3>
           <div className="space-y-2">
@@ -280,11 +280,11 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
                       <p className={`text-sm font-bold ${s.text}`}>
                         {fmtTimeIST(a.scheduled_start)}
                       </p>
-                      <p className="mt-0.5 text-[10px] text-gray-500">{fmtDuration(a.duration_minutes)}</p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">{fmtDuration(a.duration_minutes)}</p>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-white">{a.room_name}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="truncate font-medium text-foreground">{a.room_name}</p>
+                      <p className="text-xs text-muted-foreground">
                         {a.subject} · {a.grade}
                         {a.teacher_name ? ` · ${a.teacher_name}` : ''}
                       </p>
@@ -308,43 +308,43 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
       {/* Quick Actions */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <a href="/student/exams"
-          className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-violet-600 hover:bg-gray-800 transition">
+          className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-4 hover:border-primary hover:bg-muted transition">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-900/40">
             <GraduationCap className="h-5 w-5 text-violet-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Exams</p>
-            <p className="text-xs text-gray-500">View & take exams</p>
+            <p className="text-sm font-semibold text-foreground">Exams</p>
+            <p className="text-xs text-muted-foreground">View & take exams</p>
           </div>
         </a>
         <a href="/student"
-          className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-blue-600 hover:bg-gray-800 transition">
+          className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-4 hover:border-blue-600 hover:bg-muted transition">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-900/40">
             <CreditCard className="h-5 w-5 text-blue-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Payments</p>
-            <p className="text-xs text-gray-500">Fee history</p>
+            <p className="text-sm font-semibold text-foreground">Payments</p>
+            <p className="text-xs text-muted-foreground">Fee history</p>
           </div>
         </a>
         <a href="/student"
-          className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-green-600 hover:bg-gray-800 transition">
+          className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-4 hover:border-green-600 hover:bg-muted transition">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-900/40">
             <Video className="h-5 w-5 text-green-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Recordings</p>
-            <p className="text-xs text-gray-500">Class recordings</p>
+            <p className="text-sm font-semibold text-foreground">Recordings</p>
+            <p className="text-xs text-muted-foreground">Class recordings</p>
           </div>
         </a>
       </div>
 
       {/* Empty state */}
       {assignments.length === 0 && (
-        <div className="rounded-xl border border-dashed border-gray-700 py-16 text-center">
-          <BookOpen className="mx-auto mb-3 h-12 w-12 text-gray-600" />
-          <p className="text-gray-400">No classes assigned yet</p>
-          <p className="mt-1 text-sm text-gray-600">Your coordinator will add you to classes soon</p>
+        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+          <BookOpen className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
+          <p className="text-muted-foreground">No classes assigned yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your coordinator will add you to classes soon</p>
         </div>
       )}
     </div>
@@ -387,13 +387,13 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
     <div className="space-y-4">
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
           placeholder="Search by class name, subject, teacher..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-gray-700 bg-gray-800/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-violet-500 focus:outline-none"
+          className="w-full rounded-xl border border-border bg-muted py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
       </div>
 
@@ -404,12 +404,12 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
             key={f}
             onClick={() => setFilter(f)}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-              filter === f ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+              filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
             }`}
           >
             {f === 'live' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />}
             {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-            <span className={`rounded-full px-1.5 text-[10px] font-bold ${filter === f ? 'bg-white/20' : 'bg-gray-700'}`}>
+            <span className={`rounded-full px-1.5 text-[10px] font-bold ${filter === f ? 'bg-white/20' : 'bg-background'}`}>
               {counts[f]}
             </span>
           </button>
@@ -418,9 +418,9 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
 
       {/* Class list */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-700 py-12 text-center">
-          <BookOpen className="mx-auto mb-2 h-8 w-8 text-gray-600" />
-          <p className="text-sm text-gray-400">
+        <div className="rounded-xl border border-dashed border-border py-12 text-center">
+          <BookOpen className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
             {search ? 'No classes match your search' : 'No classes in this category'}
           </p>
         </div>
@@ -434,7 +434,7 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
               <div
                 key={a.room_id}
                 className={`rounded-xl border transition-colors ${
-                  isExpanded ? `${s.border} ${s.bg}` : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+                  isExpanded ? `${s.border} ${s.bg}` : 'border-border bg-card hover:border-border'
                 }`}
               >
                 {/* Clickable row */}
@@ -449,8 +449,8 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
                     {es === 'scheduled' && <Calendar     className={`h-5 w-5 ${s.text}`} />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-white">{a.room_name}</p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <p className="truncate font-medium text-foreground">{a.room_name}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span>{a.subject} · {a.grade}{a.section ? ` · ${a.section}` : ''}</span>
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(a.scheduled_start)}</span>
                       {a.teacher_name && <span className="flex items-center gap-1"><Users className="h-3 w-3" />{a.teacher_name}</span>}
@@ -459,7 +459,7 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="hidden text-right sm:block">
                       <p className={`text-xs font-semibold ${s.text}`}>{s.label}</p>
-                      <p className="text-xs text-gray-500">{fmtDuration(a.duration_minutes)}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDuration(a.duration_minutes)}</p>
                     </div>
                     {es === 'live' && (
                       <a
@@ -470,35 +470,35 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
                         Join
                       </a>
                     )}
-                    {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </div>
                 </button>
 
                 {/* Expanded detail */}
                 {isExpanded && (
-                  <div className="space-y-3 border-t border-gray-800 px-4 pb-4 pt-3">
+                  <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
                     <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Date &amp; Time</p>
-                        <p className="text-white">{fmtDate(a.scheduled_start)}</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Date &amp; Time</p>
+                        <p className="text-foreground">{fmtDate(a.scheduled_start)}</p>
                       </div>
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Duration</p>
-                        <p className="text-white">{fmtDuration(a.duration_minutes)}</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Duration</p>
+                        <p className="text-foreground">{fmtDuration(a.duration_minutes)}</p>
                       </div>
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Teacher</p>
-                        <p className="text-white">{a.teacher_name ?? 'Not assigned'}</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Teacher</p>
+                        <p className="text-foreground">{a.teacher_name ?? 'Not assigned'}</p>
                       </div>
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Payment</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Payment</p>
                         <PaymentBadge status={a.payment_status} />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <p className="mb-0.5 text-xs text-gray-500">Status</p>
+                        <p className="mb-0.5 text-xs text-muted-foreground">Status</p>
                         <StatusBadge status={es} />
                       </div>
                     </div>
@@ -534,7 +534,7 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
 function ProfileTab({ profile, loading }: { profile: StudentProfile | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-500">
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
         <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading profile…
       </div>
     );
@@ -542,10 +542,10 @@ function ProfileTab({ profile, loading }: { profile: StudentProfile | null; load
 
   if (!profile) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-700 py-16 text-center">
-        <User className="mx-auto mb-3 h-10 w-10 text-gray-600" />
-        <p className="text-gray-400">Profile not found</p>
-        <p className="mt-1 text-sm text-gray-600">Your profile will appear here once HR has filled in your details.</p>
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <User className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+        <p className="text-muted-foreground">Profile not found</p>
+        <p className="mt-1 text-sm text-muted-foreground">Your profile will appear here once HR has filled in your details.</p>
       </div>
     );
   }
@@ -559,11 +559,11 @@ function ProfileTab({ profile, loading }: { profile: StudentProfile | null; load
     value?: string | number | null;
     icon: React.ElementType;
   }) => (
-    <div className="flex items-start gap-3 border-b border-gray-800 py-3 last:border-0">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+    <div className="flex items-start gap-3 border-b border-border py-3 last:border-0">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <div>
-        <p className="mb-0.5 text-xs text-gray-500">{label}</p>
-        <p className={`text-sm ${value != null && value !== '' ? 'text-white' : 'italic text-gray-600'}`}>
+        <p className="mb-0.5 text-xs text-muted-foreground">{label}</p>
+        <p className={`text-sm ${value != null && value !== '' ? 'text-foreground' : 'italic text-muted-foreground'}`}>
           {value != null && value !== '' ? String(value) : 'Not set'}
         </p>
       </div>
@@ -577,9 +577,9 @@ function ProfileTab({ profile, loading }: { profile: StudentProfile | null; load
         <div className="flex items-center gap-5">
           <Avatar name={profile.name} size={16} color="bg-violet-600" />
           <div>
-            <h2 className="text-2xl font-bold text-white">{profile.name}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{profile.name}</h2>
             <p className="mt-0.5 text-sm text-violet-400">Student</p>
-            <p className="mt-1 text-xs text-gray-500">{profile.email}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{profile.email}</p>
           </div>
         </div>
 
@@ -606,7 +606,7 @@ function ProfileTab({ profile, loading }: { profile: StudentProfile | null; load
       </div>
 
       {/* Details */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900 px-5">
+      <div className="rounded-xl border border-border bg-card px-5">
         <Field label="Phone"       value={profile.phone}        icon={Phone}         />
         <Field label="WhatsApp"    value={profile.whatsapp}     icon={Phone}         />
         <Field
@@ -702,12 +702,12 @@ export default function StudentDashboardClient({ userName, userEmail, userRole }
       {/* Page Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-foreground">
             {activeTab === 'overview' ? 'Student Dashboard'
               : activeTab === 'classes' ? 'My Classes'
               : 'My Profile'}
           </h1>
-          <p className="mt-0.5 text-sm text-gray-400">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {activeTab === 'overview'
               ? `Welcome back, ${userName.split(' ')[0]}`
               : activeTab === 'classes'
@@ -719,7 +719,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole }
           onClick={fetchAssignments}
           disabled={loadingRooms}
           title="Refresh"
-          className="flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-500 hover:text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loadingRooms ? 'animate-spin' : ''}`} />
           Refresh
@@ -727,7 +727,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole }
       </div>
 
       {/* Tab Bar */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-gray-800 bg-gray-900/60 p-1">
+      <div className="mb-6 flex gap-1 rounded-xl border border-border bg-card/60 p-1">
         {(
           [
             { key: 'overview' as const, label: 'Overview',   icon: LayoutDashboard },
@@ -744,8 +744,8 @@ export default function StudentDashboardClient({ userName, userEmail, userRole }
             onClick={() => setActiveTab(key)}
             className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === key
-                ? 'bg-violet-600 text-white shadow-sm'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >
             <Icon className="h-4 w-4 shrink-0" />

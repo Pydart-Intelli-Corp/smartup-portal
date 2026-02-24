@@ -21,7 +21,7 @@ export default async function ClassroomPage({
   const { roomId } = await params;
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gray-950">
+    <div className="h-screen w-screen overflow-hidden bg-background">
       <ClassroomWrapper roomId={roomId} />
     </div>
   );

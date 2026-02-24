@@ -99,14 +99,14 @@ export default function ParticipantList({
   };
 
   return (
-    <div className={cn('flex h-full flex-col bg-gray-900', className)}>
+    <div className={cn('flex h-full flex-col bg-card', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
-        <span className="text-sm font-medium text-white">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <span className="text-sm font-medium text-foreground">
           Participants ({sorted.length})
         </span>
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-sm">
             ✕
           </button>
         )}
@@ -124,12 +124,12 @@ export default function ParticipantList({
           return (
             <div
               key={p.identity}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-800"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
             >
               {/* Name + role badge */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="truncate text-sm text-white">{displayName}</span>
+                  <span className="truncate text-sm text-foreground">{displayName}</span>
                   <RoleBadge role={pRole} />
                   {isRaised && <span className="text-yellow-400 text-xs">🖐</span>}
                 </div>
@@ -156,7 +156,7 @@ export default function ParticipantList({
                 {role === 'teacher' && pRole !== 'teacher' && (
                   <button
                     onClick={() => setConfirmKick(p.identity)}
-                    className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-gray-600"
+                    className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-red-400 hover:bg-muted"
                     title="Remove"
                   >
                     ✕
@@ -167,14 +167,14 @@ export default function ParticipantList({
               {/* Kick confirmation */}
               {confirmKick === p.identity && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                  <div className="rounded-xl bg-gray-800 p-5 text-center shadow-xl">
-                    <p className="mb-4 text-sm text-white">
+                  <div className="rounded-xl bg-muted p-5 text-center shadow-xl">
+                    <p className="mb-4 text-sm text-foreground">
                       Remove <strong>{displayName}</strong> from the class?
                     </p>
                     <div className="flex gap-3 justify-center">
                       <button
                         onClick={() => setConfirmKick(null)}
-                        className="rounded-lg bg-gray-700 px-3 py-1.5 text-sm text-white"
+                        className="rounded-lg bg-accent px-3 py-1.5 text-sm text-foreground"
                       >
                         Cancel
                       </button>
@@ -210,7 +210,7 @@ function RoleBadge({ role }: { role: string }) {
     <span
       className={cn(
         'rounded px-1 py-0.5 text-[9px] font-bold uppercase text-white',
-        colors[role] || 'bg-gray-600'
+        colors[role] || 'bg-muted'
       )}
     >
       {role}

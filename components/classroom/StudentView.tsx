@@ -1043,7 +1043,7 @@ export default function StudentView({
                   <svg className="h-7 w-7 text-[#ea4335]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 </div>
                 <h3 className="text-lg font-semibold text-white">Rejoin Denied</h3>
-                <p className="mt-2 text-sm text-gray-400">Teacher denied your rejoin request. Leaving…</p>
+                <p className="mt-2 text-sm text-muted-foreground">Teacher denied your rejoin request. Leaving…</p>
               </>
             ) : (
               <>
@@ -1053,10 +1053,10 @@ export default function StudentView({
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-white">Waiting for Teacher Approval</h3>
-                <p className="mt-2 text-sm text-gray-400">
+                <p className="mt-2 text-sm text-muted-foreground">
                   You left the class earlier. Your rejoin request has been sent to the teacher.
                 </p>
-                <p className="mt-1 text-xs text-gray-500">Please wait…</p>
+                <p className="mt-1 text-xs text-muted-foreground">Please wait…</p>
                 <button
                   onClick={onLeave}
                   className="mt-6 rounded-xl bg-[#3c4043] px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#4a4e52]"

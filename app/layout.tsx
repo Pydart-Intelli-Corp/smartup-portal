@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SmartUp Portal",
   description: "SmartUp Online Classroom Portal — Live classes, whiteboard, and real-time collaboration",
+  icons: {
+    icon: '/logo/IMG_3579.PNG',
+    apple: '/logo/IMG_3579.PNG',
+  },
 };
 
 export const viewport: Viewport = {
@@ -33,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-white`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}
       </body>

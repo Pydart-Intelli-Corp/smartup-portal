@@ -53,7 +53,7 @@ interface CoordinatorDashboardClientProps {
 const STATUS_BADGE: Record<string, { bg: string; text: string; dot: string; icon: typeof Radio }> = {
   scheduled: { bg: 'bg-blue-900/40 border-blue-700',  text: 'text-blue-300',  dot: 'bg-blue-500',  icon: Calendar     },
   live:      { bg: 'bg-green-900/40 border-green-700', text: 'text-green-300', dot: 'bg-green-500', icon: Radio        },
-  ended:     { bg: 'bg-gray-800 border-gray-600',      text: 'text-gray-400',  dot: 'bg-gray-500',  icon: CheckCircle2 },
+  ended:     { bg: 'bg-muted border-border',           text: 'text-muted-foreground', dot: 'bg-muted-foreground', icon: CheckCircle2 },
   cancelled: { bg: 'bg-red-900/40 border-red-700',     text: 'text-red-400',   dot: 'bg-red-500',   icon: XCircle      },
 };
 
@@ -61,9 +61,9 @@ function fmtDate(iso: string) {
   return fmtSmartDateIST(iso);
 }
 
-function Avatar({ name, size = 7, color = 'bg-blue-600' }: { name: string; size?: number; color?: string }) {
+function Avatar({ name, size = 7, color = 'bg-primary' }: { name: string; size?: number; color?: string }) {
   return (
-    <div className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full ${color} text-xs font-bold text-white`}>
+    <div className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full ${color} text-xs font-bold text-primary-foreground`}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
@@ -111,19 +111,19 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
       { label: 'Cancellations', href: '/coordinator/cancellations', icon: XCircle },
     ]}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Batch Monitor</h1>
-        <p className="text-sm text-gray-400">Track attendance, observe live classes, send reminders</p>
+        <h1 className="text-2xl font-bold text-foreground">Batch Monitor</h1>
+        <p className="text-sm text-muted-foreground">Track attendance, observe live classes, send reminders</p>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Total',     value: stats.total,     color: 'border-gray-700',   text: 'text-white'     },
+          { label: 'Total',     value: stats.total,     color: 'border-border',   text: 'text-foreground'     },
           { label: 'Live',      value: stats.live,      color: 'border-green-700',  text: 'text-green-400' },
           { label: 'Scheduled', value: stats.scheduled, color: 'border-cyan-700',   text: 'text-cyan-400'  },
-          { label: 'Ended',     value: stats.ended,     color: 'border-gray-600',   text: 'text-gray-400'  },
+          { label: 'Ended',     value: stats.ended,     color: 'border-border',   text: 'text-muted-foreground'  },
         ].map((s) => (
-          <div key={s.label} className={`rounded-xl border ${s.color} bg-gray-900/60 p-4`}>
-            <p className="text-xs text-gray-400">{s.label}</p>
+          <div key={s.label} className={`rounded-xl border ${s.color} bg-card/60 p-4`}>
+            <p className="text-xs text-muted-foreground">{s.label}</p>
             <p className={`mt-1 text-3xl font-bold ${s.text}`}>{s.value}</p>
           </div>
         ))}
@@ -134,20 +134,20 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
           {['all', 'live', 'scheduled', 'ended', 'cancelled'].map((f) => (
             <button key={f} onClick={() => setFilter(f)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                filter === f ? 'bg-cyan-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >{f}</button>
           ))}
         </div>
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input type="text" placeholder="Search batches, subject, grade..." value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800/50 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-muted/50 py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
         </div>
         <button onClick={fetchRooms}
-          className="flex shrink-0 items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors"
+          className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
@@ -155,14 +155,14 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
 
       <div className="space-y-2">
         {loading && rooms.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-gray-500">
+          <div className="flex items-center justify-center py-20 text-muted-foreground">
             <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading batches...
           </div>
         ) : filteredRooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-16 text-center">
-            <Calendar className="mb-3 h-10 w-10 text-gray-600" />
-            <p className="text-gray-300 font-medium">No batches found</p>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+            <Calendar className="mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="text-foreground font-medium">No batches found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               {rooms.length === 0 ? 'No classes have been scheduled yet' : 'Try a different filter or search'}
             </p>
           </div>
@@ -190,14 +190,14 @@ function MonitorRoomCard({ room, expanded, onToggle, onRefresh, router }: {
   const badge = STATUS_BADGE[room.status] ?? STATUS_BADGE.scheduled;
   const BadgeIcon = badge.icon;
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden hover:border-gray-700 transition-colors">
+    <div className="rounded-xl border border-border bg-card overflow-hidden hover:border-border transition-colors">
       <div className="flex items-center gap-3 p-4 cursor-pointer select-none" onClick={onToggle}>
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${badge.bg}`}>
           <BadgeIcon className={`h-5 w-5 ${badge.text}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-white truncate">{room.room_name}</h3>
+            <h3 className="font-semibold text-foreground truncate">{room.room_name}</h3>
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase border ${badge.bg} ${badge.text}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />{room.status}
             </span>
@@ -207,7 +207,7 @@ function MonitorRoomCard({ room, expanded, onToggle, onRefresh, router }: {
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+          <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />{room.subject}</span>
             <span className="flex items-center gap-1"><GraduationCap className="h-3 w-3" />{room.grade}{room.section ? ` \u2014 ${room.section}` : ''}</span>
             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(room.scheduled_start)}</span>
@@ -224,7 +224,7 @@ function MonitorRoomCard({ room, expanded, onToggle, onRefresh, router }: {
             ><Eye className="h-3 w-3" /> Observe</button>
           )}
         </div>
-        <div className="shrink-0 text-gray-500">
+        <div className="shrink-0 text-muted-foreground">
           {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
         </div>
       </div>
@@ -268,7 +268,7 @@ function MonitorDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
   };
 
   return (
-    <div className="border-t border-gray-800 bg-gray-950/50 p-4">
+    <div className="border-t border-border bg-background/50 p-4">
       {msg && (
         <div className={`mb-4 rounded-lg px-3 py-2 text-xs ${msg.startsWith('\u2713') ? 'bg-green-950/50 border border-green-800 text-green-400' : 'bg-red-950/50 border border-red-800 text-red-400'}`}>
           {msg}
@@ -278,7 +278,7 @@ function MonitorDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Room Info */}
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Batch Details</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Batch Details</h4>
           {[
             ['Batch ID', room.room_id, true],
             ['Subject', room.subject, false],
@@ -287,22 +287,22 @@ function MonitorDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
             ['Duration', `${room.duration_minutes} minutes`, false],
           ].map(([l, v, m]) => (
             <div key={l as string} className="flex items-start gap-2 text-sm">
-              <span className="w-24 shrink-0 text-xs text-gray-500">{l as string}</span>
-              <span className={`text-gray-200 ${m ? 'font-mono text-xs' : ''}`}>{v as string}</span>
+              <span className="w-24 shrink-0 text-xs text-muted-foreground">{l as string}</span>
+              <span className={`text-foreground ${m ? 'font-mono text-xs' : ''}`}>{v as string}</span>
             </div>
           ))}
 
           {/* Teacher */}
-          <div className="mt-3 rounded-lg border border-gray-800 p-3">
-            <p className="mb-2 text-xs text-gray-500">Assigned Teacher</p>
+          <div className="mt-3 rounded-lg border border-border p-3">
+            <p className="mb-2 text-xs text-muted-foreground">Assigned Teacher</p>
             {loadingDetails ? (
-              <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
             ) : teacher ? (
               <div className="flex items-center gap-2">
                 <Avatar name={teacher.participant_name} size={7} color="bg-emerald-600" />
                 <div>
-                  <p className="text-sm font-medium text-white">{teacher.participant_name}</p>
-                  <p className="text-xs text-gray-500">{teacher.participant_email}</p>
+                  <p className="text-sm font-medium text-foreground">{teacher.participant_name}</p>
+                  <p className="text-xs text-muted-foreground">{teacher.participant_email}</p>
                   {teacher.notification_sent_at && (
                     <p className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-500"><Mail className="h-2.5 w-2.5" /> Notified {fmtDateTimeIST(teacher.notification_sent_at)}</p>
                   )}
@@ -320,10 +320,10 @@ function MonitorDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
         {/* Attendance */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Attendance</h4>
             {room.status === 'scheduled' && students.length > 0 && (
               <button onClick={handleRemind} disabled={notifying}
-                className="flex items-center gap-1 rounded-lg bg-cyan-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-cyan-800 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {notifying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                 Send Reminder
@@ -332,48 +332,48 @@ function MonitorDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
           </div>
 
           {loadingDetails ? (
-            <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
           ) : students.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-700 py-6 text-center">
-              <Users className="mx-auto mb-2 h-5 w-5 text-gray-600" />
-              <p className="text-xs text-gray-500">No students assigned</p>
+            <div className="rounded-xl border border-dashed border-border py-6 text-center">
+              <Users className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">No students assigned</p>
             </div>
           ) : (
             <>
               <div className="flex gap-3 text-sm">
                 <div className="rounded-lg border border-green-800 bg-green-950/30 px-3 py-2 flex-1 text-center">
                   <p className="text-xl font-bold text-green-400">{joined.length}</p>
-                  <p className="text-xs text-gray-400">Joined</p>
+                  <p className="text-xs text-muted-foreground">Joined</p>
                 </div>
-                <div className="rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-2 flex-1 text-center">
-                  <p className="text-xl font-bold text-gray-300">{notJoined.length}</p>
-                  <p className="text-xs text-gray-400">Not joined</p>
+                <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 flex-1 text-center">
+                  <p className="text-xl font-bold text-foreground">{notJoined.length}</p>
+                  <p className="text-xs text-muted-foreground">Not joined</p>
                 </div>
                 <div className="rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 flex-1 text-center">
                   <p className="text-xl font-bold text-amber-400">{notNotified.length}</p>
-                  <p className="text-xs text-gray-400">Unnotified</p>
+                  <p className="text-xs text-muted-foreground">Unnotified</p>
                 </div>
               </div>
 
               <div className="max-h-52 overflow-auto space-y-1.5">
                 {students.map((s) => (
-                  <div key={s.participant_email} className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-800/30 px-3 py-2">
-                    <div className={`h-2 w-2 rounded-full shrink-0 ${s.joined_at ? 'bg-green-500' : 'bg-gray-600'}`} />
+                  <div key={s.participant_email} className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${s.joined_at ? 'bg-green-500' : 'bg-muted-foreground'}`} />
                     <Avatar name={s.participant_name} size={7} color="bg-violet-600" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white truncate">{s.participant_name}</p>
-                      <p className="text-[10px] text-gray-500 truncate">{s.participant_email}</p>
+                      <p className="text-xs font-medium text-foreground truncate">{s.participant_name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{s.participant_email}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {s.joined_at ? (
                         <span className="flex items-center gap-1 text-[10px] text-green-400"><UserCheck className="h-2.5 w-2.5" /> Joined</span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[10px] text-gray-500"><UserX className="h-2.5 w-2.5" /> Absent</span>
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><UserX className="h-2.5 w-2.5" /> Absent</span>
                       )}
                       {s.notification_sent_at ? (
                         <span className="text-[10px] text-emerald-500 flex items-center gap-0.5"><Mail className="h-2.5 w-2.5" /> Sent</span>
                       ) : (
-                        <span className="text-[10px] text-gray-600">No notif</span>
+                        <span className="text-[10px] text-muted-foreground">No notif</span>
                       )}
                     </div>
                   </div>

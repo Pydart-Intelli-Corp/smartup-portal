@@ -95,13 +95,13 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="h-6 w-6 text-blue-400" /> Reports
             </h1>
-            <p className="text-sm text-gray-400 mt-1">Generate and review system reports</p>
+            <p className="text-sm text-muted-foreground mt-1">Generate and review system reports</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={fetchReports} className="rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700">
+            <button onClick={fetchReports} className="rounded border border-border bg-muted px-3 py-1.5 text-xs text-foreground/80 hover:bg-accent">
               <RefreshCw className={`h-3 w-3 inline mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
             <button onClick={() => setShowForm(!showForm)}
@@ -113,27 +113,27 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
 
         {/* Generate Form */}
         {showForm && (
-          <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-5">
-            <h3 className="text-sm font-semibold text-white mb-4">Generate New Report</h3>
+          <div className="rounded-xl border border-border bg-muted/50 p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Generate New Report</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Report Type</label>
+                <label className="text-xs text-muted-foreground block mb-1">Report Type</label>
                 <select value={formType} onChange={e => setFormType(e.target.value)}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white">
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
                   {REPORT_TYPES.map(rt => (
                     <option key={rt.value} value={rt.value}>{rt.label}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Period Start</label>
+                <label className="text-xs text-muted-foreground block mb-1">Period Start</label>
                 <input type="date" value={formStart} onChange={e => setFormStart(e.target.value)}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" />
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
               </div>
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Period End</label>
+                <label className="text-xs text-muted-foreground block mb-1">Period End</label>
                 <input type="date" value={formEnd} onChange={e => setFormEnd(e.target.value)}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" />
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
               </div>
               <div className="flex items-end">
                 <button onClick={generateReport} disabled={generating || !formStart || !formEnd}
@@ -152,9 +152,9 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
             return (
               <button key={rt.value}
                 onClick={() => { setFormType(rt.value); setShowForm(true); }}
-                className="flex flex-col items-center gap-2 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-gray-600 hover:bg-gray-800 transition">
-                <Icon className={`h-6 w-6 ${rt.color}`} />
-                <span className="text-xs text-gray-400 text-center">{rt.label}</span>
+                  className="flex flex-col items-center gap-2 rounded-xl border border-border bg-muted/50 p-4 hover:border-border hover:bg-muted transition">
+                  <Icon className={`h-6 w-6 ${rt.color}`} />
+                  <span className="text-xs text-muted-foreground text-center">{rt.label}</span>
               </button>
             );
           })}
@@ -162,12 +162,12 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
 
         {/* Selected Report Detail */}
         {selectedReport && (
-          <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-5">
+          <div className="rounded-xl border border-border bg-muted/50 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-white">{selectedReport.title}</h3>
-              <button onClick={() => setSelectedReport(null)} className="text-xs text-gray-500 hover:text-gray-300">Close</button>
+              <h3 className="text-sm font-semibold text-foreground">{selectedReport.title}</h3>
+              <button onClick={() => setSelectedReport(null)} className="text-xs text-muted-foreground hover:text-foreground/80">Close</button>
             </div>
-            <pre className="text-xs text-gray-400 bg-gray-900 rounded-lg p-4 overflow-auto max-h-96">
+            <pre className="text-xs text-muted-foreground bg-card rounded-lg p-4 overflow-auto max-h-96">
               {JSON.stringify(selectedReport.data, null, 2)}
             </pre>
           </div>
@@ -179,7 +179,7 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
         ) : reports.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <FileText className="h-12 w-12 mb-3 opacity-40" />
             <p className="text-sm">No reports generated yet</p>
           </div>
@@ -190,15 +190,15 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
               const Icon = rt?.icon || FileText;
               return (
                 <button key={report.id} onClick={() => setSelectedReport(report)}
-                  className="w-full flex items-center gap-4 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:bg-gray-800 text-left transition">
-                  <Icon className={`h-5 w-5 ${rt?.color || 'text-gray-400'}`} />
+                  className="w-full flex items-center gap-4 rounded-xl border border-border bg-muted/50 p-4 hover:bg-muted text-left transition">
+                  <Icon className={`h-5 w-5 ${rt?.color || 'text-muted-foreground'}`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{report.title}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium text-foreground truncate">{report.title}</p>
+                    <p className="text-xs text-muted-foreground">
                       {new Date(report.period_start).toLocaleDateString('en-IN')} — {new Date(report.period_end).toLocaleDateString('en-IN')}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     {new Date(report.created_at).toLocaleDateString('en-IN')}
                   </span>
                 </button>

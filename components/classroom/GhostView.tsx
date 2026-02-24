@@ -86,30 +86,30 @@ ${notes}`;
   };
 
   return (
-    <div className="flex h-screen flex-col bg-gray-950">
+    <div className="flex h-screen flex-col bg-background">
       {/* Ghost header */}
-      <div className="flex h-12 items-center justify-between border-b border-gray-800 bg-gray-900 px-4">
+      <div className="flex h-12 items-center justify-between border-b border-border bg-card px-4">
         <div className="flex items-center gap-3">
           <span className="text-sm">👻</span>
-          <span className="text-sm font-medium text-white">{roomName}</span>
-          <span className="text-xs text-gray-500">— Observing as {observerName}</span>
+          <span className="text-sm font-medium text-foreground">{roomName}</span>
+          <span className="text-xs text-muted-foreground">— Observing as {observerName}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 rounded bg-gray-800 px-2 py-0.5 text-xs text-green-400">
+          <span className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs text-green-400">
             👁 Invisible
           </span>
           <button
             onClick={() => setAudioRoomEnabled(!audioRoomEnabled)}
             className={cn(
               'rounded px-2 py-0.5 text-xs',
-              audioRoomEnabled ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-500'
+              audioRoomEnabled ? 'bg-accent text-foreground' : 'bg-muted text-muted-foreground'
             )}
           >
             {audioRoomEnabled ? '🔊 Audio On' : '🔇 Audio Off'}
           </button>
           <button
             onClick={onLeave}
-            className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-400 hover:text-white"
+            className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
           >
             ← Back
           </button>
@@ -137,7 +137,7 @@ ${notes}`;
             </div>
           ) : (
             <div className="flex h-full items-center justify-center">
-              <div className="text-center text-gray-500">
+              <div className="text-center text-muted-foreground">
                 <div className="mb-2 text-4xl">📚</div>
                 <p>{teacher ? 'Audio only — no camera active' : 'Waiting for teacher...'}</p>
               </div>
@@ -157,11 +157,11 @@ ${notes}`;
         </div>
 
         {/* Right: Sidebar (35%) */}
-        <div className="flex w-[320px] flex-col border-l border-gray-800 overflow-y-auto">
+        <div className="flex w-[320px] flex-col border-l border-border overflow-y-auto">
           {/* Teacher card */}
           {teacher && (
-            <div className="border-b border-gray-800 p-3">
-              <h3 className="mb-2 text-xs font-semibold uppercase text-gray-500">Teacher</h3>
+            <div className="border-b border-border p-3">
+              <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Teacher</h3>
               <div className="flex items-center gap-2">
                 <VideoTile
                   participant={teacher}
@@ -174,8 +174,8 @@ ${notes}`;
           )}
 
           {/* Students grid */}
-          <div className="border-b border-gray-800 p-3">
-            <h3 className="mb-2 text-xs font-semibold uppercase text-gray-500">
+          <div className="border-b border-border p-3">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
               Students ({students.length}) · 📷{' '}
               {students.filter((s) => {
                 const cam = s.getTrackPublication(Track.Source.Camera);
@@ -198,23 +198,23 @@ ${notes}`;
           </div>
 
           {/* Stats */}
-          <div className="border-b border-gray-800 p-3 text-xs text-gray-400 space-y-1">
+          <div className="border-b border-border p-3 text-xs text-muted-foreground space-y-1">
             <p>Hands raised: {/* would track via data channel */}0</p>
             <p>Batch: {roomId}</p>
           </div>
 
           {/* Private Notes */}
           <div className="flex-1 p-3">
-            <h3 className="mb-2 text-xs font-semibold uppercase text-gray-500">Private Notes</h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Private Notes</h3>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value.slice(0, 5000))}
               placeholder="Type notes here..."
-              className="h-32 w-full rounded-lg bg-gray-800 p-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="h-32 w-full rounded-lg bg-muted p-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring resize-none"
               maxLength={5000}
             />
             <div className="mt-1 flex items-center justify-between">
-              <span className="text-[10px] text-gray-600">{notes.length}/5000</span>
+              <span className="text-[10px] text-muted-foreground/80">{notes.length}/5000</span>
               <button
                 onClick={downloadNotes}
                 disabled={!notes.trim()}

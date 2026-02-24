@@ -2,6 +2,7 @@
 // SmartUp Portal — Dashboard Shell (shared layout)
 // ═══════════════════════════════════════════════════════════════
 // Wraps all role dashboards with sidebar, header, and user info.
+// Uses SmartUp brand theme colors via CSS variables
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -37,16 +38,17 @@ interface DashboardShellProps {
   children: React.ReactNode;
 }
 
+// Role colors using SmartUp theme - primary green with tint variations
 const ROLE_COLORS: Record<string, string> = {
-  coordinator:        'bg-blue-600',
-  academic_operator:  'bg-amber-600',
-  hr:                 'bg-teal-600',
-  teacher:            'bg-emerald-600',
-  student:            'bg-violet-600',
-  academic:           'bg-amber-700',
-  parent:             'bg-rose-600',
-  owner:              'bg-slate-700',
-  ghost:              'bg-gray-600',
+  coordinator:        'bg-primary',
+  academic_operator:  'bg-secondary',
+  hr:                 'bg-secondary',
+  teacher:            'bg-primary',
+  student:            'bg-primary',
+  academic:           'bg-secondary',
+  parent:             'bg-secondary',
+  owner:              'bg-primary',
+  ghost:              'bg-muted',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -83,7 +85,7 @@ export default function DashboardShell({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const roleColor = ROLE_COLORS[role] || 'bg-gray-700';
+  const roleColor = ROLE_COLORS[role] || 'bg-muted';
   const roleLabel = ROLE_LABELS[role] || role;
   const RoleIcon = ROLE_ICONS[role] || LayoutDashboard;
 
@@ -93,25 +95,23 @@ export default function DashboardShell({
   }
 
   return (
-    <div className="flex h-screen bg-gray-950 text-white">
+    <div className="flex h-screen bg-background text-foreground">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform border-r border-gray-800 bg-gray-900 transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform border-r border-border bg-card transition-transform duration-200 lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand */}
-        <div className="flex h-16 items-center gap-3 border-b border-gray-800 px-5">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${roleColor}`}>
-            <RoleIcon className="h-4 w-4 text-white" />
-          </div>
+        <div className="flex h-16 items-center gap-3 border-b border-border px-5">
+          <img src="/logo/IMG_3579.PNG" alt="SmartUp" className="h-8 w-8 object-contain" />
           <div>
-            <h1 className="text-sm font-bold tracking-wide">SmartUp</h1>
-            <p className="text-[10px] text-gray-400">{roleLabel}</p>
+            <h1 className="text-sm font-bold tracking-wide text-foreground">SmartUp</h1>
+            <p className="text-[10px] text-muted-foreground">{roleLabel}</p>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="ml-auto lg:hidden text-gray-400 hover:text-white"
+            className="ml-auto lg:hidden text-muted-foreground hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
@@ -127,8 +127,8 @@ export default function DashboardShell({
                 href={item.href}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   item.active
-                    ? `${roleColor} text-white`
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    ? `${roleColor} text-primary-foreground`
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -139,19 +139,19 @@ export default function DashboardShell({
         </nav>
 
         {/* User card */}
-        <div className="border-t border-gray-800 p-4">
+        <div className="border-t border-border p-4">
           <div className="flex items-center gap-3">
-            <div className={`flex h-9 w-9 items-center justify-center rounded-full ${roleColor} text-sm font-bold`}>
+            <div className={`flex h-9 w-9 items-center justify-center rounded-full ${roleColor} text-sm font-bold text-primary-foreground`}>
               {userName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 truncate">
-              <p className="text-sm font-medium truncate">{userName}</p>
-              <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+              <p className="text-sm font-medium truncate text-foreground">{userName}</p>
+              <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 transition-colors hover:border-red-700 hover:bg-red-950/30 hover:text-red-400"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -170,12 +170,12 @@ export default function DashboardShell({
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar (mobile) */}
-        <header className="flex h-14 items-center gap-3 border-b border-gray-800 bg-gray-900/80 px-4 backdrop-blur-sm lg:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="text-gray-400 hover:text-white">
+        <header className="flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-sm lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground">
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="text-sm font-bold">SmartUp</h1>
-          <span className={`ml-auto rounded px-2 py-0.5 text-xs font-medium text-white ${roleColor}`}>
+          <h1 className="text-sm font-bold text-foreground">SmartUp</h1>
+          <span className={`ml-auto rounded px-2 py-0.5 text-xs font-medium text-primary-foreground ${roleColor}`}>
             {roleLabel}
           </span>
         </header>

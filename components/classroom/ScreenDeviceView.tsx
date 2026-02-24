@@ -135,16 +135,16 @@ export default function ScreenDeviceView({
   }, [localParticipant, sharing]);
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center bg-gray-950 px-6">
+    <div className="flex h-screen flex-col items-center justify-center bg-background px-6">
       {/* Connection status badge */}
-      <div className="mb-8 flex items-center gap-2 rounded-full border border-gray-700 bg-gray-900 px-4 py-2">
+      <div className="mb-8 flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2">
         {localParticipant.connectionQuality !== undefined ? (
           <Wifi className="h-4 w-4 text-emerald-400" />
         ) : (
           <WifiOff className="h-4 w-4 text-red-400" />
         )}
-        <span className="text-sm text-gray-300">
-          Connected to <strong className="text-white">{roomName}</strong>
+        <span className="text-sm text-foreground/80">
+          Connected to <strong className="text-foreground">{roomName}</strong>
         </span>
       </div>
 
@@ -152,20 +152,20 @@ export default function ScreenDeviceView({
       <div className={`mb-6 flex h-24 w-24 items-center justify-center rounded-full ${
         sharing
           ? 'bg-emerald-500/20 ring-2 ring-emerald-500/50'
-          : 'bg-gray-800 ring-2 ring-gray-700'
+          : 'bg-muted ring-2 ring-border'
       }`}>
         {sharing ? (
           <Monitor className="h-12 w-12 text-emerald-400" />
         ) : (
-          <MonitorOff className="h-12 w-12 text-gray-500" />
+          <MonitorOff className="h-12 w-12 text-muted-foreground" />
         )}
       </div>
 
       {/* Status text */}
-      <h1 className="mb-2 text-xl font-bold text-white">
+      <h1 className="mb-2 text-xl font-bold text-foreground">
         {sharing ? 'Screen is being shared' : 'Screen Device Ready'}
       </h1>
-      <p className="mb-8 max-w-sm text-center text-sm text-gray-400">
+      <p className="mb-8 max-w-sm text-center text-sm text-muted-foreground">
         {sharing
           ? 'Your tablet screen is now visible to students as the whiteboard background. Keep this tab open.'
           : 'Tap the button below to share your tablet screen. Students will see it as the whiteboard background.'}
@@ -213,7 +213,7 @@ export default function ScreenDeviceView({
       )}
 
       {/* Footer: identity */}
-      <p className="mt-auto mb-6 text-xs text-gray-600">
+      <p className="mt-auto mb-6 text-xs text-muted-foreground/80">
         {participantName} • screen device
       </p>
     </div>

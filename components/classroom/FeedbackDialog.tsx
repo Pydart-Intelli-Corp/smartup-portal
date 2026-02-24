@@ -89,7 +89,7 @@ export default function FeedbackDialog({
             <span className="text-3xl">✅</span>
           </div>
           <h3 className="text-lg font-semibold text-white">Thank you!</h3>
-          <p className="mt-1 text-sm text-gray-400">Your feedback helps us improve.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your feedback helps us improve.</p>
         </div>
       </div>
     );
@@ -101,7 +101,7 @@ export default function FeedbackDialog({
         {/* Header */}
         <div className="text-center mb-5">
           <h3 className="text-lg font-semibold text-white">How was your class?</h3>
-          <p className="mt-1 text-sm text-gray-400">Rate your experience</p>
+          <p className="mt-1 text-sm text-muted-foreground">Rate your experience</p>
         </div>
 
         {/* Star Rating */}
@@ -128,7 +128,7 @@ export default function FeedbackDialog({
 
         {/* Rating label */}
         {displayRating > 0 && (
-          <p className="text-center text-sm text-gray-300 mb-4">
+          <p className="text-center text-sm text-foreground/80 mb-4">
             {displayRating === 1 && 'Poor'}
             {displayRating === 2 && 'Fair'}
             {displayRating === 3 && 'Good'}
@@ -147,7 +147,7 @@ export default function FeedbackDialog({
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                 selectedTags.includes(tag.id)
                   ? 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/30'
-                  : 'bg-[#3c4043] text-gray-400 hover:bg-[#4a4e52] hover:text-gray-300',
+                  : 'bg-[#3c4043] text-muted-foreground hover:bg-[#4a4e52] hover:text-foreground/80',
               )}
             >
               {tag.label}
@@ -160,7 +160,7 @@ export default function FeedbackDialog({
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Any additional comments? (optional)"
-          className="w-full rounded-xl bg-[#3c4043] px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+          className="w-full rounded-xl bg-[#3c4043] px-3 py-2 text-sm text-white placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring resize-none"
           rows={2}
           maxLength={500}
         />
@@ -169,7 +169,7 @@ export default function FeedbackDialog({
         <div className="flex gap-3 mt-5">
           <button
             onClick={onComplete}
-            className="flex-1 rounded-xl bg-[#3c4043] px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-[#4a4e52]"
+            className="flex-1 rounded-xl bg-[#3c4043] px-4 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-[#4a4e52]"
           >
             Skip
           </button>

@@ -78,11 +78,11 @@ export default function WhiteboardComposite({
 
   if (!screenSharePub || !screenSharePub.track) {
     return (
-      <div className={cn('flex items-center justify-center bg-gray-950', className)}>
+      <div className={cn('flex items-center justify-center bg-background', className)}>
         <div className="text-center">
           <div className="mb-2 text-3xl">🖥️</div>
-          <p className="text-gray-500 text-sm">Waiting for teacher to share screen...</p>
-          <p className="text-gray-600 text-xs mt-1">The whiteboard will appear when screen sharing starts</p>
+          <p className="text-muted-foreground text-sm">Waiting for teacher to share screen...</p>
+          <p className="text-muted-foreground/80 text-xs mt-1">The whiteboard will appear when screen sharing starts</p>
         </div>
       </div>
     );
