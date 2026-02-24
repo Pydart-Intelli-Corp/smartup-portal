@@ -7,17 +7,24 @@ import {
 } from '@livekit/components-react';
 import { cn, fmtTimeIST } from '@/lib/utils';
 import { sfxChatReceive, sfxChatSend } from '@/lib/sounds';
+import { detectContact, reportViolation } from '@/lib/contact-detection';
 
 /**
  * ChatPanel — Realtime chat via LiveKit data channel.
  * Uses topic 'chat' for message exchange.
  * Teacher messages: right-aligned blue bubble.
  * Student/other messages: left-aligned grey bubble.
+ *
+ * Contact Detection: Scans outgoing messages for phone numbers,
+ * social media handles, URLs, and other contact information.
+ * Blocks the message, shows a warning, and logs the violation.
  */
 
 export interface ChatPanelProps {
+  roomId?: string;
   participantName: string;
   participantRole: string;
+  participantEmail?: string;
   onClose?: () => void;
   className?: string;
 }
@@ -32,13 +39,16 @@ interface ChatMessage {
 }
 
 export default function ChatPanel({
+  roomId,
   participantName,
   participantRole,
+  participantEmail,
   onClose,
   className,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [contactWarning, setContactWarning] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { localParticipant } = useLocalParticipant();
 
@@ -127,6 +137,33 @@ export default function ChatPanel({
   const sendMessage = async () => {
     const text = input.trim();
     if (!text) return;
+
+    // ── Contact detection — block messages with contact info ──
+    const detection = detectContact(text);
+    if (detection.detected && detection.severity !== 'info') {
+      // Block the message
+      setContactWarning(
+        detection.severity === 'critical'
+          ? '⛔ Sharing personal contact information (phone, email, social media) is not allowed.'
+          : '⚠️ This message may contain contact information and has been blocked.'
+      );
+      // Auto-clear warning after 5 seconds
+      setTimeout(() => setContactWarning(null), 5000);
+      // Report violation to server (best-effort, don't await)
+      if (roomId) {
+        const email = participantEmail || localParticipant?.identity || '';
+        reportViolation(
+          roomId,
+          email,
+          participantName,
+          participantRole,
+          text,
+          detection.patterns.join(', '),
+          detection.severity,
+        );
+      }
+      return; // Don't send the message
+    }
 
     const msg = {
       sender: participantName,
@@ -226,6 +263,21 @@ export default function ChatPanel({
           </div>
         ))}
       </div>
+
+      {/* Contact detection warning */}
+      {contactWarning && (
+        <div className="mx-3 mb-1 rounded-lg bg-red-900/60 px-3 py-2 text-xs text-red-200 border border-red-700/50">
+          <div className="flex items-center justify-between">
+            <span>{contactWarning}</span>
+            <button
+              onClick={() => setContactWarning(null)}
+              className="ml-2 text-red-300 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input area */}
       <div className="border-t border-gray-800 px-3 py-2">

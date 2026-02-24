@@ -13,6 +13,7 @@ import VideoTile from './VideoTile';
 import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import ChatPanel from './ChatPanel';
 import ParticipantList from './ParticipantList';
+import AttendancePanel from './AttendancePanel';
 import WhiteboardComposite from './WhiteboardComposite';
 import { cn } from '@/lib/utils';
 import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxMediaRequest, sfxMediaControl, hapticTap } from '@/lib/sounds';
@@ -66,7 +67,7 @@ export default function TeacherView({
   onTimeExpired,
 }: TeacherViewProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'participants'>('chat');
+  const [sidebarTab, setSidebarTab] = useState<'chat' | 'participants' | 'attendance'>('chat');
   const [whiteboardActive, setWhiteboardActive] = useState(false);
   const [isLive, setIsLive] = useState(roomStatus === 'live');
   const [goingLive, setGoingLive] = useState(false);
@@ -740,7 +741,7 @@ export default function TeacherView({
           <div className="flex w-[320px] flex-col border-l border-[#3c4043] bg-[#202124]">
             {/* Tab buttons */}
             <div className="flex border-b border-[#3c4043]">
-              {(['chat', 'participants'] as const).map((tab) => (
+              {(['chat', 'participants', 'attendance'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSidebarTab(tab)}
@@ -751,7 +752,7 @@ export default function TeacherView({
                       : 'text-[#9aa0a6] hover:text-[#e8eaed] hover:bg-[#292a2d]',
                   )}
                 >
-                  {tab === 'chat' ? '💬 Chat' : '👥 Participants'}
+                  {tab === 'chat' ? '💬 Chat' : tab === 'participants' ? '👥 People' : '📋 Attendance'}
                 </button>
               ))}
             </div>
@@ -760,16 +761,19 @@ export default function TeacherView({
             <div className="flex-1 overflow-hidden">
               {sidebarTab === 'chat' ? (
                 <ChatPanel
+                  roomId={roomId}
                   participantName={participantName}
                   participantRole="teacher"
                 />
-              ) : (
+              ) : sidebarTab === 'participants' ? (
                 <ParticipantList
                   role="teacher"
                   roomId={roomId}
                   mutedStudents={mutedStudents}
                   onToggleMute={toggleStudentMute}
                 />
+              ) : (
+                <AttendancePanel roomId={roomId} />
               )}
             </div>
           </div>

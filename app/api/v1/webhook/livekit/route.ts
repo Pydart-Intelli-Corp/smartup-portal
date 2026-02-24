@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/types';
 import { webhookReceiver } from '@/lib/livekit';
 import { db } from '@/lib/db';
+import { recordJoin, recordLeave, finalizeAttendance } from '@/lib/attendance';
 
 /**
  * POST /api/v1/webhook/livekit
@@ -63,11 +64,17 @@ export async function POST(request: NextRequest) {
          VALUES ($1, 'room_ended_by_teacher', $2)`,
         [room.name, JSON.stringify({ sid: room.sid })]
       );
+
+      // Finalize attendance — mark all unjoined students as absent
+      try { await finalizeAttendance(room.name); } catch (e) {
+        console.error('[webhook/livekit] Failed to finalize attendance:', e);
+      }
     }
 
     // ── Handle: participant_joined ───────────────────────────
     if (eventType === 'participant_joined' && room && participant) {
       const metadata = safeParseJson(participant.metadata);
+      const role = String(metadata?.effective_role || metadata?.portal_role || 'unknown');
 
       await db.query(
         `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
@@ -75,7 +82,7 @@ export async function POST(request: NextRequest) {
         [
           room.name,
           participant.identity,
-          metadata?.effective_role || metadata?.portal_role || 'unknown',
+          role,
           JSON.stringify({
             name: participant.name,
             sid: participant.sid,
@@ -83,11 +90,34 @@ export async function POST(request: NextRequest) {
           }),
         ]
       );
+
+      // Record attendance join (get scheduled_start for late detection)
+      if (role === 'student' || role === 'teacher') {
+        try {
+          const roomRow = await db.query(
+            `SELECT scheduled_start FROM rooms WHERE room_id = $1`,
+            [room.name],
+          );
+          const scheduledStart = roomRow.rows[0]?.scheduled_start
+            ? new Date(String(roomRow.rows[0].scheduled_start)).toISOString()
+            : null;
+          await recordJoin(
+            room.name,
+            participant.identity,
+            participant.name || participant.identity,
+            role,
+            scheduledStart,
+          );
+        } catch (e) {
+          console.error('[webhook/livekit] Attendance recordJoin failed:', e);
+        }
+      }
     }
 
     // ── Handle: participant_left ─────────────────────────────
     if (eventType === 'participant_left' && room && participant) {
       const metadata = safeParseJson(participant.metadata);
+      const role = String(metadata?.effective_role || metadata?.portal_role || 'unknown');
 
       await db.query(
         `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
@@ -95,7 +125,7 @@ export async function POST(request: NextRequest) {
         [
           room.name,
           participant.identity,
-          metadata?.effective_role || metadata?.portal_role || 'unknown',
+          role,
           JSON.stringify({
             name: participant.name,
             sid: participant.sid,
@@ -103,6 +133,20 @@ export async function POST(request: NextRequest) {
           }),
         ]
       );
+
+      // Record attendance leave
+      if (role === 'student' || role === 'teacher') {
+        try {
+          await recordLeave(
+            room.name,
+            participant.identity,
+            participant.name || participant.identity,
+            role,
+          );
+        } catch (e) {
+          console.error('[webhook/livekit] Attendance recordLeave failed:', e);
+        }
+      }
     }
 
     return NextResponse.json<ApiResponse>({ success: true }, { status: 200 });

@@ -103,6 +103,19 @@ export default function StudentView({
   const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
   const [chatOpen, setChatOpen] = useState(false);
   const hideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── attendance badge (computed once on mount) ──
+  const joinedAt = useRef(new Date());
+  const lateInfo = useMemo(() => {
+    if (!scheduledStart) return null;
+    const start = new Date(scheduledStart);
+    const diff = Math.floor((joinedAt.current.getTime() - start.getTime()) / 1000);
+    if (diff > 120) { // More than 2 minutes late
+      const mins = Math.floor(diff / 60);
+      return { late: true, minutes: mins };
+    }
+    return { late: false, minutes: 0 };
+  }, [scheduledStart]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // ── timer state ──
@@ -794,6 +807,16 @@ export default function StudentView({
                 {fmtCountdown(remaining)}
               </span>
             )}
+            {/* Attendance badge */}
+            {lateInfo && (
+              <span className={cn(
+                'rounded px-1.5 py-0.5 font-medium',
+                compact ? 'text-[9px]' : 'text-[10px]',
+                lateInfo.late ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300',
+              )}>
+                {lateInfo.late ? `⏰ Late ${lateInfo.minutes}m` : '✓ On Time'}
+              </span>
+            )}
             <span className={cn('text-white/60', compact ? 'text-[10px]' : 'text-xs')}>
               {'\uD83D\uDC65'} {allParticipants.length}
             </span>
@@ -923,6 +946,7 @@ export default function StudentView({
         )}
       >
         <ChatPanel
+          roomId={roomId}
           participantName={participantName}
           participantRole="student"
           onClose={() => setChatOpen(false)}
