@@ -221,7 +221,64 @@ export default function TeacherView({
   useEffect(() => {
     const activeIds = new Set(remoteParticipants.map((p) => p.identity));
     setMediaRequests((prev) => prev.filter((r) => activeIds.has(r.student_id)));
+    setLeaveRequests((prev) => prev.filter((r) => activeIds.has(r.student_id)));
   }, [remoteParticipants]);
+
+  // ── Leave request tracking ──
+  interface LeaveRequest {
+    student_id: string;
+    student_name: string;
+    time: number;
+  }
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const processedLeaveIds = useRef(new Set<string>());
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onLeaveRequest = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as { student_id: string; student_name: string };
+      const key = `${data.student_id}_${Math.floor(Date.now() / 500)}`;
+      if (processedLeaveIds.current.has(key)) return;
+      processedLeaveIds.current.add(key);
+      if (processedLeaveIds.current.size > 200) {
+        const arr = Array.from(processedLeaveIds.current);
+        processedLeaveIds.current = new Set(arr.slice(-100));
+      }
+      sfxMediaRequest();
+      setLeaveRequests((prev) => [
+        ...prev.filter((r) => r.student_id !== data.student_id),
+        { ...data, time: Date.now() },
+      ]);
+    } catch {}
+  }, []);
+
+  const { message: leaveReqMsg } = useDataChannel('leave_request', onLeaveRequest);
+  useEffect(() => { if (leaveReqMsg) onLeaveRequest(leaveReqMsg); }, [leaveReqMsg, onLeaveRequest]);
+
+  // Send leave_control command to student
+  const sendLeaveControl = useCallback(async (targetId: string, approved: boolean) => {
+    hapticTap();
+    sfxMediaControl();
+    try {
+      await localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({
+          target_id: targetId,
+          approved,
+        })),
+        { topic: 'leave_control', reliable: true },
+      );
+    } catch {}
+    setLeaveRequests((prev) => prev.filter((r) => r.student_id !== targetId));
+  }, [localParticipant]);
+
+  const approveLeave = useCallback((req: LeaveRequest) => {
+    sendLeaveControl(req.student_id, true);
+  }, [sendLeaveControl]);
+
+  const denyLeave = useCallback((req: LeaveRequest) => {
+    sendLeaveControl(req.student_id, false);
+  }, [sendLeaveControl]);
 
   // ── Student join/leave sound ──
   const prevStudentIds = useRef<Set<string>>(new Set());
@@ -562,6 +619,58 @@ export default function TeacherView({
                       </button>
                       <button
                         onClick={() => denyRequest(req)}
+                        className="rounded-full px-2.5 py-1 text-[10px] font-semibold bg-[#ea4335]/15 text-[#ea4335] hover:bg-[#ea4335]/30 transition-colors"
+                      >
+                        Deny
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Leave requests (floating bottom-left, stacked below media requests) ── */}
+          {leaveRequests.length > 0 && (
+            <div className={cn(
+              'absolute left-3 z-40 w-[300px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden',
+              mediaRequests.length > 0 ? 'bottom-[calc(0.75rem+280px)]' : 'bottom-3',
+            )}>
+              <div className="flex items-center justify-between px-3 py-2 bg-[#ea4335]/10 border-b border-[#3c4043]">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🚪</span>
+                  <span className="text-xs font-semibold text-[#f28b82]">
+                    {leaveRequests.length} leave request{leaveRequests.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setLeaveRequests([])}
+                  className="rounded-md px-2 py-0.5 text-[10px] font-medium text-[#9aa0a6] hover:text-white hover:bg-[#3c4043] transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+                {leaveRequests.map((req) => (
+                  <div
+                    key={req.student_id}
+                    className="flex items-center justify-between px-3 py-2.5 hover:bg-[#3c4043]/40 transition-colors border-b border-[#3c4043]/30 last:border-0"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-xs">🚪</span>
+                      <span className="truncate text-xs text-[#e8eaed]">
+                        <strong>{req.student_name}</strong> wants to leave
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 ml-2 shrink-0">
+                      <button
+                        onClick={() => approveLeave(req)}
+                        className="rounded-full px-2.5 py-1 text-[10px] font-semibold bg-[#34a853]/15 text-[#34a853] hover:bg-[#34a853]/30 transition-colors"
+                      >
+                        Allow
+                      </button>
+                      <button
+                        onClick={() => denyLeave(req)}
                         className="rounded-full px-2.5 py-1 text-[10px] font-semibold bg-[#ea4335]/15 text-[#ea4335] hover:bg-[#ea4335]/30 transition-colors"
                       >
                         Deny

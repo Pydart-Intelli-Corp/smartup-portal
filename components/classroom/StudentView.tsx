@@ -97,6 +97,8 @@ export default function StudentView({
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [handRaised, setHandRaised] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [leaveRequestPending, setLeaveRequestPending] = useState(false);
+  const [leaveDenied, setLeaveDenied] = useState(false);
   const [teacherPopup, setTeacherPopup] = useState(false);
   const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
   const [chatOpen, setChatOpen] = useState(false);
@@ -451,6 +453,55 @@ export default function StudentView({
 
   const { message: mediaCtrlMsg } = useDataChannel('media_control', onMediaControl);
   useEffect(() => { if (mediaCtrlMsg) onMediaControl(mediaCtrlMsg); }, [mediaCtrlMsg, onMediaControl]);
+
+  // ── Leave approval system ──
+  // Student sends leave_request → teacher approves/denies → leave_control response
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onLeaveControl = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as { target_id: string; approved: boolean };
+      if (data.target_id !== localParticipant.identity) return;
+      sfxMediaControl();
+      hapticToggle();
+      if (data.approved) {
+        showToast('Teacher approved — leaving class');
+        setTimeout(() => onLeave(), 800);
+      } else {
+        setLeaveRequestPending(false);
+        setLeaveDenied(true);
+        showToast('Teacher denied your leave request');
+        setTimeout(() => setLeaveDenied(false), 4000);
+      }
+    } catch {}
+  }, [localParticipant, showToast, onLeave]);
+
+  const { message: leaveCtrlMsg } = useDataChannel('leave_control', onLeaveControl);
+  useEffect(() => { if (leaveCtrlMsg) onLeaveControl(leaveCtrlMsg); }, [leaveCtrlMsg, onLeaveControl]);
+
+  const requestLeave = useCallback(async () => {
+    hapticTap();
+    if (leaveRequestPending) return;
+    setLeaveRequestPending(true);
+    setLeaveDenied(false);
+    showToast('Waiting for teacher approval…');
+    try {
+      await localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({
+          student_id: localParticipant.identity,
+          student_name: localParticipant.name || localParticipant.identity,
+        })),
+        { topic: 'leave_request', reliable: true },
+      );
+    } catch {}
+    // Auto-cancel after 30 seconds if no response
+    setTimeout(() => {
+      setLeaveRequestPending((prev) => {
+        if (prev) showToast('Leave request timed out — try again');
+        return false;
+      });
+    }, 30000);
+  }, [leaveRequestPending, localParticipant, showToast]);
 
   // Request mic toggle — sends to teacher for approval
   const requestToggleMic = useCallback(async () => {
@@ -881,16 +932,50 @@ export default function StudentView({
 
       {/* Leave dialog */}
       {showLeaveDialog && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowLeaveDialog(false)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { if (!leaveRequestPending) setShowLeaveDialog(false); }}>
           <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/[0.06]" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#ea4335]/10">
-              <LeaveIcon className="h-7 w-7 text-[#ea4335]" />
+            <div className={cn('mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full', leaveRequestPending ? 'bg-[#f9ab00]/10' : leaveDenied ? 'bg-[#ea4335]/10' : 'bg-[#ea4335]/10')}>
+              {leaveRequestPending ? (
+                <svg className="h-7 w-7 text-[#f9ab00] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                <LeaveIcon className={cn('h-7 w-7', leaveDenied ? 'text-[#ea4335]' : 'text-[#ea4335]')} />
+              )}
             </div>
-            <h3 className="text-lg font-semibold text-[#e8eaed]">Leave this class?</h3>
-            <p className="mt-1 text-sm text-[#9aa0a6]">You can rejoin while the class is active.</p>
+            <h3 className="text-lg font-semibold text-[#e8eaed]">
+              {leaveRequestPending ? 'Waiting for teacher…' : leaveDenied ? 'Request denied' : 'Leave this class?'}
+            </h3>
+            <p className="mt-1 text-sm text-[#9aa0a6]">
+              {leaveRequestPending
+                ? 'Your leave request has been sent to the teacher.'
+                : leaveDenied
+                  ? 'The teacher denied your leave request. Try again later.'
+                  : 'Teacher will be notified and must approve.'}
+            </p>
             <div className="mt-6 flex gap-3">
-              <button onClick={() => setShowLeaveDialog(false)} className="flex-1 rounded-full bg-[#3c4043] py-2.5 text-sm font-medium text-[#e8eaed] hover:bg-[#4a4d51]">Cancel</button>
-              <button onClick={onLeave} className="flex-1 rounded-full bg-[#ea4335] py-2.5 text-sm font-medium text-white hover:bg-[#c5221f]">Leave</button>
+              <button
+                onClick={() => { setShowLeaveDialog(false); setLeaveRequestPending(false); setLeaveDenied(false); }}
+                className="flex-1 rounded-full bg-[#3c4043] py-2.5 text-sm font-medium text-[#e8eaed] hover:bg-[#4a4d51]"
+              >
+                {leaveRequestPending ? 'Cancel' : leaveDenied ? 'OK' : 'Cancel'}
+              </button>
+              {!leaveRequestPending && !leaveDenied && (
+                <button
+                  onClick={requestLeave}
+                  className="flex-1 rounded-full bg-[#ea4335] py-2.5 text-sm font-medium text-white hover:bg-[#c5221f]"
+                >
+                  Request Leave
+                </button>
+              )}
+              {leaveDenied && (
+                <button
+                  onClick={() => { setLeaveDenied(false); requestLeave(); }}
+                  className="flex-1 rounded-full bg-[#ea4335] py-2.5 text-sm font-medium text-white hover:bg-[#c5221f]"
+                >
+                  Request Again
+                </button>
+              )}
             </div>
           </div>
         </div>
