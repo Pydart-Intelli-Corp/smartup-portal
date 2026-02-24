@@ -107,6 +107,8 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={[
       { label: 'Monitor', href: '/coordinator', icon: LayoutDashboard, active: true },
+      { label: 'Admissions', href: '/coordinator/admissions', icon: GraduationCap },
+      { label: 'Cancellations', href: '/coordinator/cancellations', icon: XCircle },
     ]}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Batch Monitor</h1>

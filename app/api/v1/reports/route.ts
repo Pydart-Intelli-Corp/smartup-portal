@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
     const validTypes: ReportType[] = [
       'attendance', 'revenue', 'teacher_performance',
       'student_progress', 'batch_summary', 'exam_analytics', 'payroll_summary',
+      'session_report', 'parent_monthly',
     ];
     if (!validTypes.includes(reportType)) {
       return NextResponse.json({

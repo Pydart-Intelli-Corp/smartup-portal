@@ -12,7 +12,7 @@ import {
   LayoutDashboard, BookOpen, User, Radio, Calendar, Clock,
   CheckCircle2, XCircle, RefreshCw, Video, Search, ChevronDown,
   ChevronRight, GraduationCap, Award, Briefcase, Phone, Timer,
-  Info, Users,
+  Info, Users, FileText, Send, Loader2 as Spinner,
 } from 'lucide-react';
 
 // ── Types ───────────────────────────────────────────────────────
@@ -29,6 +29,8 @@ interface Room {
   notes_for_teacher: string | null;
   max_participants: number;
   student_count: number;
+  class_portion: string | null;
+  class_remarks: string | null;
 }
 
 interface TeacherProfile {
@@ -293,6 +295,7 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
   const [filter,     setFilter]     = useState<FilterKey>('all');
   const [search,     setSearch]     = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [localPortions, setLocalPortions] = useState<Record<string, { portion: string; remarks: string }>>({});
 
   const counts: Record<FilterKey, number> = {
     all:       rooms.length,
@@ -446,6 +449,18 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
                         </span>
                       </div>
                     )}
+
+                    {/* Class Portion & Remarks Form (for ended classes) */}
+                    {es === 'ended' && (
+                      <ClassPortionForm
+                        roomId={room.room_id}
+                        currentPortion={localPortions[room.room_id]?.portion ?? room.class_portion}
+                        currentRemarks={localPortions[room.room_id]?.remarks ?? room.class_remarks}
+                        onSaved={(portion, remarks) => {
+                          setLocalPortions(prev => ({ ...prev, [room.room_id]: { portion, remarks } }));
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -453,6 +468,95 @@ function MyClassesTab({ rooms }: { rooms: Room[] }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Class Portion & Remarks Form ──────────────────────────────────
+
+function ClassPortionForm({
+  roomId,
+  currentPortion,
+  currentRemarks,
+  onSaved,
+}: {
+  roomId: string;
+  currentPortion: string | null;
+  currentRemarks: string | null;
+  onSaved: (portion: string, remarks: string) => void;
+}) {
+  const [portion, setPortion] = useState(currentPortion || '');
+  const [remarks, setRemarks] = useState(currentRemarks || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (!portion.trim() && !remarks.trim()) return;
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch(`/api/v1/room/${roomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_portion: portion, class_remarks: remarks }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onSaved(portion, remarks);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        alert(data.error || 'Failed to save');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-indigo-800/40 bg-indigo-950/20 p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-indigo-400">
+        <FileText className="h-3.5 w-3.5" /> Class Portion &amp; Remarks
+      </p>
+      <div className="space-y-2">
+        <div>
+          <label className="mb-0.5 block text-xs text-gray-500">Topics Covered</label>
+          <input
+            type="text"
+            value={portion}
+            onChange={e => setPortion(e.target.value)}
+            placeholder="e.g. Chapter 5 — Quadratic Equations (completed)"
+            className="w-full rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-0.5 block text-xs text-gray-500">Remarks</label>
+          <textarea
+            value={remarks}
+            onChange={e => setRemarks(e.target.value)}
+            placeholder="Post-class notes, observations, homework assigned..."
+            rows={2}
+            className="w-full rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none resize-none"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSave}
+            disabled={saving || (!portion.trim() && !remarks.trim())}
+            className="flex items-center gap-1 rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {saving ? <Spinner className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+            Save
+          </button>
+          {saved && (
+            <span className="flex items-center gap-1 text-xs text-green-400">
+              <CheckCircle2 className="h-3 w-3" /> Saved
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

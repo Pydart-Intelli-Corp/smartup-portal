@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     `SELECT r.room_id, r.room_name, r.subject, r.grade, r.section,
             r.status, r.scheduled_start, r.duration_minutes,
             r.notes_for_teacher, r.max_participants,
+            r.class_portion, r.class_remarks,
             (SELECT COUNT(*) FROM room_assignments ra WHERE ra.room_id = r.room_id AND ra.participant_type = 'student')::int AS student_count
      FROM rooms r
      WHERE r.teacher_email = $1

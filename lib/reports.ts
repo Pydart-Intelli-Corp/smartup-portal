@@ -19,7 +19,9 @@ export type ReportType =
   | 'student_progress'
   | 'batch_summary'
   | 'exam_analytics'
-  | 'payroll_summary';
+  | 'payroll_summary'
+  | 'session_report'
+  | 'parent_monthly';
 
 // ── Generate Report ─────────────────────────────────────────
 
@@ -54,6 +56,12 @@ export async function generateReport(
       break;
     case 'payroll_summary':
       ({ data, title } = await generatePayrollSummaryReport(periodStart, periodEnd));
+      break;
+    case 'session_report':
+      ({ data, title } = await generateSessionReport(periodStart, periodEnd, filters));
+      break;
+    case 'parent_monthly':
+      ({ data, title } = await generateParentMonthlyReport(periodStart, periodEnd, filters));
       break;
     default:
       throw new Error(`Unknown report type: ${reportType}`);
@@ -352,4 +360,267 @@ async function generatePayrollSummaryReport(start: string, end: string) {
     title: `Payroll Summary Report (${start} to ${end})`,
     data: { periods: result.rows },
   };
+}
+
+// ── Session Report (auto-generated after class ends) ─────────
+
+async function generateSessionReport(start: string, end: string, filters?: Record<string, string>) {
+  const roomFilter = filters?.room_id ? ` AND r.room_id = $3` : '';
+  const params: unknown[] = [start, end];
+  if (filters?.room_id) params.push(filters.room_id);
+
+  const roomResult = await db.query(
+    `SELECT r.room_id, r.room_name, r.subject, r.grade, r.teacher_email,
+            r.scheduled_start, r.ended_at, r.duration_minutes,
+            r.class_portion, r.class_remarks, r.batch_type,
+            pu.full_name AS teacher_name
+     FROM rooms r
+     LEFT JOIN portal_users pu ON pu.email = r.teacher_email
+     WHERE r.scheduled_start >= $1 AND r.scheduled_start <= $2
+       AND r.status = 'ended'
+       ${roomFilter}
+     ORDER BY r.scheduled_start DESC`,
+    params
+  );
+
+  const sessions = [];
+  for (const room of roomResult.rows as Array<Record<string, unknown>>) {
+    // Get attendance for this session
+    const attendanceResult = await db.query(
+      `SELECT participant_email, participant_name, status, join_count,
+              time_in_class_seconds, is_late
+       FROM attendance_sessions
+       WHERE room_id = $1`,
+      [room.room_id]
+    );
+
+    // Get contact violations
+    const violationsResult = await db.query(
+      `SELECT COUNT(*) AS violation_count
+       FROM contact_violations WHERE room_id = $1`,
+      [room.room_id]
+    );
+
+    // Get attention data if available
+    const attentionResult = await db.query(
+      `SELECT participant_email, payload
+       FROM room_events
+       WHERE room_id = $1 AND event_type = 'attention_update'
+       ORDER BY created_at DESC`,
+      [room.room_id]
+    );
+
+    // Calculate actual duration
+    const schedStart = room.scheduled_start ? new Date(String(room.scheduled_start)).getTime() : 0;
+    const endedAt = room.ended_at ? new Date(String(room.ended_at)).getTime() : 0;
+    const actualMinutes = schedStart && endedAt ? Math.round((endedAt - schedStart) / 60000) : 0;
+
+    const students = attendanceResult.rows as Array<Record<string, unknown>>;
+    const presentCount = students.filter(s => s.status === 'present').length;
+    const absentCount = students.filter(s => s.status === 'absent').length;
+    const lateCount = students.filter(s => s.is_late === true).length;
+
+    sessions.push({
+      room_id: room.room_id,
+      batch_name: room.room_name,
+      subject: room.subject,
+      grade: room.grade,
+      batch_type: room.batch_type,
+      teacher: room.teacher_name,
+      scheduled_start: room.scheduled_start,
+      ended_at: room.ended_at,
+      scheduled_duration: room.duration_minutes,
+      actual_duration_minutes: actualMinutes,
+      class_portion: room.class_portion || 'Not recorded',
+      class_remarks: room.class_remarks || 'No remarks',
+      attendance: {
+        total_students: students.length,
+        present: presentCount,
+        absent: absentCount,
+        late: lateCount,
+        attendance_rate: students.length > 0
+          ? Number(((presentCount / students.length) * 100).toFixed(1))
+          : 0,
+        details: students,
+      },
+      contact_violations: Number(violationsResult.rows[0]?.violation_count || 0),
+      attention_updates: attentionResult.rows.length,
+    });
+  }
+
+  return {
+    title: filters?.room_id
+      ? `Session Report — ${sessions[0]?.batch_name || 'Class'}`
+      : `Session Reports (${start} to ${end})`,
+    data: { sessions, session_count: sessions.length },
+  };
+}
+
+// ── Parent Monthly Report ───────────────────────────────────
+
+async function generateParentMonthlyReport(start: string, end: string, filters?: Record<string, string>) {
+  const studentEmail = filters?.student_email;
+  const parentEmail = filters?.parent_email;
+
+  // If parent_email given, find their children
+  let studentEmails: string[] = [];
+  if (studentEmail) {
+    studentEmails = [studentEmail];
+  } else if (parentEmail) {
+    const childResult = await db.query(
+      `SELECT email FROM portal_users
+       WHERE role = 'student' AND email IN (
+         SELECT ar.student_email FROM admission_requests ar
+         WHERE ar.parent_email = $1 AND ar.status = 'active'
+       )`,
+      [parentEmail]
+    );
+    studentEmails = childResult.rows.map((r: Record<string, unknown>) => String(r.email));
+  }
+
+  if (studentEmails.length === 0) {
+    return {
+      title: `Parent Monthly Report (${start} to ${end})`,
+      data: { students: [], message: 'No student found for given parent/student email' },
+    };
+  }
+
+  const studentReports = [];
+  for (const email of studentEmails) {
+    // Student info
+    const userResult = await db.query(
+      `SELECT full_name, email FROM portal_users WHERE email = $1`,
+      [email]
+    );
+    const studentName = (userResult.rows[0] as Record<string, string>)?.full_name || email;
+
+    // Attendance summary
+    const attendanceResult = await db.query(
+      `SELECT
+         COUNT(*) AS total_sessions,
+         COUNT(*) FILTER (WHERE a.status = 'present') AS present,
+         COUNT(*) FILTER (WHERE a.status = 'absent') AS absent,
+         COUNT(*) FILTER (WHERE a.is_late = true) AS late,
+         COALESCE(AVG(a.time_in_class_seconds), 0) AS avg_time_seconds
+       FROM attendance_sessions a
+       JOIN rooms r ON r.room_id = a.room_id
+       WHERE a.participant_email = $1
+         AND r.scheduled_start >= $2 AND r.scheduled_start <= $3`,
+      [email, start, end]
+    );
+
+    // Exam performance
+    const examResult = await db.query(
+      `SELECT
+         COALESCE(COUNT(*), 0) AS exams_taken,
+         COALESCE(AVG(ea.percentage), 0) AS avg_percentage,
+         COALESCE(MAX(ea.percentage), 0) AS best_score,
+         COALESCE(MIN(ea.percentage), 0) AS worst_score
+       FROM exam_attempts ea
+       JOIN exams e ON e.id = ea.exam_id
+       WHERE ea.student_email = $1 AND ea.status = 'graded'
+         AND ea.created_at >= $2 AND ea.created_at <= $3`,
+      [email, start, end]
+    );
+
+    // Fee status
+    const feeResult = await db.query(
+      `SELECT
+         COUNT(*) AS total_invoices,
+         COUNT(*) FILTER (WHERE status = 'paid') AS paid,
+         COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+         COUNT(*) FILTER (WHERE status = 'overdue') AS overdue,
+         COALESCE(SUM(amount_paise) FILTER (WHERE status = 'paid'), 0) AS total_paid_paise,
+         COALESCE(SUM(amount_paise) FILTER (WHERE status IN ('pending', 'overdue')), 0) AS outstanding_paise
+       FROM invoices
+       WHERE student_email = $1
+         AND created_at >= $2 AND created_at <= $3`,
+      [email, start, end]
+    );
+
+    // Contact violations
+    const violationResult = await db.query(
+      `SELECT COUNT(*) AS count FROM contact_violations
+       WHERE participant_email = $1
+         AND detected_at >= $2 AND detected_at <= $3`,
+      [email, start, end]
+    );
+
+    // Class portion / topics covered
+    const topicsResult = await db.query(
+      `SELECT r.subject, r.class_portion, r.scheduled_start
+       FROM rooms r
+       JOIN attendance_sessions a ON a.room_id = r.room_id
+       WHERE a.participant_email = $1
+         AND r.scheduled_start >= $2 AND r.scheduled_start <= $3
+         AND r.class_portion IS NOT NULL
+       ORDER BY r.scheduled_start`,
+      [email, start, end]
+    );
+
+    const att = attendanceResult.rows[0] as Record<string, unknown>;
+    const exams = examResult.rows[0] as Record<string, unknown>;
+    const fees = feeResult.rows[0] as Record<string, unknown>;
+
+    studentReports.push({
+      student_name: studentName,
+      student_email: email,
+      period: { start, end },
+      attendance: {
+        total_sessions: Number(att.total_sessions || 0),
+        present: Number(att.present || 0),
+        absent: Number(att.absent || 0),
+        late: Number(att.late || 0),
+        attendance_rate: Number(att.total_sessions || 0) > 0
+          ? Number(((Number(att.present || 0) / Number(att.total_sessions || 1)) * 100).toFixed(1))
+          : 0,
+        avg_time_in_class_minutes: Number(((Number(att.avg_time_seconds || 0)) / 60).toFixed(1)),
+      },
+      academic: {
+        exams_taken: Number(exams.exams_taken || 0),
+        avg_percentage: Number(Number(exams.avg_percentage || 0).toFixed(1)),
+        best_score: Number(Number(exams.best_score || 0).toFixed(1)),
+        worst_score: Number(Number(exams.worst_score || 0).toFixed(1)),
+      },
+      fees: {
+        total_invoices: Number(fees.total_invoices || 0),
+        paid: Number(fees.paid || 0),
+        pending: Number(fees.pending || 0),
+        overdue: Number(fees.overdue || 0),
+        total_paid_inr: Number(fees.total_paid_paise || 0) / 100,
+        outstanding_inr: Number(fees.outstanding_paise || 0) / 100,
+      },
+      contact_violations: Number(violationResult.rows[0]?.count || 0),
+      topics_covered: topicsResult.rows,
+    });
+  }
+
+  return {
+    title: `Parent Monthly Report (${start} to ${end})`,
+    data: { students: studentReports },
+  };
+}
+
+// ── Auto-generate Session Report (called after room ends) ───
+
+export async function autoGenerateSessionReport(roomId: string) {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+    const report = await generateReport(
+      'session_report',
+      startOfDay,
+      endOfDay,
+      'system_auto',
+      { room_id: roomId }
+    );
+
+    console.log(`[reports] Auto-generated session report for room ${roomId}: report id ${report.id}`);
+    return report;
+  } catch (err) {
+    console.error(`[reports] Failed to auto-generate session report for ${roomId}:`, err);
+    return null;
+  }
 }

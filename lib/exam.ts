@@ -393,3 +393,137 @@ export async function addToQuestionBank(question: ExamQuestion & { subject: stri
   );
   return result.rows[0];
 }
+
+// ── Offline / Descriptive Marks Entry ───────────────────────
+
+export interface OfflineMarkEntry {
+  question_id: string;
+  marks_awarded: number;
+  feedback?: string;
+}
+
+/**
+ * Submit marks for offline/descriptive questions in an exam attempt.
+ * Only teachers/coordinators/owners can do this.
+ * Auto-recalculates the attempt's total score and grade.
+ */
+export async function submitOfflineMarks(
+  attemptId: string,
+  marks: OfflineMarkEntry[],
+  gradedBy: string
+) {
+  return db.withTransaction(async (client) => {
+    // Get attempt
+    const attemptResult = await client.query(
+      `SELECT ea.*, e.total_marks AS exam_total, e.passing_marks
+       FROM exam_attempts ea
+       JOIN exams e ON e.id = ea.exam_id
+       WHERE ea.id = $1`,
+      [attemptId]
+    );
+    if (attemptResult.rows.length === 0) {
+      throw new Error('Attempt not found');
+    }
+
+    // Update each answer's marks
+    for (const entry of marks) {
+      // Validate marks don't exceed question max
+      const qResult = await client.query(
+        `SELECT marks FROM exam_questions WHERE id = $1`,
+        [entry.question_id]
+      );
+      if (qResult.rows.length === 0) continue;
+      const maxMarks = Number(qResult.rows[0].marks);
+      const awarded = Math.min(Math.max(0, entry.marks_awarded), maxMarks);
+      const isCorrect = awarded >= maxMarks;
+
+      await client.query(
+        `INSERT INTO exam_answers (attempt_id, question_id, marks_awarded, is_correct, text_answer)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (attempt_id, question_id) DO UPDATE
+         SET marks_awarded = $3, is_correct = $4`,
+        [attemptId, entry.question_id, awarded, isCorrect, entry.feedback || null]
+      );
+    }
+
+    // Recalculate total score for the attempt
+    const scoreResult = await client.query(
+      `SELECT COALESCE(SUM(marks_awarded), 0) AS total_score
+       FROM exam_answers WHERE attempt_id = $1`,
+      [attemptId]
+    );
+    const totalScore = Number(scoreResult.rows[0].total_score);
+
+    // Get total possible marks
+    const attempt = attemptResult.rows[0] as Record<string, unknown>;
+    const totalPossible = Number(attempt.exam_total) || 0;
+    const percentage = totalPossible > 0 ? (totalScore / totalPossible) * 100 : 0;
+    const gradeLetter = getGradeLetterForScore(percentage);
+
+    // Update attempt with new totals
+    await client.query(
+      `UPDATE exam_attempts
+       SET score = $1, total_marks = $2, percentage = $3,
+           grade_letter = $4, status = 'graded', submitted_at = COALESCE(submitted_at, NOW())
+       WHERE id = $5`,
+      [totalScore, totalPossible, percentage.toFixed(2), gradeLetter, attemptId]
+    );
+
+    return {
+      attempt_id: attemptId,
+      score: totalScore,
+      total_marks: totalPossible,
+      percentage: Number(percentage.toFixed(2)),
+      grade_letter: gradeLetter,
+      graded_by: gradedBy,
+      marks_entered: marks.length,
+    };
+  });
+}
+
+function getGradeLetterForScore(percentage: number): string {
+  if (percentage >= 95) return 'A+';
+  if (percentage >= 85) return 'A';
+  if (percentage >= 75) return 'B+';
+  if (percentage >= 65) return 'B';
+  if (percentage >= 55) return 'C+';
+  if (percentage >= 45) return 'C';
+  if (percentage >= 35) return 'D';
+  return 'F';
+}
+
+/**
+ * Create an offline exam attempt for a student (no online questions needed).
+ * Used when a teacher wants to record marks for a purely offline/descriptive exam.
+ */
+export async function createOfflineAttempt(
+  examId: string,
+  studentEmail: string,
+  studentName: string,
+  marks: OfflineMarkEntry[],
+  gradedBy: string
+) {
+  return db.withTransaction(async (client) => {
+    // Check for existing attempt
+    const existing = await client.query(
+      `SELECT id FROM exam_attempts WHERE exam_id = $1 AND student_email = $2`,
+      [examId, studentEmail]
+    );
+    if (existing.rows.length > 0) {
+      throw new Error('Student already has an attempt for this exam. Use the marks entry endpoint to update.');
+    }
+
+    // Create attempt
+    const attemptResult = await client.query(
+      `INSERT INTO exam_attempts (exam_id, student_email, student_name, status, submitted_at)
+       VALUES ($1, $2, $3, 'submitted', NOW())
+       RETURNING *`,
+      [examId, studentEmail, studentName]
+    );
+    const attemptId = (attemptResult.rows[0] as Record<string, unknown>).id as string;
+
+    // Now enter marks
+    const result = await submitOfflineMarks(attemptId, marks, gradedBy);
+    return result;
+  });
+}

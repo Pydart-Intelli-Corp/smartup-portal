@@ -108,6 +108,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Fee payment gating (students only) ───────────────────
+    // If the student has a room_assignment with payment_status = 'overdue' or 'pending',
+    // block access. Teachers and ghost roles skip this check.
+    if (user.role === 'student' || user.role === 'parent') {
+      try {
+        const payResult = await db.query(
+          `SELECT payment_status FROM room_assignments
+           WHERE room_id = $1 AND participant_email = $2
+           LIMIT 1`,
+          [room_id, user.id]
+        );
+        if (payResult.rows.length > 0) {
+          const paymentStatus = String(payResult.rows[0].payment_status || 'not_required');
+          if (paymentStatus === 'overdue') {
+            return NextResponse.json<ApiResponse>(
+              { success: false, error: 'FEE_OVERDUE', message: 'Your fee payment is overdue. Please contact the coordinator to resolve outstanding fees before joining.' },
+              { status: 402 }
+            );
+          }
+          if (paymentStatus === 'pending') {
+            return NextResponse.json<ApiResponse>(
+              { success: false, error: 'FEE_PENDING', message: 'Fee payment is pending confirmation. Please complete payment or wait for verification.' },
+              { status: 402 }
+            );
+          }
+        }
+      } catch {
+        // payment_status column may not exist yet — skip check
+      }
+    }
+
     // ── Role-based status gating ─────────────────────────────
     // Teachers can join scheduled rooms (they need to set up before going live).
     // Students and others can only join LIVE rooms.

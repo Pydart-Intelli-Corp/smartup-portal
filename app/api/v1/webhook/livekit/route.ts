@@ -3,6 +3,7 @@ import type { ApiResponse } from '@/types';
 import { webhookReceiver } from '@/lib/livekit';
 import { db } from '@/lib/db';
 import { recordJoin, recordLeave, finalizeAttendance } from '@/lib/attendance';
+import { autoGenerateSessionReport } from '@/lib/reports';
 
 /**
  * POST /api/v1/webhook/livekit
@@ -68,6 +69,11 @@ export async function POST(request: NextRequest) {
       // Finalize attendance — mark all unjoined students as absent
       try { await finalizeAttendance(room.name); } catch (e) {
         console.error('[webhook/livekit] Failed to finalize attendance:', e);
+      }
+
+      // Auto-generate session report
+      try { await autoGenerateSessionReport(room.name); } catch (e) {
+        console.error('[webhook/livekit] Failed to auto-generate session report:', e);
       }
     }
 

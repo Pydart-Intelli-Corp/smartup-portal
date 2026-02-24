@@ -5,6 +5,111 @@ import { db } from '@/lib/db';
 import { deleteRoom as deleteLiveKitRoom } from '@/lib/livekit';
 
 /**
+ * PATCH /api/v1/room/[room_id]
+ * Update class portion (topics covered) and/or remarks after a session.
+ * Auth: teacher (assigned to room), coordinator, academic_operator, owner.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ room_id: string }> }
+) {
+  try {
+    const { room_id } = await params;
+
+    const sessionToken = request.cookies.get(COOKIE_NAME)?.value;
+    if (!sessionToken) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const user = await verifySession(sessionToken);
+    if (!user) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'Session expired or invalid' },
+        { status: 401 }
+      );
+    }
+
+    // Verify room exists
+    const roomResult = await db.query(
+      'SELECT room_id, teacher_email FROM rooms WHERE room_id = $1',
+      [room_id]
+    );
+    if (roomResult.rows.length === 0) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'Room not found' },
+        { status: 404 }
+      );
+    }
+
+    const room = roomResult.rows[0];
+    const adminRoles = ['coordinator', 'academic_operator', 'academic', 'owner'];
+    const isTeacherOfRoom = user.role === 'teacher' && room.teacher_email === user.id;
+    const isAdmin = adminRoles.includes(user.role);
+
+    if (!isTeacherOfRoom && !isAdmin) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'Only the assigned teacher or admin roles can update class details' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { class_portion, class_remarks } = body as {
+      class_portion?: string;
+      class_remarks?: string;
+    };
+
+    if (!class_portion && !class_remarks) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: 'Provide class_portion and/or class_remarks' },
+        { status: 400 }
+      );
+    }
+
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    if (class_portion !== undefined) {
+      values.push(class_portion);
+      updates.push(`class_portion = $${values.length}`);
+    }
+    if (class_remarks !== undefined) {
+      values.push(class_remarks);
+      updates.push(`class_remarks = $${values.length}`);
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(room_id);
+
+    await db.query(
+      `UPDATE rooms SET ${updates.join(', ')} WHERE room_id = $${values.length}`,
+      values
+    );
+
+    // Log event
+    await db.query(
+      `INSERT INTO room_events (room_id, event_type, participant_email, payload)
+       VALUES ($1, 'class_portion_updated', $2, $3)`,
+      [room_id, user.id, JSON.stringify({ class_portion, class_remarks, updated_by: user.name })]
+    );
+
+    return NextResponse.json<ApiResponse>(
+      { success: true, message: 'Class details updated successfully' },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error('[room/patch] Error:', err);
+    return NextResponse.json<ApiResponse>(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * DELETE /api/v1/room/[room_id]
  * Ends a class: deletes the LiveKit room (disconnects all participants)
  * and marks the room as 'ended' in the DB.

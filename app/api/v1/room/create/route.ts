@@ -45,8 +45,10 @@ export async function POST(request: NextRequest) {
       teacher_email,
       subject,
       grade,
+      section,
+      batch_type,
       scheduled_start,
-      duration_minutes = 60,
+      duration_minutes,
       open_at,
       expires_at,
     } = body as {
@@ -55,6 +57,8 @@ export async function POST(request: NextRequest) {
       teacher_email?: string;
       subject?: string;
       grade?: string;
+      section?: string;
+      batch_type?: string;
       scheduled_start?: string;
       duration_minutes?: number;
       open_at?: string;
@@ -66,6 +70,41 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Missing required fields: room_id, room_name' },
         { status: 400 }
       );
+    }
+
+    // Validate batch_type
+    const validBatchTypes = ['one_to_one', 'one_to_three', 'one_to_many'];
+    const resolvedBatchType = batch_type && validBatchTypes.includes(batch_type) ? batch_type : 'one_to_many';
+
+    // Get session config (limits & defaults)
+    const configResult = await db.query('SELECT * FROM session_config LIMIT 1');
+    const sessionConfig = configResult.rows[0] as Record<string, unknown> | undefined;
+    const maxSessionsPerDay = Number(sessionConfig?.max_sessions_per_day) || 4;
+    const defaultDuration = Number(sessionConfig?.default_duration_minutes) || 90;
+    const resolvedDuration = duration_minutes || defaultDuration;
+
+    // Max participants based on batch type
+    const batchMaxParticipants = resolvedBatchType === 'one_to_one' ? 1
+      : resolvedBatchType === 'one_to_three' ? 3 : 50;
+
+    // Enforce teacher session limit (max per day)
+    if (teacher_email && scheduled_start) {
+      const schedDate = new Date(scheduled_start);
+      const dayStart = new Date(schedDate); dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(schedDate); dayEnd.setHours(23, 59, 59, 999);
+      const countResult = await db.query(
+        `SELECT COUNT(*)::int AS cnt FROM rooms
+         WHERE teacher_email = $1 AND scheduled_start >= $2 AND scheduled_start <= $3
+         AND status NOT IN ('cancelled')`,
+        [teacher_email, dayStart.toISOString(), dayEnd.toISOString()]
+      );
+      const dailyCount = Number(countResult.rows[0]?.cnt) || 0;
+      if (dailyCount >= maxSessionsPerDay) {
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: `Teacher already has ${maxSessionsPerDay} sessions on this day (limit reached)` },
+          { status: 400 }
+        );
+      }
     }
 
     // Check for duplicate
@@ -80,14 +119,14 @@ export async function POST(request: NextRequest) {
     // Calculate open_at and expires_at defaults
     const scheduledDate = scheduled_start ? new Date(scheduled_start) : new Date();
     const defaultOpenAt = open_at || new Date(scheduledDate.getTime() - 15 * 60 * 1000).toISOString(); // 15 min before
-    const defaultExpiresAt = expires_at || new Date(scheduledDate.getTime() + duration_minutes * 60 * 1000 + 30 * 60 * 1000).toISOString(); // duration + 30 min buffer
+    const defaultExpiresAt = expires_at || new Date(scheduledDate.getTime() + resolvedDuration * 60 * 1000 + 30 * 60 * 1000).toISOString(); // duration + 30 min buffer
 
     // Insert room into database
     const result = await db.query(
-      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, status, scheduled_start, duration_minutes, open_at, expires_at, created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'scheduled', $6, $7, $8, $9, $10, NOW(), NOW())
+      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, max_participants, status, scheduled_start, duration_minutes, open_at, expires_at, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10, $11, $12, $13, NOW(), NOW())
        RETURNING *`,
-      [room_id, room_name, teacher_email || null, subject || null, grade || null, scheduledDate.toISOString(), duration_minutes, defaultOpenAt, defaultExpiresAt, user.id]
+      [room_id, room_name, teacher_email || null, subject || null, grade || null, section || null, resolvedBatchType, batchMaxParticipants, scheduledDate.toISOString(), resolvedDuration, defaultOpenAt, defaultExpiresAt, user.id]
     );
 
     // Ensure the room exists on LiveKit server

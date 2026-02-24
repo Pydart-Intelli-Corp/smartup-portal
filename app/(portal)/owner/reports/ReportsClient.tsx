@@ -37,6 +37,8 @@ const REPORT_TYPES = [
   { value: 'batch_summary', label: 'Batch Summary', icon: Calendar, color: 'text-amber-400' },
   { value: 'exam_analytics', label: 'Exam Analytics', icon: FileText, color: 'text-rose-400' },
   { value: 'payroll_summary', label: 'Payroll Summary', icon: Briefcase, color: 'text-teal-400' },
+  { value: 'session_report', label: 'Session Report', icon: Calendar, color: 'text-cyan-400' },
+  { value: 'parent_monthly', label: 'Parent Monthly', icon: Users, color: 'text-pink-400' },
 ];
 
 export default function ReportsClient({ userName, userEmail, userRole }: Props) {
