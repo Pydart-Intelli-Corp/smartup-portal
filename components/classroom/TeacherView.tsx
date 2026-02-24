@@ -266,14 +266,20 @@ export default function TeacherView({
   }, [remoteParticipants]);
 
   // ── Local mute tracking (teacher-side only, does NOT affect student devices) ──
+  // All students start muted — teacher unmutes individually as needed
   const [mutedStudents, setMutedStudents] = useState<Set<string>>(new Set());
 
-  // Clean up muted set when students leave (students are unmuted by default)
+  // Auto-mute new joiners + clean up departed students
   useEffect(() => {
     setMutedStudents((prev) => {
       const activeIds = new Set(students.map((s) => s.identity));
-      let changed = false;
       const next = new Set(prev);
+      let changed = false;
+      // Add any new students as muted by default
+      for (const id of activeIds) {
+        if (!next.has(id)) { next.add(id); changed = true; }
+      }
+      // Remove departed students
       for (const id of next) {
         if (!activeIds.has(id)) { next.delete(id); changed = true; }
       }
