@@ -125,16 +125,21 @@ CREATE INDEX IF NOT EXISTS idx_rejoin_room ON rejoin_requests(room_id);
 ALTER TABLE room_events DROP CONSTRAINT IF EXISTS room_events_event_type_check;
 ALTER TABLE room_events ADD CONSTRAINT room_events_event_type_check CHECK (
   event_type IN (
-    'room_created', 'room_cancelled', 'room_ended',
+    -- existing types
+    'room_created', 'room_cancelled', 'room_ended', 'room_ended_by_teacher',
+    'room_started', 'notification_sent',
     'participant_joined', 'participant_left',
     'teacher_joined', 'teacher_left',
-    'go_live', 'attendance_marked',
-    'recording_started', 'recording_stopped',
-    'attention_update', 'contact_violation',
+    'go_live', 'attendance_marked', 'attendance_update',
+    'recording_started', 'recording_stopped', 'recording_completed', 'recording_failed',
+    'attention_update', 'contact_violation', 'contact_violation_detected',
+    'student_feedback', 'reminder_sent',
+    -- new workflow types
     'class_portion_updated', 'class_remarks_updated',
     'cancellation_requested', 'cancellation_approved', 'cancellation_rejected',
     'rejoin_requested', 'rejoin_approved', 'rejoin_denied',
-    'fee_payment_confirmed', 'admission_status_change',
+    'fee_payment_confirmed', 'fee_payment',
+    'admission_status_change',
     'session_report_generated', 'parent_report_generated'
   )
 );
