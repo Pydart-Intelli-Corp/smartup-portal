@@ -124,3 +124,29 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Mobile classroom hardening ────────────────────────── */
+html.classroom-active,
+html.classroom-active body {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  -webkit-overflow-scrolling: auto !important;
+}
+
+/* Pseudo-fullscreen — extra iOS styling */
+html.classroom-fullscreen body {
+  min-height: 100dvh;
+}
+
+/* Prevent Safari tap highlight & callout in classroom */
+.classroom-root {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}

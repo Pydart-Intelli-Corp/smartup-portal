@@ -110,14 +110,22 @@ export default function StudentView({
 
   // ── orientation / device ──
   const [isMobile, setIsMobile] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
+  const [vpHeight, setVpHeight] = useState(0);
+  const [pseudoFs, setPseudoFs] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wakeLockRef = useRef<any>(null);
 
-  // ── detect mobile ──
+  // ── detect mobile & iOS ──
   useEffect(() => {
     const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const ua = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     setIsMobile(touch && ua);
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setIsIOS(ios);
   }, []);
 
   // ── detect portrait ──
@@ -145,6 +153,20 @@ export default function StudentView({
     try { (screen.orientation as any)?.unlock?.(); } catch {}
   }, []);
 
+  // ── viewport height tracking (for iOS dynamic toolbar) ──
+  useEffect(() => {
+    const update = () => setVpHeight(window.innerHeight);
+    update();
+    window.addEventListener('resize', update);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vv = (window as any).visualViewport;
+    if (vv) vv.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      if (vv) vv.removeEventListener('resize', update);
+    };
+  }, []);
+
   // ── keyboard height (CSS-rotated mode) ──
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,11 +177,51 @@ export default function StudentView({
     return () => vv.removeEventListener('resize', fn);
   }, []);
 
-  // ── fullscreen state & toggle ──
+  // ── Lock body scroll on mount (prevents iOS rubber-banding & pull-to-refresh) ──
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.add('classroom-active');
+    // Prevent pinch-zoom on the document
+    const preventPinch = (e: TouchEvent) => {
+      if (e.touches.length > 1) e.preventDefault();
+    };
+    document.addEventListener('touchmove', preventPinch, { passive: false });
+    return () => {
+      html.classList.remove('classroom-active');
+      html.classList.remove('classroom-fullscreen');
+      document.removeEventListener('touchmove', preventPinch);
+    };
+  }, []);
+
+  // ── Wake Lock — prevent screen from sleeping during class ──
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        }
+      } catch {}
+    };
+    requestWakeLock();
+    // Re-acquire when tab becomes visible (browser releases on hide)
+    const onVis = () => { if (document.visibilityState === 'visible') requestWakeLock(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      if (wakeLockRef.current) { wakeLockRef.current.release().catch(() => {}); wakeLockRef.current = null; }
+    };
+  }, []);
+
+  // ── fullscreen state (native + pseudo for iOS) ──
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(!!fsEl);
+    };
     document.addEventListener('fullscreenchange', onChange);
     document.addEventListener('webkitfullscreenchange', onChange);
     return () => {
@@ -167,6 +229,8 @@ export default function StudentView({
       document.removeEventListener('webkitfullscreenchange', onChange);
     };
   }, []);
+
+  const effectiveFullscreen = isFullscreen || pseudoFs;
 
   // ── tick every second for countdown timer ──
   useEffect(() => {
@@ -203,26 +267,50 @@ export default function StudentView({
     }
   }, [showLeaveDialog, chatOpen]);
 
-  // ── fullscreen toggle (must be after showOverlay) ──
+  // ── fullscreen toggle (native → iOS pseudo-fullscreen fallback) ──
   const toggleFullscreen = useCallback(async () => {
     try {
-      if (!document.fullscreenElement) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+
+      if (!fsEl && !pseudoFs) {
+        // ── ENTER fullscreen ──
         const el = document.documentElement;
-        if (el.requestFullscreen) await el.requestFullscreen();
+        let nativeOk = false;
+        // Try native Fullscreen API (Chrome, Android, Desktop)
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+          nativeOk = true;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-        // After entering fullscreen, lock to landscape (requires fullscreen to be active)
-        if (isMobile) await lockLandscape();
+        } else if ((el as any).webkitRequestFullscreen) {
+          (el as any).webkitRequestFullscreen();
+          nativeOk = true;
+        }
+
+        if (nativeOk) {
+          if (isMobile) await lockLandscape();
+        } else {
+          // iOS Safari / non-supporting browsers — pseudo-fullscreen
+          setPseudoFs(true);
+          document.documentElement.classList.add('classroom-fullscreen');
+          // Try to minimize Safari's address bar
+          window.scrollTo(0, 1);
+        }
       } else {
-        // Unlock orientation before exiting fullscreen
-        if (isMobile) unlockOrientation();
-        if (document.exitFullscreen) await document.exitFullscreen();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+        // ── EXIT fullscreen ──
+        if (pseudoFs) {
+          setPseudoFs(false);
+          document.documentElement.classList.remove('classroom-fullscreen');
+        } else {
+          if (isMobile) unlockOrientation();
+          if (document.exitFullscreen) await document.exitFullscreen();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+        }
       }
     } catch {}
     showOverlay();
-  }, [showOverlay, isMobile, lockLandscape, unlockOrientation]);
+  }, [showOverlay, isMobile, pseudoFs, lockLandscape, unlockOrientation]);
 
   // keep overlays visible while dialog or chat is open
   useEffect(() => {
@@ -449,14 +537,18 @@ export default function StudentView({
   // ── CSS rotation for mobile portrait ──
   const forceRotate = hasScreenShare && isPortrait && isMobile;
 
+  // Use computed viewport height for iOS (100vh lies when Safari toolbar is visible)
+  const safeVpH = vpHeight > 0 ? `${vpHeight}px` : '100dvh';
+
   const wrapStyle: React.CSSProperties = forceRotate
     ? {
         position: 'fixed', top: 0, left: 0,
-        width: `calc(100vh - ${kbHeight}px)`, height: '100vw',
+        width: vpHeight > 0 ? `${vpHeight - kbHeight}px` : `calc(100dvh - ${kbHeight}px)`,
+        height: '100vw',
         transform: 'rotate(90deg)', transformOrigin: 'top left',
         marginLeft: '100vw', overflow: 'hidden',
       }
-    : { position: 'fixed', inset: 0 };
+    : { position: 'fixed', inset: 0, height: safeVpH };
 
   const show = overlayVisible;       // shorthand
   const compact = forceRotate;        // smaller elements when rotated
@@ -465,7 +557,7 @@ export default function StudentView({
   return (
     <div
       ref={containerRef}
-      className="bg-black text-white select-none"
+      className="bg-black text-white select-none classroom-root"
       style={wrapStyle}
       onPointerDown={showOverlay}
       onPointerMove={showOverlay}
@@ -740,8 +832,8 @@ export default function StudentView({
             onIcon={<ChatIcon className="w-5 h-5" />} offIcon={<ChatIcon className="w-5 h-5" />}
             onPrimary compact={compact} />
           {/* Fullscreen */}
-          <OvBtn on={isFullscreen} onClick={toggleFullscreen}
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          <OvBtn on={effectiveFullscreen} onClick={toggleFullscreen}
+            title={effectiveFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
             onIcon={<FullscreenExitIcon className="w-5 h-5" />}
             offIcon={<FullscreenIcon className="w-5 h-5" />}
             compact={compact} />
