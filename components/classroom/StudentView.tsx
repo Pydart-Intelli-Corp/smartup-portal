@@ -16,6 +16,7 @@ import VideoTile from './VideoTile';
 import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import WhiteboardComposite from './WhiteboardComposite';
 import ChatPanel from './ChatPanel';
+import FeedbackDialog from './FeedbackDialog';
 import { cn } from '@/lib/utils';
 import {
   MicOnIcon, MicOffIcon,
@@ -50,6 +51,7 @@ export interface StudentViewProps {
   participantName: string;
   scheduledStart: string;
   durationMinutes: number;
+  isRejoin?: boolean;
   onLeave: () => void;
   onTimeExpired?: () => void;
 }
@@ -90,6 +92,7 @@ export default function StudentView({
   participantName,
   scheduledStart,
   durationMinutes,
+  isRejoin = false,
   onLeave,
   onTimeExpired,
 }: StudentViewProps) {
@@ -103,6 +106,14 @@ export default function StudentView({
   const [videoQuality, setVideoQuality] = useState<VideoQualityOption>('auto');
   const [chatOpen, setChatOpen] = useState(false);
   const hideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Rejoin gating ──
+  const [rejoinBlocked, setRejoinBlocked] = useState(isRejoin);
+  const [rejoinDenied, setRejoinDenied] = useState(false);
+  const rejoinRequestSent = useRef(false);
+
+  // ── Student feedback ──
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // ── attendance badge (computed once on mount) ──
   const joinedAt = useRef(new Date());
@@ -478,8 +489,10 @@ export default function StudentView({
       sfxMediaControl();
       hapticToggle();
       if (data.approved) {
-        showToast('Teacher approved — leaving class');
-        setTimeout(() => onLeave(), 800);
+        showToast('Teacher approved — please rate your class');
+        setShowLeaveDialog(false);
+        setLeaveRequestPending(false);
+        setShowFeedback(true); // Show feedback dialog before leaving
       } else {
         setLeaveRequestPending(false);
         setLeaveDenied(true);
@@ -487,10 +500,63 @@ export default function StudentView({
         setTimeout(() => setLeaveDenied(false), 4000);
       }
     } catch {}
-  }, [localParticipant, showToast, onLeave]);
+  }, [localParticipant, showToast]);
 
   const { message: leaveCtrlMsg } = useDataChannel('leave_control', onLeaveControl);
   useEffect(() => { if (leaveCtrlMsg) onLeaveControl(leaveCtrlMsg); }, [leaveCtrlMsg, onLeaveControl]);
+
+  // ── Rejoin approval system ──
+  // When student is rejoining (isRejoin=true), they are blocked until teacher approves.
+  // Auto-sends rejoin_request on connect → teacher approve/deny → rejoin_control response
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onRejoinControl = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as { target_id: string; approved: boolean };
+      if (data.target_id !== localParticipant.identity) return;
+      sfxMediaControl();
+      hapticToggle();
+      if (data.approved) {
+        setRejoinBlocked(false);
+        setRejoinDenied(false);
+        showToast('Teacher approved your rejoin');
+      } else {
+        setRejoinDenied(true);
+        showToast('Teacher denied your rejoin request');
+        setTimeout(() => onLeave(), 3000);
+      }
+    } catch {}
+  }, [localParticipant, showToast, onLeave]);
+
+  const { message: rejoinCtrlMsg } = useDataChannel('rejoin_control', onRejoinControl);
+  useEffect(() => { if (rejoinCtrlMsg) onRejoinControl(rejoinCtrlMsg); }, [rejoinCtrlMsg, onRejoinControl]);
+
+  // Auto-send rejoin_request once connected
+  useEffect(() => {
+    if (!isRejoin || rejoinRequestSent.current) return;
+    rejoinRequestSent.current = true;
+    const sendRequest = async () => {
+      try {
+        // Small delay to ensure data channel is ready
+        await new Promise((r) => setTimeout(r, 1500));
+        await localParticipant.publishData(
+          new TextEncoder().encode(JSON.stringify({
+            student_id: localParticipant.identity,
+            student_name: localParticipant.name || localParticipant.identity,
+          })),
+          { topic: 'rejoin_request', reliable: true },
+        );
+      } catch {}
+    };
+    sendRequest();
+    // Auto-approve after 60s if teacher doesn't respond (fallback)
+    setTimeout(() => {
+      setRejoinBlocked((prev) => {
+        if (prev) showToast('Teacher did not respond — rejoined automatically');
+        return false;
+      });
+    }, 60000);
+  }, [isRejoin, localParticipant, showToast]);
 
   const requestLeave = useCallback(async () => {
     hapticTap();
@@ -953,6 +1019,55 @@ export default function StudentView({
           className="h-full"
         />
       </div>
+
+      {/* Student feedback dialog — shown after leave approval, before actual leave */}
+      {showFeedback && (
+        <FeedbackDialog
+          roomId={roomId}
+          studentEmail={localParticipant.identity}
+          studentName={participantName}
+          onComplete={() => {
+            setShowFeedback(false);
+            onLeave();
+          }}
+        />
+      )}
+
+      {/* Rejoin blocked overlay — shown when student is rejoining and awaiting teacher approval */}
+      {rejoinBlocked && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/[0.06]">
+            {rejoinDenied ? (
+              <>
+                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#ea4335]/10">
+                  <svg className="h-7 w-7 text-[#ea4335]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white">Rejoin Denied</h3>
+                <p className="mt-2 text-sm text-gray-400">Teacher denied your rejoin request. Leaving…</p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#f9ab00]/10">
+                  <svg className="h-7 w-7 text-[#f9ab00] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white">Waiting for Teacher Approval</h3>
+                <p className="mt-2 text-sm text-gray-400">
+                  You left the class earlier. Your rejoin request has been sent to the teacher.
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Please wait…</p>
+                <button
+                  onClick={onLeave}
+                  className="mt-6 rounded-xl bg-[#3c4043] px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#4a4e52]"
+                >
+                  Cancel & Leave
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Leave dialog */}
       {showLeaveDialog && (

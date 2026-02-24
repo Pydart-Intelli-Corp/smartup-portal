@@ -163,6 +163,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Rejoin detection for students ─────────────────────────
+    let is_rejoin = false;
+    if (user.role === 'student') {
+      try {
+        const attRes = await db.query(
+          `SELECT join_count FROM attendance_sessions
+           WHERE room_id = $1 AND participant_email = $2
+           LIMIT 1`,
+          [room_id, user.id],
+        );
+        if (attRes.rows.length > 0 && Number(attRes.rows[0].join_count) > 0) {
+          is_rejoin = true;
+        }
+      } catch {
+        // attendance table may not exist yet — ignore
+      }
+    }
+
     // ── Determine role and identity ──────────────────────────
     // Only allow ghost role override if the user's NATIVE role is already a ghost-eligible role
     const effectiveRole = roleOverride && isGhostRole(roleOverride) && isGhostRole(user.role)
@@ -244,6 +262,7 @@ export async function POST(request: NextRequest) {
       scheduled_start: string;
       duration_minutes: number;
       room_status: string;
+      is_rejoin: boolean;
     }>>(
       {
         success: true,
@@ -259,6 +278,7 @@ export async function POST(request: NextRequest) {
           scheduled_start: room.scheduled_start ? new Date(String(room.scheduled_start)).toISOString() : new Date().toISOString(),
           duration_minutes: Number(room.duration_minutes) || 60,
           room_status: String(room.status),
+          is_rejoin,
         },
       },
       { status: 200 }

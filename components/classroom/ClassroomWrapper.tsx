@@ -44,6 +44,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
   const [device, setDevice] = useState<string>('primary');
   const [roomStatus, setRoomStatus] = useState<string>('scheduled');
+  const [isRejoin, setIsRejoin] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [room] = useState(() => new Room({
     adaptiveStream: true,
@@ -127,6 +128,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       setDurationMinutes(parseInt(storedDuration || '60', 10) || 60);
       setDevice(storedDevice || 'primary');
       setRoomStatus(sessionStorage.getItem('room_status') || 'scheduled');
+      setIsRejoin(sessionStorage.getItem('is_rejoin') === 'true');
     } catch {
       setError('Failed to read session data.');
     }
@@ -313,6 +315,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
           participantName={participantName}
           scheduledStart={scheduledStart}
           durationMinutes={durationMinutes}
+          isRejoin={isRejoin}
           onLeave={handleLeave}
           onTimeExpired={handleTimeExpired}
         />

@@ -159,6 +159,7 @@ export default function JoinRoomClient({
         sessionStorage.setItem('duration_minutes', String(result.duration_minutes || durationMinutes));
         sessionStorage.setItem('device', result.device || 'primary');
         sessionStorage.setItem('room_status', result.room_status || 'scheduled');
+        sessionStorage.setItem('is_rejoin', result.is_rejoin ? 'true' : 'false');
         router.push(`/classroom/${roomId}`);
       } else {
         setError('No token received from server');
