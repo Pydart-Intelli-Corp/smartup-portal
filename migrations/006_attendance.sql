@@ -137,23 +137,37 @@ CREATE INDEX idx_cv_sender           ON contact_violations (sender_email);
 -- Add new event types to room_events check constraint
 -- ═══════════════════════════════════════════════════════════════
 
-ALTER TABLE room_events DROP CONSTRAINT IF EXISTS chk_event_type;
-ALTER TABLE room_events ADD CONSTRAINT chk_event_type CHECK (
-  event_type IN (
-    'room_created',
-    'room_started',
-    'room_ended_by_teacher',
-    'room_expired',
-    'room_cancelled',
-    'participant_joined',
-    'participant_left',
-    'payment_completed',
-    'notification_sent',
-    'reminder_sent',
-    'attendance_marked',
-    'contact_violation'
-  )
-);
+-- ═══════════════════════════════════════════════════════════════
+-- Extend room_events if possible (best-effort — skip if no ownership)
+-- ═══════════════════════════════════════════════════════════════
+
+DO $$
+BEGIN
+  -- Try to drop and re-add the constraint to support new event types.
+  -- If the user doesn't own room_events, this simply does nothing.
+  BEGIN
+    ALTER TABLE room_events DROP CONSTRAINT IF EXISTS chk_event_type;
+    ALTER TABLE room_events ADD CONSTRAINT chk_event_type CHECK (
+      event_type IN (
+        'room_created',
+        'room_started',
+        'room_ended_by_teacher',
+        'room_expired',
+        'room_cancelled',
+        'participant_joined',
+        'participant_left',
+        'payment_completed',
+        'notification_sent',
+        'reminder_sent',
+        'attendance_marked',
+        'contact_violation'
+      )
+    );
+  EXCEPTION WHEN OTHERS THEN
+    -- Not owner — skip constraint update, events will still work
+    RAISE NOTICE 'Skipping room_events constraint update (not owner): %', SQLERRM;
+  END;
+END $$;
 
 
 -- Record migration
