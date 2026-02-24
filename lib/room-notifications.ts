@@ -15,7 +15,7 @@ import {
 } from '@/lib/email-templates';
 import { fmtDateLongIST, fmtTimeIST } from '@/lib/utils';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://smartup.pydart.com';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://smartuplearning.online';
 
 // ── Types ───────────────────────────────────────────────────
 

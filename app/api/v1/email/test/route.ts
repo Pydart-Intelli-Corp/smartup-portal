@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       recipientEmail?: string;
     };
 
-    const email = recipientEmail || 'test@smartup.live';
+    const email = recipientEmail || 'test@smartuplearning.online';
     const roomId = 'class_BATCH001_SCH001';
 
     const sampleData = {

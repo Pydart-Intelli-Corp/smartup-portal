@@ -1,7 +1,7 @@
 # SmartUp Portal — Test User Accounts
 
 **Default Password (all accounts):** `Test@1234`  
-**Login URL:** `http://localhost:3000/login` (dev) · `https://class.smartup.live` (prod)  
+**Login URL:** `http://localhost:3000/login` (dev) · `https://smartuplearning.online` (prod)  
 **Last Updated:** February 21, 2026
 
 ---

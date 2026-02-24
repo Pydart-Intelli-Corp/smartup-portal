@@ -16,7 +16,7 @@
 ```
 ┌──────────────────────────────┐     ┌─────────────────────────┐
 │     SmartUp Portal           │     │   LiveKit Media Server  │
-│  smartup.pydart.com          │◄───►│   76.13.244.54:7880     │
+│  smartuplearning.online          │◄───►│   76.13.244.54:7880     │
 │                              │     │                         │
 │  Next.js 16.1.6 (Turbopack)  │     │  WebRTC Rooms           │
 │  107 source files             │     │  Video / Audio          │
@@ -41,8 +41,8 @@
 
 | Server | IP | Domain | Stack |
 |--------|-----|--------|-------|
-| LiveKit Media | `76.13.244.54` | `media.smartup.live` | LiveKit 1.9.11 · Nginx |
-| Portal | `76.13.244.60` | `smartup.pydart.com` | Next.js 16.1.6 · PostgreSQL 15 · Redis 7 · PM2 |
+| LiveKit Media | `76.13.244.54` | `media.smartuplearning.online` | LiveKit 1.9.11 · Nginx |
+| Portal | `76.13.244.60` | `smartuplearning.online` | Next.js 16.1.6 · PostgreSQL 15 · Redis 7 · PM2 |
 
 ---
 
@@ -388,7 +388,7 @@ Dedicated **tablet screen-sharing device** for teachers. The teacher uses their 
 | `api.dart` | 229 | HTTP client to portal — login, getTeacherRooms, joinRoom, goLive. Cookie-based auth (`smartup-session`) |
 | `session.dart` | 59 | SharedPreferences persistence — token, userId, userName, userRole, fcmToken |
 | `notifications.dart` | 164 | FCM push + local notifications, class reminder scheduling (10-min + at-start) |
-| `deep_link.dart` | 226 | App Links handler for `https://smartup.pydart.com/join/*`. Auto-joins if logged in, prompts login if not |
+| `deep_link.dart` | 226 | App Links handler for `https://smartuplearning.online/join/*`. Auto-joins if logged in, prompts login if not |
 
 ### Native Android (Kotlin)
 
@@ -410,7 +410,7 @@ Dedicated **tablet screen-sharing device** for teachers. The teacher uses their 
 
 ### Deep Link Flow
 
-1. Teacher receives email invite with link: `https://smartup.pydart.com/join/ROOM_ID?token=TOKEN&device=tablet`
+1. Teacher receives email invite with link: `https://smartuplearning.online/join/ROOM_ID?token=TOKEN&device=tablet`
 2. Android App Link (`autoVerify=true`) opens the SmartUp Teacher app
 3. If logged in → auto-joins LiveKit room → starts screen share
 4. If not logged in → shows login screen → resumes join after auth
@@ -461,7 +461,7 @@ Dedicated **tablet screen-sharing device** for teachers. The teacher uses their 
 
 ```env
 # App
-NEXT_PUBLIC_APP_URL=https://smartup.pydart.com
+NEXT_PUBLIC_APP_URL=https://smartuplearning.online
 JWT_SECRET=<secret>
 
 # LiveKit
@@ -482,7 +482,7 @@ SMTP_USER=online.poornasree@gmail.com
 SMTP_PASS=<app-password>
 EMAIL_FROM_NAME=SmartUp Classes
 EMAIL_FROM_ADDRESS=online.poornasree@gmail.com
-PORTAL_BASE_URL=https://smartup.pydart.com
+PORTAL_BASE_URL=https://smartuplearning.online
 EMAIL_MODE=smtp
 ```
 

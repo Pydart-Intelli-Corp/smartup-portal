@@ -84,7 +84,7 @@ const DEV_LOG_MODE = process.env.EMAIL_MODE === 'log';
  * on first failure (30s delay).
  */
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-  const from = `"${process.env.EMAIL_FROM_NAME || 'SmartUp Classes'}" <${process.env.EMAIL_FROM_ADDRESS || 'noreply@smartup.live'}>`;
+  const from = `"${process.env.EMAIL_FROM_NAME || 'SmartUp Classes'}" <${process.env.EMAIL_FROM_ADDRESS || 'noreply@smartuplearning.online'}>`;
 
   // ── Dev log mode — print to console, skip SMTP ────────
   if (DEV_LOG_MODE) {

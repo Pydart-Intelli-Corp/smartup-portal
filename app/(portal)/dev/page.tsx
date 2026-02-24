@@ -324,31 +324,31 @@ export default function DevPage() {
               <tr className="border-t border-gray-800">
                 <td className="py-2 pr-4">Teacher</td>
                 <td className="py-2 pr-4">Priya Sharma</td>
-                <td className="py-2 pr-4 font-mono text-xs">priya@smartup.live</td>
+                <td className="py-2 pr-4 font-mono text-xs">priya@smartuplearning.online</td>
                 <td className="py-2 text-xs text-gray-500">Full classroom controls</td>
               </tr>
               <tr className="border-t border-gray-800">
                 <td className="py-2 pr-4">Student</td>
                 <td className="py-2 pr-4">Rahul Nair</td>
-                <td className="py-2 pr-4 font-mono text-xs">rahul@student.smartup.live</td>
+                <td className="py-2 pr-4 font-mono text-xs">rahul@student.smartuplearning.online</td>
                 <td className="py-2 text-xs text-gray-500">Join via invite link</td>
               </tr>
               <tr className="border-t border-gray-800">
                 <td className="py-2 pr-4">Owner</td>
                 <td className="py-2 pr-4">Admin</td>
-                <td className="py-2 pr-4 font-mono text-xs">admin@smartup.live</td>
+                <td className="py-2 pr-4 font-mono text-xs">admin@smartuplearning.online</td>
                 <td className="py-2 text-xs text-gray-500">Ghost mode access</td>
               </tr>
               <tr className="border-t border-gray-800">
                 <td className="py-2 pr-4">Coordinator</td>
                 <td className="py-2 pr-4">Seema Verma</td>
-                <td className="py-2 pr-4 font-mono text-xs">seema@smartup.live</td>
+                <td className="py-2 pr-4 font-mono text-xs">seema@smartuplearning.online</td>
                 <td className="py-2 text-xs text-gray-500">Ghost mode access</td>
               </tr>
               <tr className="border-t border-gray-800">
                 <td className="py-2 pr-4">Academic</td>
                 <td className="py-2 pr-4">Dr. Mehta</td>
-                <td className="py-2 pr-4 font-mono text-xs">mehta@smartup.live</td>
+                <td className="py-2 pr-4 font-mono text-xs">mehta@smartuplearning.online</td>
                 <td className="py-2 text-xs text-gray-500">Ghost mode access</td>
               </tr>
               <tr className="border-t border-gray-800">

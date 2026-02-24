@@ -35,8 +35,8 @@ function masterLayout(body: string, recipientEmail: string): string {
           <!-- Footer -->
           <tr>
             <td style="background-color:#f8f9fa; padding:20px 32px; border-top:1px solid #e9ecef;">
-              <p style="margin:0 0 4px; font-size:13px; color:#6c757d;">SmartUp Online Classes &nbsp;|&nbsp; class.smartup.live</p>
-              <p style="margin:0 0 4px; font-size:13px; color:#6c757d;">Need help? <a href="mailto:support@smartup.live" style="color:#4a6cf7;">support@smartup.live</a></p>
+              <p style="margin:0 0 4px; font-size:13px; color:#6c757d;">SmartUp Online Classes &nbsp;|&nbsp; smartuplearning.online</p>
+              <p style="margin:0 0 4px; font-size:13px; color:#6c757d;">Need help? <a href="mailto:support@smartuplearning.online" style="color:#4a6cf7;">support@smartuplearning.online</a></p>
               <p style="margin:0; font-size:12px; color:#adb5bd;">This email was sent to ${recipientEmail}</p>
             </td>
           </tr>

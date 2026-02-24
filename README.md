@@ -20,9 +20,9 @@ Live classroom platform for Indian school students (Class 1–12). Built with Ne
 ## Architecture
 
 ```
-SmartUp Portal (class.smartup.live)    ← this project
+SmartUp Portal (smartuplearning.online)    ← this project
     ↕ LiveKit SDK
-LiveKit Media (media.smartup.live)
+LiveKit Media (media.smartuplearning.online)
 ```
 
 - **Portal** owns users, rooms, sessions, payments, email, dashboards
@@ -129,8 +129,8 @@ Migrations in `migrations/` — run with `npm run db:migrate`.
 
 | Server | IP | Domain |
 |--------|-----|--------|
-| LiveKit Media | `76.13.244.54` | `media.smartup.live` |
-| Portal | `76.13.244.60` | `class.smartup.live` |
+| LiveKit Media | `76.13.244.54` | `media.smartuplearning.online` |
+| Portal | `76.13.244.60` | `smartuplearning.online` |
 
 ## Development
 

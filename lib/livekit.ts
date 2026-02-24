@@ -12,7 +12,7 @@ import type { PortalRole } from '@/types';
  * These are server-side only — never import this in client components.
  *
  * LIVEKIT_URL = direct HTTP URL for server-side API calls (e.g. http://76.13.244.54:7880)
- * NEXT_PUBLIC_LIVEKIT_URL = client-facing WSS URL sent to browsers (e.g. wss://smartup.pydart.com)
+ * NEXT_PUBLIC_LIVEKIT_URL = client-facing WSS URL sent to browsers (e.g. wss://smartuplearning.online)
  */
 
 const livekitHost =

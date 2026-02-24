@@ -12,15 +12,15 @@ import { isGhostRole } from '@/lib/utils';
 
 // Dev user definitions per spec 14.2
 const DEV_USERS: Record<string, { name: string; email: string; identity: string }> = {
-  teacher: { name: 'Priya Sharma', email: 'priya@smartup.live', identity: 'teacher_priya_sharma' },
-  teacher_screen: { name: 'Priya Sharma (Screen)', email: 'priya@smartup.live', identity: 'teacher_priya_sharma_screen' },
-  student: { name: 'Rahul Nair', email: 'rahul@student.smartup.live', identity: 'student_rahul_nair' },
-  owner: { name: 'Admin', email: 'admin@smartup.live', identity: 'ghost_owner_admin_1' },
-  coordinator: { name: 'Seema Verma', email: 'seema@smartup.live', identity: 'ghost_coordinator_seema_1' },
-  academic: { name: 'Dr. Mehta', email: 'mehta@smartup.live', identity: 'ghost_academic_dr_mehta_1' },
-  academic_operator: { name: 'Dr. Mehta', email: 'mehta@smartup.live', identity: 'ghost_academic_dr_mehta_1' },
+  teacher: { name: 'Priya Sharma', email: 'priya@smartuplearning.online', identity: 'teacher_priya_sharma' },
+  teacher_screen: { name: 'Priya Sharma (Screen)', email: 'priya@smartuplearning.online', identity: 'teacher_priya_sharma_screen' },
+  student: { name: 'Rahul Nair', email: 'rahul@student.smartuplearning.online', identity: 'student_rahul_nair' },
+  owner: { name: 'Admin', email: 'admin@smartuplearning.online', identity: 'ghost_owner_admin_1' },
+  coordinator: { name: 'Seema Verma', email: 'seema@smartuplearning.online', identity: 'ghost_coordinator_seema_1' },
+  academic: { name: 'Dr. Mehta', email: 'mehta@smartuplearning.online', identity: 'ghost_academic_dr_mehta_1' },
+  academic_operator: { name: 'Dr. Mehta', email: 'mehta@smartuplearning.online', identity: 'ghost_academic_dr_mehta_1' },
   parent: { name: 'Nair Parent', email: 'nair.parent@gmail.com', identity: 'ghost_parent_nair_1' },
-  ghost: { name: 'Ghost Observer', email: 'ghost@smartup.live', identity: 'ghost_ghost_observer_1' },
+  ghost: { name: 'Ghost Observer', email: 'ghost@smartuplearning.online', identity: 'ghost_ghost_observer_1' },
 };
 
 function isDevMode(): boolean {
