@@ -6,8 +6,8 @@
 **Teacher App:** `G:\smartup\smartup-teacher`  
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
-**Last Updated:** February 22, 2026  
-**Latest Commit:** `e4b1387` — Disable video rotation on laptop/PC
+**Last Updated:** February 24, 2026  
+**Latest Commit:** `f39785d` — Remove chat button from teacher control bar, add chat slide panel to student overlay
 
 ---
 
@@ -19,11 +19,11 @@
 │  smartup.pydart.com          │◄───►│   76.13.244.54:7880     │
 │                              │     │                         │
 │  Next.js 16.1.6 (Turbopack)  │     │  WebRTC Rooms           │
-│  113 source files             │     │  Video / Audio          │
-│  ~16,500 LOC                 │     │  Data Channels (Chat)   │
+│  107 source files             │     │  Video / Audio          │
+│  ~14,000 LOC                 │     │  Data Channels (Chat)   │
 │  35 API Routes               │     │  Screen Share            │
 │  8 Role Dashboards           │     └─────────────────────────┘
-│  14 Classroom Components     │
+│  15 Classroom Components     │
 │  LiveKit Token Generation    │     ┌─────────────────────────┐
 │  Email Notifications (9 tpl) │     │  SmartUp Teacher App    │
 │  PostgreSQL Auth (bcrypt)    │     │  Flutter / Android       │
@@ -238,30 +238,55 @@ All dashboards use the shared `DashboardShell` component (sidebar, header, logou
 
 ---
 
-### Classroom System (14 components, ~3,443 LOC)
+### Classroom System (15 components, ~3,968 LOC)
 
 | Component | Lines | Purpose |
 |-----------|------:|---------|
-| `ClassroomWrapper.tsx` | 314 | LiveKit `<Room>` provider, session/role routing, auto-exit at class end (3s delay), safety-net timer |
-| `TeacherView.tsx` | 342 | Teacher layout — self-cam, student grid (rotated 90° for phone cameras), whiteboard, sidebar panels, Go Live button |
-| `StudentView.tsx` | 490 | Student layout — teacher main stage, chat sidebar, hand raise, mobile-only CSS landscape rotation (not on laptop/PC) |
-| `GhostView.tsx` | 232 | Silent observation — no media, teacher screen + student grid, private notes textarea |
-| `ScreenDeviceView.tsx` | 216 | Teacher's second device (tablet) — single "Share Screen" button for whiteboard |
-| `HeaderBar.tsx` | 193 | Live countdown timer (clamps at 00:00), 5-min warning banner (yellow, dismissible), expired banner (red pulsing), `onTimeExpired` callback |
-| `ControlBar.tsx` | 295 | Google Meet-style SVG buttons — mic, camera, screen share, whiteboard, chat, end call. Fixed-position confirmation dialogs |
-| `ChatPanel.tsx` | 251 | Real-time chat via LiveKit data channel (topic `chat`), role-colored bubbles, auto-scroll |
-| `ParticipantList.tsx` | 231 | Participant sidebar — role badges, mic/camera status indicators, teacher mute/kick controls |
-| `PreJoinLobby.tsx` | 219 | Camera/mic permission + preview, audio/video device selectors, role badge, join button |
-| `TeacherOverlay.tsx` | 219 | AI-segmented teacher cutout (MediaPipe) → canvas overlay, draggable 4-corner positioning |
-| `WhiteboardComposite.tsx` | 128 | Tablet screen share as whiteboard + teacher camera overlay composite (two-device setup) |
-| `VideoTile.tsx` | 139 | Reusable video tile — live video or initials avatar circle, speaking glow indicator |
-| `icons.tsx` | 124 | Google Meet-style SVG vector icons — 8 icons for control bar |
+> **Recent major changes (Feb 22–24):**
+> - YouTube-fullscreen StudentView with auto-hiding overlay UI
+> - Media approval flow: student requests mic/cam, teacher approves/denies
+> - Video quality selector (Auto/360p/720p/1080p) on both views
+> - 1080p camera capture + simulcast (h360/h720/h1080 layers)
+> - HD screen share (1920×1080 @ 15fps, 3 Mbps) for crisp whiteboard
+> - Student chat panel (slide from right), teacher chat in sidebar only
+> - Local-only mute (teacher side), no global RoomAudioRenderer
+
+| `ClassroomWrapper.tsx` | 296 | LiveKit `<Room>` provider (1080p capture, simulcast h360+h720, HD screen share encoding), session/role routing, auto-exit at class end (3s delay), safety-net timer |
+| `TeacherView.tsx` | 646 | Google Meet-style teacher layout — student grid, whiteboard strip, self-cam PIP, sidebar (chat/participants), Go Live banner, media request approve/deny panel, hand-raise queue, local mute per student, video quality selector |
+| `StudentView.tsx` | 824 | YouTube-fullscreen immersive view — teacher main stage, auto-hiding overlay controls, media approval flow (request → teacher approve/deny), hand raise, sliding chat panel, video quality selector, mobile CSS rotation, teacher popup enlargement |
+| `GhostView.tsx` | 216 | Silent observation — no media, teacher screen + student grid, private notes textarea |
+| `ScreenDeviceView.tsx` | 204 | Teacher's second device (tablet) — "Share Screen" button, captures at 1920×1080 @ 15fps, publishes with 3 Mbps bitrate for crisp whiteboard |
+| `HeaderBar.tsx` | 173 | Live countdown timer (clamps at 00:00), 5-min warning banner (yellow, dismissible), expired banner (red pulsing), `onTimeExpired` callback |
+| `ControlBar.tsx` | 243 | Google Meet-style SVG buttons — mic, camera, screen share, whiteboard, end call. Teacher: no chat button (sidebar only). Student: unused (StudentView has own overlay controls) |
+| `ChatPanel.tsx` | 234 | Real-time chat via LiveKit data channel (topic `chat`), role-colored bubbles, auto-scroll, close button |
+| `ParticipantList.tsx` | 201 | Participant sidebar — role badges, Mute/Unmute text button per student (local mute), teacher kick controls |
+| `PreJoinLobby.tsx` | 197 | Camera/mic permission + preview, audio/video device selectors, role badge, join button |
+| `TeacherOverlay.tsx` | 192 | AI-segmented teacher cutout (MediaPipe) → canvas overlay, draggable 4-corner positioning |
+| `WhiteboardComposite.tsx` | 113 | Tablet screen share as whiteboard + teacher camera overlay composite (two-device setup) |
+| `VideoTile.tsx` | 136 | Reusable video tile — live video with `<VideoTrack>`, optional `<AudioTrack>` via `playAudio` prop, initials avatar, speaking glow, hand-raised badge |
+| `VideoQualitySelector.tsx` | 182 | YouTube-style quality picker — Auto/360p/720p/1080p, uses `setVideoQuality()` to select simulcast layer (LOW/MEDIUM/HIGH), overlay + panel variants |
+| `icons.tsx` | 111 | Google Meet-style SVG vector icons — 8 icons for control bar |
 
 **Two-device teacher setup:**
 1. Teacher logs in on laptop → `TeacherView` with webcam + student grid + controls
 2. Teacher uses tablet app (Flutter) → opens as `teacher_screen` via email deep link → `ScreenDeviceView` → shares screen
 3. `WhiteboardComposite` composites tablet screen share + teacher webcam overlay
 4. `TeacherOverlay` uses MediaPipe to segment teacher background → transparent cutout on canvas
+
+**Video quality system:**
+- **Publish side:** Camera capture at 1080p (`VideoPresets.h1080.resolution`). Simulcast enabled with 3 layers: h360 (LOW), h720 (MEDIUM), h1080/original (HIGH). Screen share at 1920×1080 @ 15fps, 3 Mbps max bitrate.
+- **Subscribe side:** `VideoQualitySelector` component with Auto/360p/720p/1080p options. Calls `RemoteTrackPublication.setVideoQuality(VideoQuality.LOW|MEDIUM|HIGH)` to select simulcast layer directly — not overridden by adaptive stream.
+- **Room config:** `adaptiveStream: true`, `dynacast: true`, VP8 codec, screen share simulcast disabled (single HD layer).
+
+**Media control system:**
+- **Student → Teacher approval flow:** Student taps mic/cam button → sends `media_request` via data channel → Teacher sees request panel → Approve sends `media_control` back → Student device toggles. Deny just dismisses.
+- **Teacher local mute:** `mutedStudents` Set controls `playAudio` prop on `<VideoTile>`. No `<RoomAudioRenderer />` — audio only via VideoTile's AudioTrack. Students unmuted by default.
+- **No student-to-student communication:** Students can only hear the teacher (via explicit `<AudioTrack>` in StudentView). No global audio renderer.
+
+**Chat system:**
+- **Teacher:** Chat in sidebar (right panel, 320px), toggled via sidebar tab buttons (Chat / Participants). No chat button in bottom control bar.
+- **Student:** Chat panel slides from right edge (320px), toggled by chat button in overlay controls. Overlay stays visible while chat is open.
+- **Data channel:** Topic `chat`, role-colored bubbles, auto-scroll.
 
 **Student mobile behavior:**
 - Portrait phone + screen share active → CSS-rotates entire view 90° to landscape
@@ -289,7 +314,7 @@ All dashboards use the shared `DashboardShell` component (sidebar, header, logou
 
 ---
 
-### Lib Files (12 files, ~1,947 LOC)
+### Lib Files (13 files, ~1,816 LOC)
 
 | File | Lines | Key Exports | Purpose |
 |------|------:|-------------|---------|
@@ -300,11 +325,14 @@ All dashboards use the shared `DashboardShell` component (sidebar, header, logou
 | `email-queue.ts` | 262 | `enqueueEmail()`, `enqueueBatch()`, `getNotifyStatus()`, `startEmailWorker()` | BullMQ background queue, priority system, worker with concurrency 5 |
 | `email-templates.ts` | 484 | 9 template functions + type interfaces | HTML email templates with master layout, shared helpers |
 | `livekit.ts` | 259 | `createLiveKitToken()`, `ensureRoom()`, `deleteRoom()`, `GRANTS` | LiveKit SDK — role-based grant matrix (11 roles), room CRUD, webhook receiver |
+| `sounds.ts` | 96 | `sfxHandRaise()`, `sfxParticipantJoin()`, `sfxMediaControl()`, `hapticTap()`, etc. | Web Audio API sound effects + vibration haptics for classroom events |
 | `redis.ts` | 25 | `redis` | ioredis singleton with lazy connect |
 | `room-notifications.ts` | 211 | `sendCreationNotifications()`, `sendReminderNotifications()`, `sendGoLiveNotifications()` | Auto-emails on create, 30/5-min reminders, go-live |
 | `session.ts` | 37 | `signSession()`, `verifySession()`, `COOKIE_NAME` | JWT session — jose HS256, 8h expiry |
 | `users.ts` | 165 | `searchUsers()`, `searchTeachersBySubject()`, `searchCoordinatorsWithBatchCount()` | User CRUD, subject-filtered teacher search with GIN index, coordinator batch count |
 | `utils.ts` | 123 | `cn()`, `fmtTimeIST()`, `fmtDateLongIST()`, `toISTDateValue()`, `istToUTCISO()`, etc. | Tailwind merge, IST date/time formatting, room ID generator |
+
+> **Lib total:** 13 files, ~1,816 LOC
 
 ---
 
@@ -474,7 +502,7 @@ EMAIL_MODE=smtp
 
 ## File Inventory
 
-### Portal (`smartup-portal/`) — 113 source files, ~16,500 LOC
+### Portal (`smartup-portal/`) — 107 source files, ~14,000 LOC
 
 ```
 smartup-portal/
@@ -486,7 +514,7 @@ smartup-portal/
 ├── types/
 │   └── index.ts                            7 types: PortalRole, SmartUpUser, ClassRoom, etc. (97 lines)
 │
-├── lib/                                    12 files, ~1,947 lines
+├── lib/                                    13 files, ~1,816 lines
 │   ├── auth-db.ts                          PostgreSQL bcrypt login (73)
 │   ├── auth-utils.ts                       getServerUser(), requireRole() (52)
 │   ├── db.ts                               PostgreSQL pool singleton (79)
@@ -494,6 +522,7 @@ smartup-portal/
 │   ├── email-queue.ts                      BullMQ queue + worker (262)
 │   ├── email-templates.ts                  9 HTML templates with master layout (484)
 │   ├── livekit.ts                          LiveKit SDK, grants matrix, room CRUD (259)
+│   ├── sounds.ts                           Web Audio API SFX + vibration haptics (96)
 │   ├── redis.ts                            ioredis singleton (25)
 │   ├── room-notifications.ts              Auto-notify: create, remind, go-live (211)
 │   ├── session.ts                          JWT sign/verify, jose HS256 (37)
@@ -508,7 +537,7 @@ smartup-portal/
 ├── components/
 │   ├── auth/LoginForm.tsx                  Login form (153)
 │   ├── dashboard/DashboardShell.tsx        Shared layout (191)
-│   ├── classroom/                          14 files, ~3,443 lines (see Classroom section)
+│   ├── classroom/                          15 files, ~3,968 lines (see Classroom section)
 │   └── ui/                                 5 shadcn primitives (348 lines total)
 │
 ├── app/
@@ -564,19 +593,24 @@ smartup-teacher/
 
 ---
 
-## Git Commit History (latest 10)
+## Git Commit History (latest 15)
 
 ```
+f39785d Remove chat button from teacher control bar, add chat slide panel to student overlay
+f87ecad Fix video quality: 1080p capture, simulcast layers, HD screen share, setVideoQuality
+39990a8 Add YouTube-style video quality selector (360p/480p/1080p/Auto) to student and teacher views
+5f2615d Fix mute: remove global RoomAudioRenderer, cleanup student UI
+1ea94f3 Media approval flow: student requests mic/cam toggle, teacher approves/denies
+4a52a63 Simplify media control: local-only mute, student devices always on, no remote control
+76d2042 Teacher media control: student mic/cam always-on, request flow, mute-all, per-student controls
+7002005 Student split layout: WB left + cameras right, teacher popup, hand-raise SFX
+94cc8c8 Hand-raise feature: teacher receives queue with dismiss, badge on student tiles
+f3fe0f6 Add visible fullscreen button to student view control bar
+5cf1c8f Student view: YouTube-style fullscreen with auto-hiding overlay UI
+1f4d80c Redesign classroom: Google Meet-style student & teacher views, unified dark theme, auto-orient, cross-platform
 e4b1387 Disable video rotation on laptop/PC — only rotate on mobile devices
 f2dbc2a Auto notifications: creation emails, 30/5-min reminders, go-live alerts
 0cf4413 Time picker: 12-hour format with AM/PM dropdowns
-f4630a1 Fix: student payment_status 'pending' -> 'unpaid' to match CHECK constraint
-c1f8c34 Room creation: mandatory teacher with subject filter, student assignment, auto-suggest room name
-b676f75 Remove overtime, add 5-min warning + auto-exit at end time, fix join page dual-banner bug
-015fb89 fix: center End Class and Leave dialogs with fixed positioning
-475c3ef feat: Google Meet-style SVG vector control buttons for teacher and student rooms
-804dbde feat: rotate student video 90deg CW in teacher view, -90deg self-cam in student sidebar
-2904a40 feat: student view right sidebar with controls and teacher PIP
 ```
 
 ---
