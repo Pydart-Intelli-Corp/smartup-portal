@@ -14,6 +14,10 @@ import {
   Activity,
   Database,
   Eye,
+  FileText,
+  CreditCard,
+  Briefcase,
+  BarChart3,
 } from 'lucide-react';
 
 interface Room {
@@ -100,7 +104,7 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
         </div>
         <div className="rounded-xl border border-slate-600 bg-gray-900 p-4">
           <div className="flex items-center gap-2 text-xs text-gray-400">
-            <Database className="h-3.5 w-3.5" /> Total Rooms
+            <Database className="h-3.5 w-3.5" /> Total Batches
           </div>
           <p className="mt-1 text-2xl font-bold">{rooms.length}</p>
         </div>
@@ -131,6 +135,26 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
           </div>
         </div>
       )}
+
+      {/* Quick Actions */}
+      <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <a href="/owner/reports" className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-slate-500 hover:bg-gray-800 transition">
+          <BarChart3 className="h-5 w-5 text-blue-400" />
+          <span className="text-sm font-medium text-white">Reports</span>
+        </a>
+        <a href="/owner/payroll" className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-slate-500 hover:bg-gray-800 transition">
+          <Briefcase className="h-5 w-5 text-emerald-400" />
+          <span className="text-sm font-medium text-white">Payroll</span>
+        </a>
+        <a href="/owner/fees" className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-slate-500 hover:bg-gray-800 transition">
+          <CreditCard className="h-5 w-5 text-amber-400" />
+          <span className="text-sm font-medium text-white">Fees</span>
+        </a>
+        <a href="/ghost" className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-slate-500 hover:bg-gray-800 transition">
+          <Eye className="h-5 w-5 text-gray-400" />
+          <span className="text-sm font-medium text-white">Ghost Mode</span>
+        </a>
+      </div>
 
       {/* Live rooms */}
       {live.length > 0 && (
@@ -165,7 +189,7 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
 
       {/* Recent rooms */}
       <h2 className="mb-3 text-sm font-semibold text-gray-400 uppercase tracking-wider">
-        Recent Rooms
+        Recent Batches
       </h2>
       <div className="space-y-2">
         {loading && rooms.length === 0 ? (
@@ -174,7 +198,7 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
           </div>
         ) : rooms.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-700 py-12 text-center">
-            <p className="text-gray-400">No rooms in the system yet</p>
+            <p className="text-gray-400">No batches in the system yet</p>
           </div>
         ) : (
           rooms.slice(0, 20).map((room) => {

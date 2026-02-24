@@ -71,7 +71,7 @@ export default function GhostView({
   const downloadNotes = () => {
     const now = new Date();
     const content = `SmartUp Observation Notes
-Room: ${roomName} (${roomId})
+Batch: ${roomName} (${roomId})
 Observer: ${observerName} (${observerRole})
 Date: ${fmtDateLongIST(now)}
 ──────────────────────────────────────────
@@ -200,7 +200,7 @@ ${notes}`;
           {/* Stats */}
           <div className="border-b border-gray-800 p-3 text-xs text-gray-400 space-y-1">
             <p>Hands raised: {/* would track via data channel */}0</p>
-            <p>Room: {roomId}</p>
+            <p>Batch: {roomId}</p>
           </div>
 
           {/* Private Notes */}

@@ -585,7 +585,7 @@ export default function TeacherView({
                   </div>
                   <h2 className="text-lg font-medium text-[#e8eaed]">Waiting for students…</h2>
                   <p className="mt-2 text-sm text-[#9aa0a6]">
-                    {isLive ? 'Room is live — students can join now' : 'Go live to let students join'}
+                    {isLive ? 'Batch is live — students can join now' : 'Go live to let students join'}
                   </p>
                 </div>
               </div>

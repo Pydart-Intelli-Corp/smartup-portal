@@ -141,7 +141,7 @@ export default function JoinRoomClient({
           setError('');
           return;
         }
-        setError(data.error || 'Failed to join room');
+        setError(data.error || 'Failed to join batch');
         return;
       }
 

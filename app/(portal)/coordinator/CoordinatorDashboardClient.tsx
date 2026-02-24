@@ -109,7 +109,7 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
       { label: 'Monitor', href: '/coordinator', icon: LayoutDashboard, active: true },
     ]}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Room Monitor</h1>
+        <h1 className="text-2xl font-bold text-white">Batch Monitor</h1>
         <p className="text-sm text-gray-400">Track attendance, observe live classes, send reminders</p>
       </div>
 
@@ -139,7 +139,7 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
         </div>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <input type="text" placeholder="Search rooms, subject, grade..." value={search}
+          <input type="text" placeholder="Search batches, subject, grade..." value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-gray-700 bg-gray-800/50 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none"
           />
@@ -154,12 +154,12 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
       <div className="space-y-2">
         {loading && rooms.length === 0 ? (
           <div className="flex items-center justify-center py-20 text-gray-500">
-            <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading rooms...
+            <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading batches...
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-16 text-center">
             <Calendar className="mb-3 h-10 w-10 text-gray-600" />
-            <p className="text-gray-300 font-medium">No rooms found</p>
+            <p className="text-gray-300 font-medium">No batches found</p>
             <p className="mt-1 text-sm text-gray-500">
               {rooms.length === 0 ? 'No classes have been scheduled yet' : 'Try a different filter or search'}
             </p>
@@ -276,9 +276,9 @@ function MonitorDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Room Info */}
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Room Details</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Batch Details</h4>
           {[
-            ['Room ID', room.room_id, true],
+            ['Batch ID', room.room_id, true],
             ['Subject', room.subject, false],
             ['Grade', `${room.grade}${room.section ? ` \u2014 ${room.section}` : ''}`, false],
             ['Scheduled', fmtDateTimeIST(room.scheduled_start), false],

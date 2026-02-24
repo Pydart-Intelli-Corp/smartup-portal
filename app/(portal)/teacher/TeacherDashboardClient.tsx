@@ -556,9 +556,11 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
 export default function TeacherDashboardClient({ userName, userEmail, userRole }: Props) {
   const [rooms,          setRooms]          = useState<Room[]>([]);
   const [profile,        setProfile]        = useState<TeacherProfile | null>(null);
+  const [payslips,       setPayslips]       = useState<{id:string;period_label:string;period_start:string;period_end:string;classes_conducted:number;classes_cancelled:number;classes_missed:number;base_pay_paise:number;incentive_paise:number;lop_paise:number;total_paise:number;status:string}[]>([]);
   const [loadingRooms,   setLoadingRooms]   = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(false);
-  const [activeTab,      setActiveTab]      = useState<'overview' | 'classes' | 'profile'>('overview');
+  const [loadingPay,     setLoadingPay]     = useState(false);
+  const [activeTab,      setActiveTab]      = useState<'overview' | 'classes' | 'profile' | 'salary'>('overview');
 
   const fetchRooms = useCallback(async () => {
     setLoadingRooms(true);
@@ -589,12 +591,26 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
     }
   }, []);
 
+  const fetchPayslips = useCallback(async () => {
+    setLoadingPay(true);
+    try {
+      const res = await fetch('/api/v1/payroll?resource=payslips');
+      const data = await res.json();
+      if (data.success) setPayslips(data.data?.payslips || []);
+    } catch (e) { console.error('[Teacher] payslips fetch failed:', e); }
+    setLoadingPay(false);
+  }, []);
+
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
 
   // Lazy-load profile only when tab first opened
   useEffect(() => {
     if (activeTab === 'profile' && !profile) fetchProfile();
   }, [activeTab, profile, fetchProfile]);
+
+  useEffect(() => {
+    if (activeTab === 'salary' && payslips.length === 0) fetchPayslips();
+  }, [activeTab, payslips.length, fetchPayslips]);
 
   // Auto-refresh rooms every 60 s (picks up live status changes)
   useEffect(() => {
@@ -607,6 +623,8 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
   const navItems = [
     { label: 'Dashboard',  href: '/teacher',         icon: LayoutDashboard, active: true },
     { label: 'My Classes', href: '/teacher#classes',  icon: BookOpen },
+    { label: 'Exams',      href: '/teacher/exams',   icon: Award },
+    { label: 'Salary',     href: '/teacher#salary',  icon: Briefcase },
   ];
 
   return (
@@ -648,6 +666,7 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
               label: liveCount > 0 ? `My Classes  •  ${liveCount} Live` : 'My Classes',
               icon:  BookOpen,
             },
+            { key: 'salary'  as const, label: 'Salary',      icon: Briefcase },
             { key: 'profile' as const, label: 'My Profile',  icon: User },
           ] as const
         ).map(({ key, label, icon: Icon }) => (
@@ -672,6 +691,51 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
       {/* Tab Content */}
       {activeTab === 'overview' && <OverviewTab rooms={rooms}  userName={userName} />}
       {activeTab === 'classes'  && <MyClassesTab rooms={rooms} />}
+      {activeTab === 'salary'   && (
+        <div className="space-y-4">
+          {loadingPay ? (
+            <div className="flex items-center justify-center py-16">
+              <RefreshCw className="h-6 w-6 animate-spin text-emerald-500" />
+            </div>
+          ) : payslips.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+              <Briefcase className="h-12 w-12 mb-3 opacity-40" />
+              <p className="text-sm">No payslips available yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {payslips.map(s => (
+                <div key={s.id} className="rounded-xl border border-gray-700 bg-gray-800/50 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-white">{s.period_label || 'Payslip'}</h4>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      s.status === 'paid' ? 'bg-green-500/20 text-green-400' :
+                      s.status === 'finalized' ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'
+                    }`}>{s.status}</span>
+                  </div>
+                  {s.period_start && (
+                    <p className="text-xs text-gray-500 mb-3">
+                      {new Date(s.period_start).toLocaleDateString('en-IN')} — {new Date(s.period_end).toLocaleDateString('en-IN')}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div><p className="text-[10px] text-gray-500">Classes</p><p className="text-sm text-white font-semibold">{s.classes_conducted}</p></div>
+                    <div><p className="text-[10px] text-gray-500">Base Pay</p><p className="text-sm text-green-400 font-semibold">₹{(s.base_pay_paise/100).toLocaleString('en-IN')}</p></div>
+                    <div><p className="text-[10px] text-gray-500">Incentive</p><p className="text-sm text-blue-400 font-semibold">₹{(s.incentive_paise/100).toLocaleString('en-IN')}</p></div>
+                    <div><p className="text-[10px] text-gray-500">Total</p><p className="text-sm text-white font-bold">₹{(s.total_paise/100).toLocaleString('en-IN')}</p></div>
+                  </div>
+                  {(s.classes_cancelled > 0 || s.classes_missed > 0) && (
+                    <div className="flex gap-4 mt-2 text-xs">
+                      {s.classes_cancelled > 0 && <span className="text-yellow-400">{s.classes_cancelled} cancelled</span>}
+                      {s.classes_missed > 0 && <span className="text-red-400">{s.classes_missed} missed (LOP: ₹{(s.lop_paise/100).toLocaleString('en-IN')})</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {activeTab === 'profile'  && <ProfileTab   profile={profile} loading={loadingProfile} />}
     </DashboardShell>
   );

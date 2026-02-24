@@ -12,6 +12,9 @@ import {
   RefreshCw,
   Eye,
   CheckCircle2,
+  CreditCard,
+  GraduationCap,
+  FileText,
 } from 'lucide-react';
 
 interface ChildRoom {
@@ -36,6 +39,8 @@ interface Props {
 export default function ParentDashboardClient({ userName, userEmail, userRole }: Props) {
   const [rooms, setRooms] = useState<ChildRoom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<Record<string, unknown>[]>([]);
+  const [examResults, setExamResults] = useState<Record<string, unknown>[]>([]);
 
   const fetchRooms = useCallback(async () => {
     setLoading(true);
@@ -50,9 +55,18 @@ export default function ParentDashboardClient({ userName, userEmail, userRole }:
     }
   }, []);
 
+  const fetchInvoices = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/payment/invoices');
+      const data = await res.json();
+      if (data.success) setInvoices(data.data?.invoices || []);
+    } catch (err) { console.error('Invoices fetch failed:', err); }
+  }, []);
+
   useEffect(() => {
     fetchRooms();
-  }, [fetchRooms]);
+    fetchInvoices();
+  }, [fetchRooms, fetchInvoices]);
 
   const live = rooms.filter((r) => r.status === 'live');
   const upcoming = rooms.filter((r) => r.status === 'scheduled');
@@ -175,6 +189,42 @@ export default function ParentDashboardClient({ userName, userEmail, userRole }:
               ))}
           </div>
         </>
+      )}
+
+      {/* Invoices / Fee Section */}
+      <h2 className="mt-8 mb-3 text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+        <CreditCard className="h-4 w-4" /> Fee & Payments
+      </h2>
+      {invoices.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-700 py-8 text-center">
+          <CreditCard className="mx-auto mb-2 h-8 w-8 text-gray-600" />
+          <p className="text-gray-400 text-sm">No invoices found</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {invoices.slice(0, 10).map((inv, idx) => {
+            const status = inv.status as string;
+            const statusColors: Record<string, string> = {
+              paid: 'text-green-400 border-green-700',
+              pending: 'text-yellow-400 border-yellow-700',
+              overdue: 'text-red-400 border-red-700',
+            };
+            return (
+              <div key={idx} className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/50 p-3">
+                <FileText className="h-5 w-5 text-rose-400" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{inv.invoice_number as string || `Invoice #${idx + 1}`}</p>
+                  <p className="text-xs text-gray-500">
+                    ₹{((inv.amount_paise as number) / 100).toFixed(2)} · Due: {inv.due_date ? new Date(inv.due_date as string).toLocaleDateString('en-IN') : '—'}
+                  </p>
+                </div>
+                <span className={`text-[10px] font-semibold uppercase border rounded px-2 py-0.5 ${statusColors[status] || 'text-gray-400 border-gray-700'}`}>
+                  {status}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </DashboardShell>
   );

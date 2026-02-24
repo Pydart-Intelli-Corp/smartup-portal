@@ -305,6 +305,40 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
         </div>
       )}
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <a href="/student/exams"
+          className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-violet-600 hover:bg-gray-800 transition">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-900/40">
+            <GraduationCap className="h-5 w-5 text-violet-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Exams</p>
+            <p className="text-xs text-gray-500">View & take exams</p>
+          </div>
+        </a>
+        <a href="/student"
+          className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-blue-600 hover:bg-gray-800 transition">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-900/40">
+            <CreditCard className="h-5 w-5 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Payments</p>
+            <p className="text-xs text-gray-500">Fee history</p>
+          </div>
+        </a>
+        <a href="/student"
+          className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/50 p-4 hover:border-green-600 hover:bg-gray-800 transition">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-900/40">
+            <Video className="h-5 w-5 text-green-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Recordings</p>
+            <p className="text-xs text-gray-500">Class recordings</p>
+          </div>
+        </a>
+      </div>
+
       {/* Empty state */}
       {assignments.length === 0 && (
         <div className="rounded-xl border border-dashed border-gray-700 py-16 text-center">
@@ -660,6 +694,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole }
   const navItems = [
     { label: 'Dashboard',  href: '/student',         icon: LayoutDashboard, active: true },
     { label: 'My Classes', href: '/student#classes',  icon: BookOpen },
+    { label: 'Exams',      href: '/student/exams',   icon: GraduationCap },
   ];
 
   return (

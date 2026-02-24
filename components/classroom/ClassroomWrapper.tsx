@@ -115,7 +115,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       }
 
       if (!lkToken || !lkUrl) {
-        setError('Missing session data. Please rejoin the room.');
+        setError('Missing session data. Please rejoin the batch.');
         return;
       }
 
@@ -224,7 +224,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
             onClick={() => router.push(`/join/${roomId}`)}
             className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
           >
-            Rejoin Room
+            Rejoin Batch
           </button>
         </div>
       </div>

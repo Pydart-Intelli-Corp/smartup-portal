@@ -50,7 +50,7 @@ export default function PreJoinLobby({
         if (!navigator.mediaDevices?.getUserMedia) {
           setCameraError(
             window.location.protocol === 'http:' && window.location.hostname !== 'localhost'
-              ? 'Camera requires HTTPS. You can still join — LiveKit will request access inside the room.'
+              ? 'Camera requires HTTPS. You can still join — LiveKit will request access inside the classroom.'
               : 'Camera/mic not available on this device.'
           );
           return;

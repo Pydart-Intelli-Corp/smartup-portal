@@ -49,8 +49,8 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-950">
         <div className="text-center">
-          <h1 className="text-xl font-bold text-red-400">Room Not Found</h1>
-          <p className="mt-2 text-gray-400">This room does not exist or may have been deleted.</p>
+          <h1 className="text-xl font-bold text-red-400">Batch Not Found</h1>
+          <p className="mt-2 text-gray-400">This batch does not exist or may have been deleted.</p>
         </div>
       </div>
     );
@@ -63,7 +63,7 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-950">
         <div className="text-center">
-          <h1 className="text-xl font-bold text-red-400">Room Cancelled</h1>
+          <h1 className="text-xl font-bold text-red-400">Batch Cancelled</h1>
           <p className="mt-2 text-gray-400">This class has been cancelled by the coordinator.</p>
         </div>
       </div>

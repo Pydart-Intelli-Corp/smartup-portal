@@ -190,10 +190,10 @@ export default function DevPage() {
 
       {/* Room settings */}
       <div className="mb-8 rounded-xl border border-gray-800 bg-gray-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Room Settings</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Batch Settings</h2>
         <div className="flex gap-4">
           <div>
-            <label className="text-xs text-gray-500">Room ID</label>
+            <label className="text-xs text-gray-500">Batch ID</label>
             <input
               type="text"
               value={roomId}
@@ -202,7 +202,7 @@ export default function DevPage() {
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500">Room Name</label>
+            <label className="text-xs text-gray-500">Batch Name</label>
             <input
               type="text"
               value={roomName}
