@@ -12,7 +12,7 @@ async function getCoordinator(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
   const user = await verifySession(token);
-  if (!user || !['coordinator', 'academic_operator', 'owner'].includes(user.role)) return null;
+  if (!user || !['batch_coordinator', 'academic_operator', 'owner'].includes(user.role)) return null;
   return user;
 }
 

@@ -127,13 +127,13 @@ export default function VideoQualitySelector({
       {open && (
         <div
           className={cn(
-            'absolute z-[80] min-w-[160px] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/[0.08] animate-in fade-in zoom-in-95 duration-150',
+            'absolute z-80 min-w-40 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/8 animate-in fade-in zoom-in-95 duration-150',
             'bg-[#2d2e30]/95 backdrop-blur-xl',
             isOverlay ? 'bottom-full mb-2 right-0' : 'top-full mt-1 right-0',
           )}
         >
           {/* Header */}
-          <div className="px-3 py-2 border-b border-white/[0.06]">
+          <div className="px-3 py-2 border-b border-white/6">
             <span className="text-[11px] font-semibold text-[#9aa0a6] uppercase tracking-wider">Quality</span>
           </div>
 
@@ -148,7 +148,7 @@ export default function VideoQualitySelector({
                   'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
                   isActive
                     ? 'bg-[#1a73e8]/15 text-[#8ab4f8]'
-                    : 'text-[#e8eaed] hover:bg-white/[0.06]',
+                    : 'text-[#e8eaed] hover:bg-white/6',
                 )}
               >
                 {/* Check mark */}

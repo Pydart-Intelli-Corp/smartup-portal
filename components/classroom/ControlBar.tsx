@@ -96,7 +96,7 @@ export default function ControlBar({
 
   return (
     <div className={cn(
-      'relative flex h-[72px] items-center justify-center gap-2 border-t border-[#3c4043]/50 bg-[#202124] px-6',
+      'relative flex h-18 items-center justify-center gap-2 border-t border-[#3c4043]/50 bg-[#202124] px-6',
       className
     )}>
       {/* Microphone */}

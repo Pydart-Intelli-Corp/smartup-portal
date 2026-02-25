@@ -2,7 +2,7 @@
 // Coordinator Dashboard — Client Component
 // Monitoring-only: view rooms, attendance, observe live classes,
 // send reminders. NO room creation / editing / deleting.
-// Per PDF scope: Batch Coordinator monitors, does not manage.
+// Per PDF scope: Admin monitors, does not manage.
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -48,6 +48,16 @@ interface CoordinatorDashboardClientProps {
   userName: string;
   userEmail: string;
   userRole: string;
+  permissions?: Record<string, boolean>;
+}
+
+/** Treat 'live' rooms past their end time as 'ended' (safety net). */
+function effectiveStatus(room: { status: string; scheduled_start: string; duration_minutes: number }): string {
+  if (room.status === 'live') {
+    const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
+    if (Date.now() >= endMs) return 'ended';
+  }
+  return room.status;
 }
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; dot: string; icon: typeof Radio }> = {
@@ -69,7 +79,7 @@ function Avatar({ name, size = 7, color = 'bg-primary' }: { name: string; size?:
   );
 }
 
-export default function CoordinatorDashboardClient({ userName, userEmail, userRole }: CoordinatorDashboardClientProps) {
+export default function CoordinatorDashboardClient({ userName, userEmail, userRole, permissions }: CoordinatorDashboardClientProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -90,7 +100,7 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
 
   const filteredRooms = rooms
-    .filter((r) => filter === 'all' || r.status === filter)
+    .filter((r) => filter === 'all' || effectiveStatus(r) === filter)
     .filter((r) => !search ||
       r.room_name.toLowerCase().includes(search.toLowerCase()) ||
       r.subject.toLowerCase().includes(search.toLowerCase()) ||
@@ -99,17 +109,13 @@ export default function CoordinatorDashboardClient({ userName, userEmail, userRo
 
   const stats = {
     total: rooms.length,
-    live: rooms.filter((r) => r.status === 'live').length,
-    scheduled: rooms.filter((r) => r.status === 'scheduled').length,
-    ended: rooms.filter((r) => r.status === 'ended').length,
+    live: rooms.filter((r) => effectiveStatus(r) === 'live').length,
+    scheduled: rooms.filter((r) => effectiveStatus(r) === 'scheduled').length,
+    ended: rooms.filter((r) => effectiveStatus(r) === 'ended').length,
   };
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={[
-      { label: 'Monitor', href: '/coordinator', icon: LayoutDashboard, active: true },
-      { label: 'Admissions', href: '/coordinator/admissions', icon: GraduationCap },
-      { label: 'Cancellations', href: '/coordinator/cancellations', icon: XCircle },
-    ]}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Batch Monitor</h1>
         <p className="text-sm text-muted-foreground">Track attendance, observe live classes, send reminders</p>

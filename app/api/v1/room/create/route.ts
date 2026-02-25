@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only coordinators, academic staff, and owners can create rooms
-    const allowedRoles = ['coordinator', 'academic_operator', 'academic', 'owner'];
+    // Only batch coordinators, academic staff, and owners can create rooms
+    const allowedRoles = ['batch_coordinator', 'academic_operator', 'academic', 'owner'];
     if (!allowedRoles.includes(user.role)) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Insufficient permissions — room creation requires coordinator or academic role' },
+        { success: false, error: 'Insufficient permissions — room creation requires batch coordinator or academic role' },
         { status: 403 }
       );
     }

@@ -1,18 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// Coordinator Cancellations — /coordinator/cancellations
+// Owner → Roles — Server Page
 // ═══════════════════════════════════════════════════════════════
 
 import { requireRole } from '@/lib/auth-utils';
-import CancellationsClient from './CancellationsClient';
+import RolesClient from './RolesClient';
 
-export default async function CancellationsPage() {
-  const user = await requireRole('coordinator');
-
-  return (
-    <CancellationsClient
-      userName={user.name}
-      userEmail={user.id}
-      userRole={user.role}
-    />
-  );
+export default async function RolesPage() {
+  const user = await requireRole('owner');
+  return <RolesClient userName={user.name} userEmail={user.id} userRole={user.role} />;
 }

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
             COUNT(*) AS total,
             COUNT(*) FILTER (WHERE is_active = TRUE) AS active
      FROM portal_users
-     WHERE portal_role IN ('teacher','student','coordinator','parent','hr','academic_operator')
+     WHERE portal_role IN ('teacher','student','batch_coordinator','parent','hr','academic_operator')
      GROUP BY portal_role`
   );
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const recentResult = await db.query(
     `SELECT email, full_name, portal_role, is_active, created_at
      FROM portal_users
-     WHERE portal_role IN ('teacher','student','coordinator','parent')
+     WHERE portal_role IN ('teacher','student','batch_coordinator','parent')
      ORDER BY created_at DESC
      LIMIT 10`
   );

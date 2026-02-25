@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Admin roles see all complaints
-    if (['owner', 'coordinator', 'academic_operator', 'hr'].includes(user.role)) {
+    if (['owner', 'batch_coordinator', 'academic_operator', 'hr'].includes(user.role)) {
       let sql = `SELECT c.*, pu.full_name AS parent_name
                  FROM parent_complaints c
                  LEFT JOIN portal_users pu ON pu.email = c.parent_email
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     // Only parents and coordinators/admins can create complaints
-    if (!['parent', 'coordinator', 'owner', 'academic_operator'].includes(user.role)) {
+    if (!['parent', 'batch_coordinator', 'owner', 'academic_operator'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -106,7 +106,7 @@ export async function PATCH(req: NextRequest) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const user = await verifySession(token);
-    if (!user || !['coordinator', 'owner', 'academic_operator', 'hr'].includes(user.role)) {
+    if (!user || !['batch_coordinator', 'owner', 'academic_operator', 'hr'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Admin roles only' }, { status: 403 });
     }
 

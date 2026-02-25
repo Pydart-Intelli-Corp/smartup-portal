@@ -13,8 +13,9 @@ ALTER TABLE portal_users
 ALTER TABLE portal_users
   ADD CONSTRAINT chk_portal_role CHECK (
     portal_role IN (
-      'teacher', 'student', 'coordinator', 'academic_operator',
-      'hr', 'academic', 'parent', 'owner', 'ghost'
+      'teacher', 'teacher_screen', 'student',
+      'batch_coordinator', 'academic_operator', 'academic',
+      'hr', 'parent', 'owner', 'ghost'
     )
   );
 

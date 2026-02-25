@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
+import PortalProviders from './providers';
 
 /**
  * Portal layout — wraps all authenticated portal routes.
@@ -28,5 +29,5 @@ export default async function PortalLayout({
   const user = await verifySession(token);
   if (!user) redirect('/login');
 
-  return <>{children}</>;
+  return <PortalProviders>{children}</PortalProviders>;
 }

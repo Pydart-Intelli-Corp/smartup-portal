@@ -50,6 +50,7 @@ interface Props {
   userName: string;
   userEmail: string;
   userRole: string;
+  permissions?: Record<string, boolean>;
 }
 
 // ── Constants ───────────────────────────────────────────────────
@@ -151,7 +152,7 @@ function OverviewTab({ rooms, userName }: { rooms: Room[]; userName: string }) {
     <div className="space-y-6">
       {/* Live Alert Banner */}
       {liveRooms.length > 0 && (
-        <div className="rounded-2xl border-2 border-green-500 bg-gradient-to-r from-green-950/60 to-emerald-950/40 p-6">
+        <div className="rounded-2xl border-2 border-green-500 bg-linear-to-r from-green-950/60 to-emerald-950/40 p-6">
           <div className="mb-4 flex items-center gap-3">
             <div className="h-3 w-3 animate-pulse rounded-full bg-green-400" />
             <h2 className="text-lg font-bold text-green-300">
@@ -605,7 +606,7 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
   return (
     <div className="max-w-2xl space-y-5">
       {/* Header Card */}
-      <div className="rounded-2xl border border-emerald-800 bg-gradient-to-br from-emerald-950/40 to-card p-6">
+      <div className="rounded-2xl border border-emerald-800 bg-linear-to-br from-emerald-950/40 to-card p-6">
         <div className="flex items-center gap-5">
           <Avatar name={profile.name} size={16} color="bg-primary" />
           <div>
@@ -657,7 +658,7 @@ function ProfileTab({ profile, loading }: { profile: TeacherProfile | null; load
 
 // ── Main Dashboard Component ──────────────────────────────────────
 
-export default function TeacherDashboardClient({ userName, userEmail, userRole }: Props) {
+export default function TeacherDashboardClient({ userName, userEmail, userRole, permissions }: Props) {
   const [rooms,          setRooms]          = useState<Room[]>([]);
   const [profile,        setProfile]        = useState<TeacherProfile | null>(null);
   const [payslips,       setPayslips]       = useState<{id:string;period_label:string;period_start:string;period_end:string;classes_conducted:number;classes_cancelled:number;classes_missed:number;base_pay_paise:number;incentive_paise:number;lop_paise:number;total_paise:number;status:string}[]>([]);
@@ -722,17 +723,12 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
     return () => clearInterval(id);
   }, [fetchRooms]);
 
-  const liveCount = rooms.filter((r) => r.status === 'live').length;
+  const liveCount = rooms.filter((r) => effectiveStatus(r) === 'live').length;
 
-  const navItems = [
-    { label: 'Dashboard',  href: '/teacher',         icon: LayoutDashboard, active: true },
-    { label: 'My Classes', href: '/teacher#classes',  icon: BookOpen },
-    { label: 'Exams',      href: '/teacher/exams',   icon: Award },
-    { label: 'Salary',     href: '/teacher#salary',  icon: Briefcase },
-  ];
+
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       {/* Page Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
@@ -762,15 +758,14 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
 
       {/* Tab Bar */}
       <div className="mb-6 flex gap-1 rounded-xl border border-border bg-card/60 p-1">
-        {(
-          [
+        {([
             { key: 'overview' as const, label: 'Overview',   icon: LayoutDashboard },
             {
               key:   'classes' as const,
-              label: liveCount > 0 ? `My Classes  •  ${liveCount} Live` : 'My Classes',
+              label: liveCount > 0 ? `My Classes  \u2022  ${liveCount} Live` : 'My Classes',
               icon:  BookOpen,
             },
-            { key: 'salary'  as const, label: 'Salary',      icon: Briefcase },
+            ...(permissions?.salary_view !== false ? [{ key: 'salary'  as const, label: 'Salary',      icon: Briefcase }] : []),
             { key: 'profile' as const, label: 'My Profile',  icon: User },
           ] as const
         ).map(({ key, label, icon: Icon }) => (
@@ -795,7 +790,7 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole }
       {/* Tab Content */}
       {activeTab === 'overview' && <OverviewTab rooms={rooms}  userName={userName} />}
       {activeTab === 'classes'  && <MyClassesTab rooms={rooms} />}
-      {activeTab === 'salary'   && (
+      {activeTab === 'salary' && permissions?.salary_view !== false && (
         <div className="space-y-4">
           {loadingPay ? (
             <div className="flex items-center justify-center py-16">

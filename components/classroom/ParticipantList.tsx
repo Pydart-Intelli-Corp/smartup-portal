@@ -201,7 +201,7 @@ function RoleBadge({ role }: { role: string }) {
     teacher: 'bg-emerald-600',
     student: 'bg-blue-600',
     observer: 'bg-purple-600',
-    coordinator: 'bg-indigo-600',
+    batch_coordinator: 'bg-indigo-600',
     academic: 'bg-teal-600',
     parent: 'bg-orange-600',
     owner: 'bg-purple-600',

@@ -29,9 +29,19 @@ interface Props {
   userName: string;
   userEmail: string;
   userRole: string;
+  permissions?: Record<string, boolean>;
 }
 
-export default function GhostDashboardClient({ userName, userEmail, userRole }: Props) {
+/** Treat 'live' rooms past their end time as 'ended' (safety net). */
+function effectiveStatus(room: Room): string {
+  if (room.status === 'live') {
+    const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
+    if (Date.now() >= endMs) return 'ended';
+  }
+  return room.status;
+}
+
+export default function GhostDashboardClient({ userName, userEmail, userRole, permissions }: Props) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,17 +62,13 @@ export default function GhostDashboardClient({ userName, userEmail, userRole }: 
     fetchRooms();
   }, [fetchRooms]);
 
-  const live = rooms.filter((r) => r.status === 'live');
-  const scheduled = rooms.filter((r) => r.status === 'scheduled');
+  const live = rooms.filter((r) => effectiveStatus(r) === 'live');
+  const scheduled = rooms.filter((r) => effectiveStatus(r) === 'scheduled');
 
-  const navItems = [
-    { label: 'Dashboard', href: '/ghost', icon: LayoutDashboard, active: true },
-    { label: 'Observe', href: '/ghost', icon: Eye },
-    { label: 'Oversight', href: '/ghost/monitor', icon: Monitor },
-  ];
+
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <EyeOff className="h-6 w-6 text-muted-foreground" /> Ghost Observer

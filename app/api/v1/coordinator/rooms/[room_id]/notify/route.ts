@@ -24,7 +24,7 @@ export async function POST(
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   const user = await verifySession(token);
-  if (!user || !['coordinator', 'academic_operator', 'owner'].includes(user.role))
+  if (!user || !['batch_coordinator', 'academic_operator', 'owner'].includes(user.role))
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
   // Get room
@@ -145,7 +145,7 @@ export async function POST(
   // Record event
   await db.query(
     `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
-     VALUES ($1, 'notification_sent', $2, 'coordinator', $3)`,
+     VALUES ($1, 'notification_sent', $2, 'batch_coordinator', $3)`,
     [
       room_id,
       user.id,

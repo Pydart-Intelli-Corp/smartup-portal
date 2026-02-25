@@ -402,7 +402,7 @@ export interface CredentialsTemplateData {
 
 export function credentialsTemplate(data: CredentialsTemplateData): { subject: string; html: string; text: string } {
   const roleColors: Record<string, string> = {
-    'Teacher': '#059669', 'Student': '#7c3aed', 'Batch Coordinator': '#2563eb',
+    'Teacher': '#059669', 'Student': '#7c3aed', 'Admin': '#2563eb',
     'Parent': '#e11d48', 'HR Associate': '#0d9488',
   };
   const accent = roleColors[data.role] || '#4a6cf7';

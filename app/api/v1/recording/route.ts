@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const user = await verifySession(token);
-    if (!user || !['teacher', 'owner', 'coordinator'].includes(user.role)) {
+    if (!user || !['teacher', 'owner', 'batch_coordinator'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

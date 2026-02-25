@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     // Get results
     if (action === 'results') {
-      if (!['teacher', 'owner', 'coordinator', 'academic_operator'].includes(user.role)) {
+      if (!['teacher', 'owner', 'batch_coordinator', 'academic_operator'].includes(user.role)) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
       }
       const results = await getExamResults(id);

@@ -83,8 +83,8 @@ export default function FeedbackDialog({
 
   if (submitted) {
     return (
-      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-md">
-        <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/[0.06]">
+      <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/70 backdrop-blur-md">
+        <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/6">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#34a853]/10">
             <span className="text-3xl">✅</span>
           </div>
@@ -96,8 +96,8 @@ export default function FeedbackDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-md">
-      <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-6 shadow-2xl ring-1 ring-white/[0.06]">
+    <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/70 backdrop-blur-md">
+      <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-6 shadow-2xl ring-1 ring-white/6">
         {/* Header */}
         <div className="text-center mb-5">
           <h3 className="text-lg font-semibold text-white">How was your class?</h3>

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
     const user = await verifySession(token);
-    if (!user || !['teacher', 'coordinator', 'academic_operator', 'owner'].includes(user.role)) {
+    if (!user || !['teacher', 'batch_coordinator', 'academic_operator', 'owner'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Only teachers and admin roles can enter marks' }, { status: 403 });
     }
 
@@ -116,7 +116,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
     const user = await verifySession(token);
-    if (!user || !['teacher', 'coordinator', 'academic_operator', 'owner'].includes(user.role)) {
+    if (!user || !['teacher', 'batch_coordinator', 'academic_operator', 'owner'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

@@ -124,7 +124,7 @@ export default function VideoTile({
 
       {/* Bottom overlay: name + mic indicator */}
       {(showName || showMicIndicator) && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+        <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-2 py-1">
           <div className="flex items-center gap-1.5">
             {showMicIndicator && (
               <span className="text-xs">

@@ -15,7 +15,7 @@ async function getCoordinator(req: NextRequest) {
   if (!token) return null;
   const user = await verifySession(token);
   if (!user) return null;
-  if (!['coordinator', 'academic_operator', 'owner'].includes(user.role)) return null;
+  if (!['batch_coordinator', 'academic_operator', 'owner'].includes(user.role)) return null;
   return user;
 }
 
@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
   let whereSql = ' WHERE 1=1';
   const params: unknown[] = [];
 
-  // Owner sees all rooms; coordinator sees only their own
-  if (user.role === 'coordinator') {
+  // Owner sees all rooms; batch_coordinator sees only their own
+  if (user.role === 'batch_coordinator') {
     params.push(user.id);
     whereSql += ` AND r.coordinator_email = $${params.length}`;
   }
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
       // Audit event
       await client.query(
         `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
-         VALUES ($1, 'room_created', $2, 'coordinator', $3)`,
+         VALUES ($1, 'room_created', $2, 'batch_coordinator', $3)`,
         [roomId, user.id, JSON.stringify({ room_name: trimmedName, subject, grade, teacher_email })]
       );
 

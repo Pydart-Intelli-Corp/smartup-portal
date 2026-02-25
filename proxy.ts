@@ -68,7 +68,7 @@ export async function proxy(request: NextRequest) {
   if (user.role === 'owner') return NextResponse.next();
 
   const routeRoleMap: Record<string, string[]> = {
-    '/coordinator':       ['coordinator'],
+    '/batch-coordinator':  ['batch_coordinator'],
     '/academic-operator': ['academic_operator', 'academic'], // 'academic' is legacy alias
     '/hr':                ['hr'],
     '/teacher':           ['teacher'],
@@ -89,7 +89,7 @@ export async function proxy(request: NextRequest) {
 /** Maps portal role to their dashboard URL */
 function getDashboardUrl(role: string): string {
   switch (role) {
-    case 'coordinator':       return '/coordinator';
+    case 'batch_coordinator':  return '/batch-coordinator';
     case 'academic_operator': return '/academic-operator';
     case 'academic':          return '/academic-operator'; // legacy alias
     case 'hr':                return '/hr';

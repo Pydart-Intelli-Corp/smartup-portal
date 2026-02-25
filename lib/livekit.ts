@@ -58,7 +58,7 @@ const GRANTS: Record<PortalRole, VideoGrant> = {
     canSubscribe: true,
     hidden: false,
   },
-  coordinator: {
+  batch_coordinator: {
     roomJoin: true,
     canPublish: false,
     canPublishData: false, // ghost: no chat messages

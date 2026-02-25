@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   }
 
   const user = await verifySession(token);
-  if (!user || !['coordinator', 'academic_operator', 'owner'].includes(user.role)) {
+  if (!user || !['batch_coordinator', 'academic_operator', 'owner'].includes(user.role)) {
     return NextResponse.json<ApiResponse>({ success: false, error: 'Forbidden' }, { status: 403 });
   }
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // When searching coordinators, include active batch count
-    if (role === 'coordinator') {
+    if (role === 'batch_coordinator') {
       const users = await searchCoordinatorsWithBatchCount(q);
       return NextResponse.json<ApiResponse>({
         success: true,

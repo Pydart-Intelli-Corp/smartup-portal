@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const user = await verifySession(token);
-    if (!user || !['owner', 'hr', 'academic_operator', 'coordinator'].includes(user.role)) {
+    if (!user || !['owner', 'hr', 'academic_operator', 'batch_coordinator'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

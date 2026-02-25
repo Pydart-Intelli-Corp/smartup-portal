@@ -698,7 +698,7 @@ export default function StudentView({
           /* ── Split layout: Whiteboard LEFT, cameras RIGHT ── */
           <div className="flex h-full w-full">
             {/* Whiteboard — takes most of the space */}
-            <div className={cn('h-full overflow-hidden', compact ? 'flex-1' : 'flex-[3]')}>
+            <div className={cn('h-full overflow-hidden', compact ? 'flex-1' : 'flex-3')}>
               <WhiteboardComposite
                 teacher={teacher}
                 teacherScreenDevice={screenDevice}
@@ -709,7 +709,7 @@ export default function StudentView({
             {/* Camera strip — right side */}
             <div className={cn(
               'flex flex-col gap-1.5 bg-[#181818] overflow-hidden',
-              compact ? 'w-[90px] p-1' : 'flex-1 max-w-[280px] p-2',
+              compact ? 'w-22.5 p-1' : 'flex-1 max-w-70 p-2',
             )}>
               {/* Teacher camera */}
               {hasTeacherCam && teacherCamPub ? (
@@ -724,7 +724,7 @@ export default function StudentView({
                     trackRef={{ participant: teacher, publication: teacherCamPub, source: Track.Source.Camera } as TrackReference}
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                  <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-2 py-1">
                     <span className={cn('font-medium text-white/90 drop-shadow-sm', compact ? 'text-[8px]' : 'text-[11px]')}>
                       {teacher.name || teacher.identity}
                     </span>
@@ -749,11 +749,11 @@ export default function StudentView({
               {/* Self camera */}
               <div className={cn(
                 'relative overflow-hidden rounded-xl ring-1 ring-white/10',
-                compact ? 'h-[60px] rounded-lg' : 'flex-1 min-h-0',
+                compact ? 'h-15 rounded-lg' : 'flex-1 min-h-0',
               )}>
                 {isCamOn ? (
                   <div className="h-full w-full" style={forceRotate ? { transform: 'rotate(-90deg) scaleX(-1)' } : { transform: 'scaleX(-1)' }}>
-                    <VideoTile participant={localParticipant} size="large" mirror={false} showName={false} showMicIndicator={false} className="!w-full !h-full !rounded-none !border-0" />
+                    <VideoTile participant={localParticipant} size="large" mirror={false} showName={false} showMicIndicator={false} className="w-full! h-full! rounded-none! border-0!" />
                   </div>
                 ) : (
                   <div className="flex h-full items-center justify-center bg-[#202124]">
@@ -762,7 +762,7 @@ export default function StudentView({
                     </div>
                   </div>
                 )}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-2 py-1">
                   <span className={cn('font-medium text-white/90 drop-shadow-sm', compact ? 'text-[8px]' : 'text-[11px]')}>
                     You {!isMicOn && '\uD83D\uDD07'}
                   </span>
@@ -778,7 +778,7 @@ export default function StudentView({
               showName={false}
               showMicIndicator={false}
               playAudio={true}
-              className="h-full w-full !border-0 !rounded-none"
+              className="h-full w-full border-0! rounded-none!"
             />
           </div>
         ) : (
@@ -812,7 +812,7 @@ export default function StudentView({
 
       {/* === TOAST — media toggle notification === */}
       {toast && (
-        <div className="absolute top-12 inset-x-0 z-[70] flex justify-center pointer-events-none">
+        <div className="absolute top-12 inset-x-0 z-70 flex justify-center pointer-events-none">
           <div className="rounded-full bg-[#2d2e30]/95 px-5 py-2 shadow-lg ring-1 ring-white/10 backdrop-blur-sm animate-in fade-in slide-in-from-top-2">
             <span className="text-xs font-medium text-[#f9ab00]">{toast}</span>
           </div>
@@ -821,7 +821,7 @@ export default function StudentView({
 
       {/* === LAYER 1 — Warning / expired banner (always visible) === */}
       {isWarning && !warningDismissed && (
-        <div className="absolute top-0 inset-x-0 z-[60] flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5">
+        <div className="absolute top-0 inset-x-0 z-60 flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5">
           <span className="text-xs font-bold text-[#202124]">
             {'\u26A0'} Class ends in {Math.ceil((remaining ?? 0) / 60)} min
           </span>
@@ -831,7 +831,7 @@ export default function StudentView({
         </div>
       )}
       {isExpired && (
-        <div className="absolute top-0 inset-x-0 z-[60] flex items-center justify-center bg-[#ea4335] px-4 py-1.5 animate-pulse">
+        <div className="absolute top-0 inset-x-0 z-60 flex items-center justify-center bg-[#ea4335] px-4 py-1.5 animate-pulse">
           <span className="text-xs font-bold text-white">{'\u23F0'} Class ended — disconnecting\u2026</span>
         </div>
       )}
@@ -846,7 +846,7 @@ export default function StudentView({
         )}
       >
         <div className={cn(
-          'flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent',
+          'flex items-center justify-between bg-linear-to-b from-black/70 via-black/40 to-transparent',
           compact ? 'px-3 pt-2 pb-8' : 'px-4 pt-3 pb-10',
         )}>
           {/* Left: room name + live */}
@@ -896,7 +896,7 @@ export default function StudentView({
           className={cn(
             'absolute z-40 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10 transition-all duration-500 cursor-pointer',
             show ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none',
-            compact ? 'top-2 right-2 w-[100px] h-[68px]' : 'top-14 right-3 w-[160px] h-[100px] sm:w-[200px] sm:h-[126px]',
+            compact ? 'top-2 right-2 w-25 h-17' : 'top-14 right-3 w-40 h-25 sm:w-50 sm:h-31.5',
           )}
           onClick={() => setTeacherPopup(true)}
         >
@@ -904,7 +904,7 @@ export default function StudentView({
             trackRef={{ participant: teacher, publication: teacherCamPub, source: Track.Source.Camera } as TrackReference}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-0.5">
+          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent px-2 py-0.5">
             <span className="text-[10px] font-medium text-white/90 drop-shadow-sm">
               {teacher.name || teacher.identity}
             </span>
@@ -918,11 +918,11 @@ export default function StudentView({
           className={cn(
             'absolute z-40 overflow-hidden rounded-xl ring-1 ring-white/10 shadow-lg transition-all duration-500',
             show ? 'opacity-100 scale-100' : 'opacity-40 scale-95',
-            compact ? 'bottom-14 left-2 w-12 h-12' : 'bottom-24 left-3 w-[88px] h-[88px] sm:w-[100px] sm:h-[100px]',
+            compact ? 'bottom-14 left-2 w-12 h-12' : 'bottom-24 left-3 w-22 h-22 sm:w-25 sm:h-25',
           )}
         >
           <div className="h-full w-full" style={forceRotate ? { transform: 'rotate(-90deg) scaleX(-1)' } : { transform: 'scaleX(-1)' }}>
-            <VideoTile participant={localParticipant} size="small" mirror={false} showName={false} showMicIndicator={false} className="!w-full !h-full !rounded-none !border-0" />
+            <VideoTile participant={localParticipant} size="small" mirror={false} showName={false} showMicIndicator={false} className="w-full! h-full! rounded-none! border-0!" />
           </div>
         </div>
       )}
@@ -947,7 +947,7 @@ export default function StudentView({
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div className={cn(
-          'flex items-center justify-center bg-gradient-to-t from-black/70 via-black/40 to-transparent',
+          'flex items-center justify-center bg-linear-to-t from-black/70 via-black/40 to-transparent',
           compact ? 'gap-2.5 px-3 pt-8 pb-2.5' : 'gap-3 px-5 pt-10 pb-4',
         )}>
           {/* Mic — request teacher approval to toggle */}
@@ -1007,7 +1007,7 @@ export default function StudentView({
       {/* Chat panel — slides from right */}
       <div
         className={cn(
-          'fixed top-0 right-0 z-[80] h-full w-[320px] max-w-[85vw] bg-[#202124] shadow-2xl ring-1 ring-white/[0.08] transition-transform duration-300 ease-out',
+          'fixed top-0 right-0 z-80 h-full w-80 max-w-[85vw] bg-[#202124] shadow-2xl ring-1 ring-white/8 transition-transform duration-300 ease-out',
           chatOpen ? 'translate-x-0' : 'translate-x-full',
         )}
       >
@@ -1035,8 +1035,8 @@ export default function StudentView({
 
       {/* Rejoin blocked overlay — shown when student is rejoining and awaiting teacher approval */}
       {rejoinBlocked && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md">
-          <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/[0.06]">
+        <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/6">
             {rejoinDenied ? (
               <>
                 <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#ea4335]/10">
@@ -1071,8 +1071,8 @@ export default function StudentView({
 
       {/* Leave dialog */}
       {showLeaveDialog && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { if (!leaveRequestPending) setShowLeaveDialog(false); }}>
-          <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/[0.06]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { if (!leaveRequestPending) setShowLeaveDialog(false); }}>
+          <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-8 text-center shadow-2xl ring-1 ring-white/6" onClick={(e) => e.stopPropagation()}>
             <div className={cn('mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full', leaveRequestPending ? 'bg-[#f9ab00]/10' : leaveDenied ? 'bg-[#ea4335]/10' : 'bg-[#ea4335]/10')}>
               {leaveRequestPending ? (
                 <svg className="h-7 w-7 text-[#f9ab00] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1123,18 +1123,18 @@ export default function StudentView({
       {/* Teacher camera enlarged popup */}
       {teacherPopup && teacher && teacherCamPub && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-90 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setTeacherPopup(false)}
         >
           <div
-            className="relative w-[90vw] max-w-[800px] aspect-video overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
+            className="relative w-[90vw] max-w-200 aspect-video overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
             onClick={(e) => e.stopPropagation()}
           >
             <VideoTrack
               trackRef={{ participant: teacher, publication: teacherCamPub, source: Track.Source.Camera } as TrackReference}
               className="h-full w-full object-cover"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+            <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-4 py-3">
               <span className="text-sm font-medium text-white drop-shadow-sm">
                 {teacher.name || teacher.identity}
               </span>

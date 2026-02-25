@@ -116,11 +116,7 @@ export default function AdmissionsClient({ userName, userEmail, userRole }: Prop
   };
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={[
-      { label: 'Monitor', href: '/coordinator', icon: LayoutDashboard },
-      { label: 'Admissions', href: '/coordinator/admissions', icon: GraduationCap, active: true },
-      { label: 'Cancellations', href: '/coordinator/cancellations', icon: XCircle },
-    ]}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Student Admissions</h1>
         <p className="text-sm text-muted-foreground">Manage admission workflow: enquiry → registered → fee confirmed → allocated → active</p>

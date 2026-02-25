@@ -36,7 +36,7 @@ export async function GET(
     }
 
     // Only authorized roles
-    const allowedRoles = ['teacher', 'coordinator', 'academic_operator', 'academic', 'owner', 'ghost', 'hr'];
+    const allowedRoles = ['teacher', 'batch_coordinator', 'academic_operator', 'academic', 'owner', 'ghost', 'hr'];
     if (!allowedRoles.includes(user.role)) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: 'Insufficient permissions' },

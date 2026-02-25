@@ -45,7 +45,7 @@ export async function PATCH(
     }
 
     const room = roomResult.rows[0];
-    const adminRoles = ['coordinator', 'academic_operator', 'academic', 'owner'];
+    const adminRoles = ['batch_coordinator', 'academic_operator', 'academic', 'owner'];
     const isTeacherOfRoom = user.role === 'teacher' && room.teacher_email === user.id;
     const isAdmin = adminRoles.includes(user.role);
 
@@ -154,7 +154,7 @@ export async function DELETE(
     const room = roomResult.rows[0];
 
     // Authorization: teacher of this room, or admin roles
-    const adminRoles = ['coordinator', 'academic_operator', 'academic', 'owner'];
+    const adminRoles = ['batch_coordinator', 'academic_operator', 'academic', 'owner'];
     const isTeacherOfRoom = user.role === 'teacher' && room.teacher_email === user.id;
     const isAdmin = adminRoles.includes(user.role);
 

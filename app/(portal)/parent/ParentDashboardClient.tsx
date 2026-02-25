@@ -30,6 +30,15 @@ import {
 
 /* ─── Interfaces ──────────────────────────────────────────── */
 
+/** Treat 'live' rooms past their end time as 'ended' (safety net). */
+function effectiveStatus(room: { status: string; scheduled_start: string; duration_minutes: number }): string {
+  if (room.status === 'live') {
+    const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
+    if (Date.now() >= endMs) return 'ended';
+  }
+  return room.status;
+}
+
 interface ChildRoom {
   room_id: string;
   room_name: string;
@@ -121,13 +130,14 @@ interface Props {
   userName: string;
   userEmail: string;
   userRole: string;
+  permissions?: Record<string, boolean>;
 }
 
 type TabId = 'overview' | 'attendance' | 'exams' | 'fees' | 'reports' | 'complaints';
 
 /* ─── Component ───────────────────────────────────────────── */
 
-export default function ParentDashboardClient({ userName, userEmail, userRole }: Props) {
+export default function ParentDashboardClient({ userName, userEmail, userRole, permissions }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [rooms, setRooms] = useState<ChildRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -257,21 +267,18 @@ export default function ParentDashboardClient({ userName, userEmail, userRole }:
       complaints.length, complaintsLoading, ledgerEntries.length, ledgerLoading, reports.length,
       reportsLoading, fetchAttendance, fetchExams, fetchComplaints, fetchLedger, fetchReports]);
 
-  const live = rooms.filter((r) => r.status === 'live');
-  const upcoming = rooms.filter((r) => r.status === 'scheduled');
+  const live = rooms.filter((r) => effectiveStatus(r) === 'live');
+  const upcoming = rooms.filter((r) => effectiveStatus(r) === 'scheduled');
 
-  const navItems = [
-    { label: 'Dashboard', href: '/parent', icon: LayoutDashboard, active: true },
-    { label: 'Children', href: '/parent', icon: Users },
-  ];
+
 
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'attendance', label: 'Attendance', icon: ClipboardList },
-    { id: 'exams', label: 'Exams', icon: GraduationCap },
-    { id: 'fees', label: 'Fee Ledger', icon: CreditCard },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'complaints', label: 'Complaints', icon: MessageSquare },
+    ...(permissions?.attendance_view !== false ? [{ id: 'attendance' as TabId, label: 'Attendance', icon: ClipboardList }] : []),
+    ...(permissions?.exams_view !== false ? [{ id: 'exams' as TabId, label: 'Exams', icon: GraduationCap }] : []),
+    ...(permissions?.fees_view !== false ? [{ id: 'fees' as TabId, label: 'Fee Ledger', icon: CreditCard }] : []),
+    ...(permissions?.reports_view !== false ? [{ id: 'reports' as TabId, label: 'Reports', icon: BarChart3 }] : []),
+    ...(permissions?.complaints_file !== false ? [{ id: 'complaints' as TabId, label: 'Complaints', icon: MessageSquare }] : []),
   ];
 
   /* ─── Submit complaint ──────────────────────────────────── */
@@ -317,7 +324,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole }:
   /* ─── Render ──────────────────────────────────────────── */
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Parent Dashboard</h1>
         <p className="text-sm text-muted-foreground">Monitor your child&apos;s classes, progress, and fees</p>
@@ -694,7 +701,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole }:
                             {new Date(entry.date).toLocaleDateString('en-IN')}
                           </td>
                           <td className="px-3 py-2 text-xs font-mono">{entry.reference}</td>
-                          <td className="px-3 py-2 text-xs truncate max-w-[200px]">{entry.description}</td>
+                          <td className="px-3 py-2 text-xs truncate max-w-50">{entry.description}</td>
                           <td className="px-3 py-2 text-xs text-right text-red-400">
                             {entry.debit_paise > 0 ? fmtCurrency(entry.debit_paise, entry.currency) : ''}
                           </td>

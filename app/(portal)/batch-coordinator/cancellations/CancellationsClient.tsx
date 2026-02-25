@@ -126,11 +126,7 @@ export default function CancellationsClient({ userName, userEmail, userRole }: P
   };
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={[
-      { label: 'Monitor', href: '/coordinator', icon: LayoutDashboard },
-      { label: 'Admissions', href: '/coordinator/admissions', icon: GraduationCap },
-      { label: 'Cancellations', href: '/coordinator/cancellations', icon: XCircle, active: true },
-    ]}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Cancellation Requests</h1>
         <p className="text-sm text-muted-foreground">

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       params.push(user.id); conditions.push(`cr.requested_by = $${params.length}`);
     } else if (user.role === 'teacher') {
       params.push(user.id); conditions.push(`(cr.requested_by = $${params.length} OR r.teacher_email = $${params.length})`);
-    } else if (user.role === 'coordinator') {
+    } else if (user.role === 'batch_coordinator') {
       params.push(user.id); conditions.push(`r.coordinator_email = $${params.length}`);
     }
     // owner, hr, academic_operator see all
@@ -136,8 +136,8 @@ export async function POST(request: NextRequest) {
 
       // ─── PARENT-INITIATED (1:1): Coordinator is final authority ───
       if (cancellationType === 'parent_initiated') {
-        if (!['coordinator', 'owner'].includes(user.role)) {
-          return NextResponse.json<ApiResponse>({ success: false, error: 'Only coordinator can process parent cancellation requests' }, { status: 403 });
+        if (!['batch_coordinator', 'owner'].includes(user.role)) {
+          return NextResponse.json<ApiResponse>({ success: false, error: 'Only batch coordinator can process parent cancellation requests' }, { status: 403 });
         }
 
         const finalStatus = isReject ? 'rejected' : 'approved';
@@ -164,8 +164,8 @@ export async function POST(request: NextRequest) {
 
       // ─── GROUP REQUEST: Coordinator authority ───
       if (cancellationType === 'group_request') {
-        if (!['coordinator', 'owner'].includes(user.role)) {
-          return NextResponse.json<ApiResponse>({ success: false, error: 'Only coordinator can process group cancellation requests' }, { status: 403 });
+        if (!['batch_coordinator', 'owner'].includes(user.role)) {
+          return NextResponse.json<ApiResponse>({ success: false, error: 'Only batch coordinator can process group cancellation requests' }, { status: 403 });
         }
 
         const finalStatus = isReject ? 'rejected' : 'approved';
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
         // Determine which level this approver can act on
         const levelMap: Record<string, { roles: string[]; decisionField: string; emailField: string; atField: string; nextStatus: string }> = {
-          'pending': { roles: ['coordinator', 'owner'], decisionField: 'coordinator_decision', emailField: 'coordinator_email', atField: 'coordinator_at', nextStatus: 'coordinator_approved' },
+          'pending': { roles: ['batch_coordinator', 'owner'], decisionField: 'coordinator_decision', emailField: 'coordinator_email', atField: 'coordinator_at', nextStatus: 'coordinator_approved' },
           'coordinator_approved': { roles: ['owner', 'academic_operator'], decisionField: 'admin_decision', emailField: 'admin_email', atField: 'admin_at', nextStatus: 'admin_approved' },
           'admin_approved': { roles: ['academic_operator', 'owner'], decisionField: 'academic_decision', emailField: 'academic_email', atField: 'academic_at', nextStatus: 'academic_approved' },
           'academic_approved': { roles: ['hr', 'owner'], decisionField: 'hr_decision', emailField: 'hr_email', atField: 'hr_at', nextStatus: 'approved' },

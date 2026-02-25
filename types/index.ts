@@ -10,7 +10,7 @@ export type PortalRole =
   | 'teacher'
   | 'teacher_screen'       // Teacher's tablet/screen-share device — screen share only, no camera/mic
   | 'student'
-  | 'coordinator'          // Batch Coordinator — monitoring, attendance, parent comms
+  | 'batch_coordinator'     // Batch Coordinator — monitoring, attendance, parent comms
   | 'academic_operator'    // Academic Operator — creates rooms, assigns teachers & students
   | 'academic'             // legacy alias — redirects to /academic-operator; no new users should get this role
   | 'hr'                   // HR Associate — creates & manages user accounts + credentials

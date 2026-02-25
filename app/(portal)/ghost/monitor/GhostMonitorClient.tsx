@@ -34,6 +34,15 @@ interface Props {
   userRole: string;
 }
 
+/** Treat 'live' rooms past their end time as 'ended' (safety net). */
+function effectiveStatus(room: Room): string {
+  if (room.status === 'live') {
+    const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
+    if (Date.now() >= endMs) return 'ended';
+  }
+  return room.status;
+}
+
 export default function GhostMonitorClient({ userName, userEmail, userRole }: Props) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,16 +68,12 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
     return () => clearInterval(interval);
   }, [fetchRooms]);
 
-  const live = rooms.filter((r) => r.status === 'live');
+  const live = rooms.filter((r) => effectiveStatus(r) === 'live');
 
-  const navItems = [
-    { label: 'Dashboard', href: '/ghost', icon: LayoutDashboard },
-    { label: 'Observe', href: '/ghost', icon: Eye },
-    { label: 'Oversight', href: '/ghost/monitor', icon: Monitor, active: true },
-  ];
+
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -175,17 +180,17 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
                 key={room.room_id}
                 className="flex items-center gap-4 rounded-xl border border-green-800/50 bg-card p-4"
               >
-                <Radio className="h-6 w-6 text-green-400 animate-pulse flex-shrink-0" />
+                <Radio className="h-6 w-6 text-green-400 animate-pulse shrink-0" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium truncate">{room.room_name}</h3>
                   <p className="text-xs text-muted-foreground">
                     {room.subject} · {room.grade} · Teacher: {room.teacher_email || '—'}
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground flex-shrink-0">{elapsed}m</span>
+                <span className="text-xs text-muted-foreground shrink-0">{elapsed}m</span>
                 <a
                   href={`/classroom/${room.room_id}?mode=ghost`}
-                  className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-accent/80 flex-shrink-0"
+                  className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-accent/80 shrink-0"
                 >
                   <Eye className="h-3.5 w-3.5" /> Enter Ghost
                 </a>

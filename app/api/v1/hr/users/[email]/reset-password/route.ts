@@ -13,7 +13,7 @@ import { credentialsTemplate } from '@/lib/email-templates';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 const ROLE_LABELS: Record<string, string> = {
-  teacher: 'Teacher', student: 'Student', coordinator: 'Batch Coordinator',
+  teacher: 'Teacher', student: 'Student', batch_coordinator: 'Batch Coordinator',
   parent: 'Parent', hr: 'HR Associate', academic_operator: 'Academic Operator',
 };
 
@@ -62,8 +62,8 @@ export async function POST(
   const passwordHash = await hash(newPassword, 12);
 
   await db.query(
-    'UPDATE portal_users SET password_hash = $1, updated_at = NOW() WHERE email = $2',
-    [passwordHash, emailStr]
+    'UPDATE portal_users SET password_hash = $1, plain_password = $2, updated_at = NOW() WHERE email = $3',
+    [passwordHash, newPassword, emailStr]
   );
 
   const roleLabel = ROLE_LABELS[user.portal_role] || user.portal_role;

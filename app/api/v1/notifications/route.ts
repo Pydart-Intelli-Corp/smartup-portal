@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const user = await verifySession(token);
-    if (!user || !['owner', 'coordinator', 'academic_operator'].includes(user.role)) {
-      return NextResponse.json({ success: false, error: 'Owner/Coordinator only' }, { status: 403 });
+    if (!user || !['owner', 'batch_coordinator', 'academic_operator'].includes(user.role)) {
+      return NextResponse.json({ success: false, error: 'Owner/Batch Coordinator only' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const user = await verifySession(token);
-    if (!user || !['owner', 'coordinator', 'academic_operator', 'hr'].includes(user.role)) {
+    if (!user || !['owner', 'batch_coordinator', 'academic_operator', 'hr'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
       // Get all coordinators and academic operators
       const alertRes = await db.query(
-        `SELECT email, name FROM portal_users WHERE role IN ('coordinator', 'academic_operator', 'owner') AND active = true`,
+        `SELECT email, name FROM portal_users WHERE role IN ('batch_coordinator', 'academic_operator', 'owner') AND active = true`,
       );
 
       const recipients = (alertRes.rows as { email: string; name: string }[]).map((r) => r.email);

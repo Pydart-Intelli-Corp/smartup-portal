@@ -13,7 +13,7 @@ async function getCoordinator(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
   const user = await verifySession(token);
-  if (!user || !['coordinator', 'academic_operator', 'owner'].includes(user.role)) return null;
+  if (!user || !['batch_coordinator', 'academic_operator', 'owner'].includes(user.role)) return null;
   return user;
 }
 
@@ -198,7 +198,7 @@ export async function DELETE(
     );
     await client.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
-       VALUES ($1, 'room_cancelled', $2, 'coordinator', '{}')`,
+       VALUES ($1, 'room_cancelled', $2, 'batch_coordinator', '{}')`,
       [room_id, user.id]
     );
   });

@@ -107,16 +107,16 @@ export function istToUTCISO(dateStr: string, timeStr: string): string {
 
 /**
  * Check if a role has ghost observation access.
- * Ghost roles: ghost (dedicated), owner, academic_operator, coordinator, academic (full access)
+ * Ghost roles: ghost (dedicated), owner, academic_operator, batch_coordinator, academic (full access)
  * Parent has limited ghost access (child's room only, handled separately).
  */
 export function isGhostRole(role: PortalRole): boolean {
-  return ['ghost', 'owner', 'academic_operator', 'coordinator', 'academic', 'parent'].includes(role);
+  return ['ghost', 'owner', 'academic_operator', 'batch_coordinator', 'academic', 'parent'].includes(role);
 }
 
 /**
  * Check if a role has full ghost dashboard/oversight access.
  */
 export function hasFullGhostAccess(role: PortalRole): boolean {
-  return ['ghost', 'owner', 'academic_operator', 'coordinator', 'academic'].includes(role);
+  return ['ghost', 'owner', 'academic_operator', 'batch_coordinator', 'academic'].includes(role);
 }

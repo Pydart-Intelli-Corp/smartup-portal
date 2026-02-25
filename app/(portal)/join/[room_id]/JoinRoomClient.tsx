@@ -175,7 +175,7 @@ export default function JoinRoomClient({
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-center">
+        <div className="bg-linear-to-br from-blue-600 to-blue-800 p-6 text-center">
           <Video className="mx-auto mb-3 h-10 w-10 text-white/80" />
           <h1 className="text-xl font-bold text-white">{roomName}</h1>
           <p className="text-sm text-blue-200">

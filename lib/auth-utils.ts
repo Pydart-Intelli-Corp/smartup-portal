@@ -34,7 +34,7 @@ export async function requireRole(...roles: string[]): Promise<SmartUpUser> {
     if (user.role === 'owner') return user;
 
     const dashMap: Record<string, string> = {
-      coordinator:        '/coordinator',
+      batch_coordinator:   '/batch-coordinator',
       academic_operator:  '/academic-operator',
       academic:           '/academic-operator', // legacy alias
       hr:                 '/hr',

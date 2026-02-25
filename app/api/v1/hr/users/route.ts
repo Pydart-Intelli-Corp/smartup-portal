@@ -17,7 +17,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 const ROLE_LABELS: Record<string, string> = {
   teacher:     'Teacher',
   student:     'Student',
-  coordinator: 'Batch Coordinator',
+  batch_coordinator: 'Batch Coordinator',
   parent:      'Parent',
   hr:          'HR Associate',
   academic_operator: 'Academic Operator',
@@ -60,14 +60,14 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
   const offset = Number(url.searchParams.get('offset')) || 0;
 
-  const allowedRoles: PortalRole[] = ['teacher', 'student', 'coordinator', 'parent', 'hr', 'academic_operator'];
+  const allowedRoles: PortalRole[] = ['teacher', 'student', 'batch_coordinator', 'parent', 'hr', 'academic_operator', 'ghost'];
 
   let sql = `
     SELECT
       u.email, u.full_name, u.portal_role, u.is_active, u.created_at,
       p.phone, p.whatsapp, p.subjects, p.grade, p.section, p.board,
-      p.parent_email, p.qualification, p.experience_years, p.assigned_region,
-      p.admission_date, p.notes, p.date_of_birth,
+      p.parent_email, p.qualification, p.experience_years, p.per_hour_rate, p.assigned_region,
+      p.admission_date, p.notes, p.address,
       par.full_name AS parent_name
     FROM portal_users u
     LEFT JOIN user_profiles p ON p.email = u.email
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
   const {
     email, full_name, portal_role, password: manualPassword,
     // Profile fields
-    phone, whatsapp, date_of_birth, qualification, notes, experience_years, assigned_region, admission_date,
+    phone, whatsapp, address, qualification, notes, experience_years, per_hour_rate, assigned_region, admission_date,
     // Teacher
     subjects,
     // Student
@@ -138,9 +138,9 @@ export async function POST(req: NextRequest) {
   const emailStr = (email as string).trim().toLowerCase();
   const roleStr = portal_role as PortalRole;
 
-  const allowedRoles: PortalRole[] = ['teacher', 'student', 'coordinator', 'parent', 'academic_operator'];
+  const allowedRoles: PortalRole[] = ['teacher', 'student', 'batch_coordinator', 'parent', 'academic_operator', 'hr', 'ghost'];
   if (!allowedRoles.includes(roleStr)) {
-    return NextResponse.json({ success: false, error: 'Invalid role. Allowed: teacher, student, coordinator, parent, academic_operator' }, { status: 400 });
+    return NextResponse.json({ success: false, error: 'Invalid role. Allowed: teacher, student, batch_coordinator, parent, academic_operator, hr, ghost' }, { status: 400 });
   }
 
   // Check duplicate
@@ -166,9 +166,9 @@ export async function POST(req: NextRequest) {
   await db.withTransaction(async (client) => {
     // 1. Create portal_user
     await client.query(
-      `INSERT INTO portal_users (email, full_name, portal_role, password_hash, is_active)
-       VALUES ($1, $2, $3, $4, TRUE)`,
-      [emailStr, (full_name as string).trim(), roleStr, passwordHash]
+      `INSERT INTO portal_users (email, full_name, portal_role, password_hash, plain_password, is_active)
+       VALUES ($1, $2, $3, $4, $5, TRUE)`,
+      [emailStr, (full_name as string).trim(), roleStr, passwordHash, tempPassword]
     );
 
     // 2. Build profile fields
@@ -177,22 +177,22 @@ export async function POST(req: NextRequest) {
 
     await client.query(
       `INSERT INTO user_profiles (
-         email, phone, whatsapp, date_of_birth, qualification, notes,
-         subjects, experience_years,
+         email, phone, whatsapp, address, qualification, notes,
+         subjects, experience_years, per_hour_rate,
          grade, section, board, parent_email, admission_date,
          assigned_region
        ) VALUES (
          $1, $2, $3, $4, $5, $6,
-         $7, $8,
-         $9, $10, $11, $12, $13,
-         $14
+         $7, $8, $9,
+         $10, $11, $12, $13, $14,
+         $15
        )`,
       [
         emailStr,
         phone || null, whatsapp || null,
-        date_of_birth || null,
+        address || null,
         qualification || null, notes || null,
-        profileSubjects, experience_years || null,
+        profileSubjects, experience_years || null, per_hour_rate ? Math.round(Number(per_hour_rate)) : null,
         grade || null, section || null, board || null,
         profileParent,
         admission_date || null,

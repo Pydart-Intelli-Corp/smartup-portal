@@ -93,12 +93,7 @@ export default function TeacherExamsClient({ userName, userEmail, userRole }: Pr
   const [formQuestions, setFormQuestions] = useState<QuestionInput[]>([emptyQuestion()]);
   const [creating, setCreating] = useState(false);
 
-  const navItems = [
-    { label: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
-    { label: 'Exams', href: '/teacher/exams', icon: FileText, active: true },
-    { label: 'My Classes', href: '/teacher', icon: BookOpen },
-    { label: 'Profile', href: '/teacher', icon: User },
-  ];
+
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -181,7 +176,7 @@ export default function TeacherExamsClient({ userName, userEmail, userRole }: Pr
   };
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

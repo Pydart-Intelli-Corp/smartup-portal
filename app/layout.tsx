@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   title: "SmartUp Portal",
   description: "SmartUp Online Classroom Portal — Live classes, whiteboard, and real-time collaboration",
   icons: {
-    icon: '/logo/IMG_3579.PNG',
-    apple: '/logo/IMG_3579.PNG',
+    icon: '/logo/main.png',
+    apple: '/logo/main.png',
   },
 };
 

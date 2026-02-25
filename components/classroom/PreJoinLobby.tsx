@@ -36,7 +36,7 @@ export default function PreJoinLobby({
     audio: [],
   });
 
-  const isGhost = ['ghost', 'owner', 'coordinator', 'academic_operator', 'academic', 'parent'].includes(role);
+  const isGhost = ['ghost', 'owner', 'batch_coordinator', 'academic_operator', 'academic', 'parent'].includes(role);
 
   // Request camera access on mount (unless ghost)
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function PreJoinLobby({
     student: 'bg-blue-600',
     ghost: 'bg-purple-600',
     owner: 'bg-purple-600',
-    coordinator: 'bg-indigo-600',
+    batch_coordinator: 'bg-indigo-600',
     academic_operator: 'bg-teal-600',
     academic: 'bg-teal-600',
     parent: 'bg-orange-600',
@@ -138,17 +138,17 @@ export default function PreJoinLobby({
 
       {/* Camera preview */}
       {!isGhost && (
-        <div className="relative w-[400px] overflow-hidden rounded-xl bg-muted">
+        <div className="relative w-100 overflow-hidden rounded-xl bg-muted">
           {cameraOn && !cameraError ? (
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className="h-[300px] w-full object-cover scale-x-[-1]"
+              className="h-75 w-full object-cover scale-x-[-1]"
             />
           ) : (
-            <div className="flex h-[300px] items-center justify-center">
+            <div className="flex h-75 items-center justify-center">
               <div className="text-center">
                 <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-accent text-2xl font-bold text-foreground mx-auto">
                   {participantName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
@@ -186,7 +186,7 @@ export default function PreJoinLobby({
 
       {/* Ghost info */}
       {isGhost && (
-        <div className="w-[400px] rounded-xl bg-muted p-6 text-center">
+        <div className="w-100 rounded-xl bg-muted p-6 text-center">
           <div className="mb-3 text-4xl">👻</div>
           <h3 className="text-lg font-semibold text-foreground">Ghost Mode</h3>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -48,12 +48,7 @@ export default function StudentExamsClient({ userName, userEmail, userRole }: Pr
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'available' | 'completed'>('available');
 
-  const navItems = [
-    { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
-    { label: 'Exams', href: '/student/exams', icon: FileText, active: true },
-    { label: 'My Classes', href: '/student', icon: BookOpen },
-    { label: 'Profile', href: '/student', icon: User },
-  ];
+
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -73,7 +68,7 @@ export default function StudentExamsClient({ userName, userEmail, userRole }: Pr
   const currentList = tab === 'available' ? available : completed;
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Coordinators / academic ops see all
-    if (['coordinator', 'academic_operator', 'hr'].includes(user.role)) {
+    if (['batch_coordinator', 'academic_operator', 'hr'].includes(user.role)) {
       const { db } = await import('@/lib/db');
       const result = await db.query(
         `SELECT i.*, u.full_name AS student_name
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const user = await verifySession(token);
-    if (!user || !['owner', 'coordinator', 'academic_operator'].includes(user.role)) {
+    if (!user || !['owner', 'batch_coordinator', 'academic_operator'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

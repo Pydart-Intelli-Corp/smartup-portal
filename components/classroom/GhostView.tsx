@@ -119,7 +119,7 @@ ${notes}`;
       {/* Main body: content + sidebar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Main content (65%) */}
-        <div className="flex-[2] overflow-hidden p-2">
+        <div className="flex-2 overflow-hidden p-2">
           {hasScreenShare && teacher ? (
             <WhiteboardComposite
               teacher={teacher}
@@ -191,7 +191,7 @@ ${notes}`;
                   size="small"
                   showName={true}
                   showMicIndicator={false}
-                  className="w-full h-[70px]"
+                  className="w-full h-17.5"
                 />
               ))}
             </div>

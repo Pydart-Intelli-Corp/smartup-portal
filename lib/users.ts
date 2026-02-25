@@ -119,7 +119,7 @@ export async function searchCoordinatorsWithBatchCount(
   query: string
 ): Promise<(PortalUser & { batch_count: number })[]> {
   const params: unknown[] = [];
-  let whereParts = `u.is_active = TRUE AND u.portal_role = 'coordinator'`;
+  let whereParts = `u.is_active = TRUE AND u.portal_role = 'batch_coordinator'`;
 
   if (query) {
     params.push(`%${query}%`);

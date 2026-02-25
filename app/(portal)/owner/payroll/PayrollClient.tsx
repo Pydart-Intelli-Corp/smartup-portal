@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // Payroll Management — Client Component
-// Manage teacher pay configs, payroll periods, payslips
+// Uses shared UI components — no hardcoded colors or styles
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -8,9 +8,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import {
-  LayoutDashboard, Briefcase, Users, Calendar, DollarSign,
-  RefreshCw, Plus, Check, Loader2, ArrowRight, Settings, FileText
+  PageHeader, RefreshButton, Button,
+  TabBar, FormPanel, FormField, FormGrid, FormActions,
+  Input,
+  TableWrapper, THead, TH, TRow,
+  LoadingState, EmptyState, StatusBadge,
+  useToast, money,
+} from '@/components/dashboard/shared';
+import {
+  Briefcase, Users, Calendar, DollarSign,
+  Plus, Check, ArrowRight, Settings, FileText,
 } from 'lucide-react';
+
+// ── Types ────────────────────────────────────────────────────
 
 interface PayConfig {
   id: string;
@@ -53,12 +63,8 @@ interface Props {
   userRole: string;
 }
 
-function paise(v: number) {
-  return '₹' + (v / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-}
-
 export default function PayrollClient({ userName, userEmail, userRole }: Props) {
-  const [tab, setTab] = useState<'periods' | 'configs' | 'create'>('periods');
+  const [tab, setTab] = useState('periods');
   const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
   const [configs, setConfigs] = useState<PayConfig[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
@@ -77,10 +83,7 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
   const [cfgBonus, setCfgBonus] = useState('100');
   const [cfgThreshold, setCfgThreshold] = useState('20');
 
-  const navItems = [
-    { label: 'Dashboard', href: '/owner', icon: LayoutDashboard },
-    { label: 'Payroll', href: '/owner/payroll', icon: Briefcase, active: true },
-  ];
+  const toast = useToast();
 
   const fetchPeriods = useCallback(async () => {
     setLoading(true);
@@ -109,10 +112,9 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
   }, []);
 
   useEffect(() => { fetchPeriods(); fetchConfigs(); }, [fetchPeriods, fetchConfigs]);
+  useEffect(() => { if (selectedPeriod) fetchPayslips(selectedPeriod); }, [selectedPeriod, fetchPayslips]);
 
-  useEffect(() => {
-    if (selectedPeriod) fetchPayslips(selectedPeriod);
-  }, [selectedPeriod, fetchPayslips]);
+  const refresh = () => { fetchPeriods(); fetchConfigs(); };
 
   const createPeriod = async () => {
     if (!newLabel || !newStart || !newEnd) return;
@@ -124,8 +126,13 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
         body: JSON.stringify({ action: 'create_period', label: newLabel, periodStart: newStart, periodEnd: newEnd }),
       });
       const json = await res.json();
-      if (json.success) { setTab('periods'); setNewLabel(''); setNewStart(''); setNewEnd(''); fetchPeriods(); }
-      else alert(json.error);
+      if (json.success) {
+        setTab('periods'); setNewLabel(''); setNewStart(''); setNewEnd('');
+        toast.success('Payroll period created');
+        fetchPeriods();
+      } else {
+        toast.error(json.error || 'Failed to create period');
+      }
     } catch (e) { console.error(e); }
     setActing(false);
   };
@@ -139,7 +146,11 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
         body: JSON.stringify({ action, ...extra }),
       });
       const json = await res.json();
-      if (!json.success) alert(json.error);
+      if (json.success) {
+        toast.success(`Action "${action.replace('_', ' ')}" completed`);
+      } else {
+        toast.error(json.error || 'Action failed');
+      }
       fetchPeriods();
       if (selectedPeriod) fetchPayslips(selectedPeriod);
     } catch (e) { console.error(e); }
@@ -163,8 +174,13 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
         }),
       });
       const json = await res.json();
-      if (json.success) { setCfgEmail(''); fetchConfigs(); }
-      else alert(json.error);
+      if (json.success) {
+        setCfgEmail('');
+        toast.success('Pay config saved');
+        fetchConfigs();
+      } else {
+        toast.error(json.error || 'Failed to save config');
+      }
     } catch (e) { console.error(e); }
     setActing(false);
   };
@@ -172,128 +188,88 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
   const period = periods.find(p => p.id === selectedPeriod);
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Briefcase className="h-6 w-6 text-teal-400" /> Payroll
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage teacher pay, generate payslips</p>
-          </div>
-          <button onClick={fetchPeriods} className="rounded border border-border bg-muted px-3 py-1.5 text-xs text-foreground/80 hover:bg-accent">
-            <RefreshCw className={`h-3 w-3 inline mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
-        </div>
+        <PageHeader icon={Briefcase} title="Payroll" subtitle="Manage teacher pay, generate payslips">
+          <RefreshButton loading={loading} onClick={refresh} />
+        </PageHeader>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-border pb-2">
-          {[
-            { key: 'periods' as const, label: 'Payroll Periods', icon: Calendar },
-            { key: 'configs' as const, label: 'Pay Configs', icon: Settings },
-            { key: 'create' as const, label: 'New Period', icon: Plus },
-          ].map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                tab === t.key ? 'bg-teal-600 text-white' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}>
-              <t.icon className="h-3 w-3" /> {t.label}
-            </button>
-          ))}
-        </div>
+        <TabBar
+          tabs={[
+            { key: 'periods', label: 'Payroll Periods', icon: Calendar },
+            { key: 'configs', label: 'Pay Configs', icon: Settings },
+            { key: 'create', label: 'New Period', icon: Plus },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
 
         {/* Create Period */}
         {tab === 'create' && (
-          <div className="rounded-xl border border-border bg-muted/50 p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Create Payroll Period</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Label</label>
-                <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="e.g. June 2025"
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Start</label>
-                <input type="date" value={newStart} onChange={e => setNewStart(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">End</label>
-                <input type="date" value={newEnd} onChange={e => setNewEnd(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div className="flex items-end">
-                <button onClick={createPeriod} disabled={acting}
-                  className="w-full rounded-lg bg-teal-600 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">
-                  {acting ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Create'}
-                </button>
-              </div>
-            </div>
-          </div>
+          <FormPanel title="Create Payroll Period" icon={Plus} onClose={() => setTab('periods')}>
+            <FormGrid cols={3}>
+              <FormField label="Label">
+                <Input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="e.g. June 2025" />
+              </FormField>
+              <FormField label="Start Date">
+                <Input type="date" value={newStart} onChange={e => setNewStart(e.target.value)} />
+              </FormField>
+              <FormField label="End Date">
+                <Input type="date" value={newEnd} onChange={e => setNewEnd(e.target.value)} />
+              </FormField>
+            </FormGrid>
+            <FormActions onCancel={() => setTab('periods')} onSubmit={createPeriod}
+              submitLabel="Create Period" submitDisabled={!newLabel || !newStart || !newEnd} submitting={acting} />
+          </FormPanel>
         )}
 
         {/* Pay Configs */}
         {tab === 'configs' && (
           <div className="space-y-4">
-            {/* Add config */}
-            <div className="rounded-xl border border-border bg-muted/50 p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Set Teacher Pay Config</h3>
+            <FormPanel title="Set Teacher Pay Config" icon={Settings} onClose={() => setTab('periods')}>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Teacher Email</label>
-                  <input value={cfgEmail} onChange={e => setCfgEmail(e.target.value)} placeholder="teacher@example.com"
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Per Class (₹)</label>
-                  <input type="number" value={cfgRate} onChange={e => setCfgRate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Bonus / Class (₹)</label>
-                  <input type="number" value={cfgBonus} onChange={e => setCfgBonus(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Bonus Threshold</label>
-                  <input type="number" value={cfgThreshold} onChange={e => setCfgThreshold(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-                </div>
+                <FormField label="Teacher Email">
+                  <Input value={cfgEmail} onChange={e => setCfgEmail(e.target.value)} placeholder="teacher@example.com" />
+                </FormField>
+                <FormField label="Per Class (₹)">
+                  <Input type="number" value={cfgRate} onChange={e => setCfgRate(e.target.value)} />
+                </FormField>
+                <FormField label="Bonus / Class (₹)">
+                  <Input type="number" value={cfgBonus} onChange={e => setCfgBonus(e.target.value)} />
+                </FormField>
+                <FormField label="Bonus Threshold">
+                  <Input type="number" value={cfgThreshold} onChange={e => setCfgThreshold(e.target.value)} />
+                </FormField>
                 <div className="flex items-end">
-                  <button onClick={saveConfig} disabled={acting || !cfgEmail}
-                    className="w-full rounded-lg bg-teal-600 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">
-                    {acting ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Save'}
-                  </button>
+                  <Button variant="primary" onClick={saveConfig} loading={acting} className="w-full">
+                    Save
+                  </Button>
                 </div>
               </div>
-            </div>
+            </FormPanel>
 
-            {/* Config list */}
             {configs.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8 text-sm">No pay configs set yet</div>
+              <EmptyState icon={Settings} message="No pay configs set yet" />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted text-muted-foreground text-xs">
-                    <tr>
-                      <th className="px-4 py-3">Teacher</th>
-                      <th className="px-4 py-3">Per Class</th>
-                      <th className="px-4 py-3">Bonus / Class</th>
-                      <th className="px-4 py-3">Threshold</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {configs.map(c => (
-                      <tr key={c.id} className="bg-muted/30 hover:bg-muted">
-                        <td className="px-4 py-3 text-foreground">{c.teacher_email}</td>
-                        <td className="px-4 py-3 text-green-400">{paise(c.per_class_rate_paise)}</td>
-                        <td className="px-4 py-3 text-blue-400">{paise(c.bonus_per_class_paise)}</td>
-                        <td className="px-4 py-3 text-foreground/80">{c.bonus_threshold_classes} classes</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <TableWrapper>
+                <THead>
+                  <TH>Teacher</TH>
+                  <TH>Per Class</TH>
+                  <TH>Bonus / Class</TH>
+                  <TH>Threshold</TH>
+                </THead>
+                <tbody>
+                  {configs.map(c => (
+                    <TRow key={c.id}>
+                      <td className="px-4 py-3 text-gray-800 text-sm">{c.teacher_email}</td>
+                      <td className="px-4 py-3 text-green-700 font-medium">{money(c.per_class_rate_paise)}</td>
+                      <td className="px-4 py-3 text-teal-700 font-medium">{money(c.bonus_per_class_paise)}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.bonus_threshold_classes} classes</td>
+                    </TRow>
+                  ))}
+                </tbody>
+              </TableWrapper>
             )}
           </div>
         )}
@@ -302,34 +278,29 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
         {tab === 'periods' && (
           <div className="space-y-4">
             {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
-              </div>
+              <LoadingState />
             ) : periods.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <FileText className="h-12 w-12 mb-3 opacity-40" />
-                <p className="text-sm">No payroll periods yet. Create one to get started.</p>
-              </div>
+              <EmptyState icon={FileText} message="No payroll periods yet. Create one to get started." />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {periods.map(p => (
-                  <div key={p.id} className={`rounded-xl border p-4 transition cursor-pointer ${
-                    selectedPeriod === p.id ? 'border-teal-500 bg-teal-900/20' : 'border-border bg-muted/50 hover:bg-muted'
-                  }`} onClick={() => setSelectedPeriod(p.id)}>
+                  <div key={p.id}
+                    onClick={() => setSelectedPeriod(p.id)}
+                    className={`rounded-xl border p-4 transition cursor-pointer shadow-sm ${
+                      selectedPeriod === p.id
+                        ? 'border-emerald-400 bg-emerald-50/50 ring-1 ring-emerald-200'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}>
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-foreground">{p.label}</h4>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        p.status === 'paid' ? 'bg-green-500/20 text-green-400' :
-                        p.status === 'finalized' ? 'bg-blue-500/20 text-blue-400' :
-                        p.status === 'draft' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-muted text-muted-foreground'
-                      }`}>{p.status}</span>
+                      <h4 className="font-medium text-gray-900">{p.label}</h4>
+                      <StatusBadge status={p.status} />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-500">
                       {new Date(p.period_start).toLocaleDateString('en-IN')} — {new Date(p.period_end).toLocaleDateString('en-IN')}
                     </p>
                     <div className="flex justify-between mt-3 text-xs">
-                      <span className="text-muted-foreground"><Users className="h-3 w-3 inline mr-1" />{p.payslip_count} payslips</span>
-                      <span className="text-green-400 font-semibold">{paise(Number(p.total_paise) || 0)}</span>
+                      <span className="text-gray-500"><Users className="h-3 w-3 inline mr-1" />{p.payslip_count} payslips</span>
+                      <span className="text-green-700 font-semibold">{money(Number(p.total_paise) || 0)}</span>
                     </div>
                   </div>
                 ))}
@@ -338,70 +309,59 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
 
             {/* Payslip detail for selected period */}
             {selectedPeriod && period && (
-              <div className="rounded-xl border border-border bg-muted/50 p-5 space-y-4">
+              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground">{period.label} — Payslips</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">{period.label} — Payslips</h3>
                   <div className="flex gap-2">
                     {period.status === 'draft' && (
                       <>
-                        <button onClick={() => doAction('generate', { periodId: selectedPeriod })} disabled={acting}
-                          className="rounded bg-amber-600 px-3 py-1 text-xs text-white hover:bg-amber-500 disabled:opacity-50">
-                          {acting ? <Loader2 className="h-3 w-3 animate-spin inline" /> : <><ArrowRight className="h-3 w-3 inline mr-1" />Generate</>}
-                        </button>
-                        <button onClick={() => doAction('finalize', { periodId: selectedPeriod })} disabled={acting}
-                          className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50">
-                          <Check className="h-3 w-3 inline mr-1" />Finalize
-                        </button>
+                        <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => doAction('generate', { periodId: selectedPeriod })} loading={acting}>
+                          Generate
+                        </Button>
+                        <Button variant="primary" size="sm" icon={Check} onClick={() => doAction('finalize', { periodId: selectedPeriod })} loading={acting}>
+                          Finalize
+                        </Button>
                       </>
                     )}
                     {period.status === 'finalized' && (
-                      <button onClick={() => doAction('mark_paid', { periodId: selectedPeriod })} disabled={acting}
-                        className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-500 disabled:opacity-50">
-                        <DollarSign className="h-3 w-3 inline mr-1" />Mark Paid
-                      </button>
+                      <Button variant="success" size="sm" icon={DollarSign} onClick={() => doAction('mark_paid', { periodId: selectedPeriod })} loading={acting}>
+                        Mark Paid
+                      </Button>
                     )}
                   </div>
                 </div>
 
                 {payslips.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">No payslips. Click &quot;Generate&quot; to compute.</p>
+                  <p className="text-sm text-gray-400 text-center py-6">No payslips. Click &quot;Generate&quot; to compute.</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-muted text-muted-foreground text-xs">
-                        <tr>
-                          <th className="px-3 py-2">Teacher</th>
-                          <th className="px-3 py-2 text-center">Classes</th>
-                          <th className="px-3 py-2 text-center">Cancelled</th>
-                          <th className="px-3 py-2 text-center">Missed</th>
-                          <th className="px-3 py-2 text-right">Base</th>
-                          <th className="px-3 py-2 text-right">Incentive</th>
-                          <th className="px-3 py-2 text-right">LOP</th>
-                          <th className="px-3 py-2 text-right">Total</th>
-                          <th className="px-3 py-2 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {payslips.map(s => (
-                          <tr key={s.id} className="bg-muted/30 hover:bg-muted">
-                            <td className="px-3 py-2 text-foreground text-xs">{s.teacher_email}</td>
-                            <td className="px-3 py-2 text-center text-foreground/80">{s.classes_conducted}</td>
-                            <td className="px-3 py-2 text-center text-yellow-400">{s.classes_cancelled}</td>
-                            <td className="px-3 py-2 text-center text-red-400">{s.classes_missed}</td>
-                            <td className="px-3 py-2 text-right text-foreground/80">{paise(s.base_pay_paise)}</td>
-                            <td className="px-3 py-2 text-right text-green-400">{paise(s.incentive_paise)}</td>
-                            <td className="px-3 py-2 text-right text-red-400">-{paise(s.lop_paise)}</td>
-                            <td className="px-3 py-2 text-right text-foreground font-semibold">{paise(s.total_paise)}</td>
-                            <td className="px-3 py-2 text-center">
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                s.status === 'paid' ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'
-                              }`}>{s.status}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TableWrapper>
+                    <THead>
+                      <TH>Teacher</TH>
+                      <TH className="text-center">Classes</TH>
+                      <TH className="text-center">Cancelled</TH>
+                      <TH className="text-center">Missed</TH>
+                      <TH className="text-right">Base</TH>
+                      <TH className="text-right">Incentive</TH>
+                      <TH className="text-right">LOP</TH>
+                      <TH className="text-right">Total</TH>
+                      <TH className="text-center">Status</TH>
+                    </THead>
+                    <tbody>
+                      {payslips.map(s => (
+                        <TRow key={s.id}>
+                          <td className="px-3 py-2 text-gray-800 text-xs">{s.teacher_email}</td>
+                          <td className="px-3 py-2 text-center text-gray-700">{s.classes_conducted}</td>
+                          <td className="px-3 py-2 text-center text-amber-600">{s.classes_cancelled}</td>
+                          <td className="px-3 py-2 text-center text-red-600">{s.classes_missed}</td>
+                          <td className="px-3 py-2 text-right text-gray-600">{money(s.base_pay_paise)}</td>
+                          <td className="px-3 py-2 text-right text-green-700">{money(s.incentive_paise)}</td>
+                          <td className="px-3 py-2 text-right text-red-600">-{money(s.lop_paise)}</td>
+                          <td className="px-3 py-2 text-right text-gray-900 font-semibold">{money(s.total_paise)}</td>
+                          <td className="px-3 py-2 text-center"><StatusBadge status={s.status} /></td>
+                        </TRow>
+                      ))}
+                    </tbody>
+                  </TableWrapper>
                 )}
               </div>
             )}

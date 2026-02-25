@@ -1,18 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// Coordinator Admissions — /coordinator/admissions
+// Owner → Exams Management — Server Page
 // ═══════════════════════════════════════════════════════════════
 
 import { requireRole } from '@/lib/auth-utils';
-import AdmissionsClient from './AdmissionsClient';
+import ExamsClient from './ExamsClient';
 
-export default async function AdmissionsPage() {
-  const user = await requireRole('coordinator');
-
-  return (
-    <AdmissionsClient
-      userName={user.name}
-      userEmail={user.id}
-      userRole={user.role}
-    />
-  );
+export default async function ExamsPage() {
+  const user = await requireRole('owner');
+  return <ExamsClient userName={user.name} userEmail={user.id} userRole={user.role} />;
 }

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const user = await verifySession(token);
     if (!user) return NextResponse.json<ApiResponse>({ success: false, error: 'Session expired' }, { status: 401 });
 
-    const allowed = ['owner', 'coordinator', 'academic_operator', 'hr'];
+    const allowed = ['owner', 'batch_coordinator', 'academic_operator', 'hr'];
     if (!allowed.includes(user.role)) {
       return NextResponse.json<ApiResponse>({ success: false, error: 'Insufficient permissions' }, { status: 403 });
     }
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const user = await verifySession(token);
     if (!user) return NextResponse.json<ApiResponse>({ success: false, error: 'Session expired' }, { status: 401 });
 
-    const allowed = ['owner', 'coordinator', 'academic_operator', 'hr'];
+    const allowed = ['owner', 'batch_coordinator', 'academic_operator', 'hr'];
     if (!allowed.includes(user.role)) {
       return NextResponse.json<ApiResponse>({ success: false, error: 'Insufficient permissions' }, { status: 403 });
     }
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
         // Create portal_user if not exists
         await db.query(
-          `INSERT INTO portal_users (email, full_name, role, is_active)
+          `INSERT INTO portal_users (email, full_name, portal_role, is_active)
            VALUES ($1, $2, 'student', true)
            ON CONFLICT (email) DO NOTHING`,
           [email, admission.student_name]
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         // Create parent portal_user if parent_email exists
         if (admission.parent_email) {
           await db.query(
-            `INSERT INTO portal_users (email, full_name, role, is_active)
+            `INSERT INTO portal_users (email, full_name, portal_role, is_active)
              VALUES ($1, $2, 'parent', true)
              ON CONFLICT (email) DO NOTHING`,
             [admission.parent_email, admission.parent_name || 'Parent']

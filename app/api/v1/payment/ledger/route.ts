@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       }
     }
     // Admin roles can fetch any student
-    else if (!['owner', 'coordinator', 'academic_operator', 'hr'].includes(user.role)) {
+    else if (!['owner', 'batch_coordinator', 'academic_operator', 'hr'].includes(user.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

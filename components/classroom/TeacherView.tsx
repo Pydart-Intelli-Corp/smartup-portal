@@ -468,7 +468,7 @@ export default function TeacherView({
 
   // ─── Render ─────────────────────────────────────────────
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#202124] text-[#e8eaed]">
+    <div className="flex h-dvh flex-col bg-[#202124] text-[#e8eaed]">
 
       {/* ── Header ──────────────────────────────────────── */}
       <HeaderBar
@@ -550,11 +550,11 @@ export default function TeacherView({
                 </div>
                 {/* Student thumbnail strip (scrollable) */}
                 {students.length > 0 && (
-                  <div className="flex h-[100px] gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+                  <div className="flex h-25 gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
                     {students.map((s) => (
                       <div
                         key={s.identity}
-                        className="relative group h-full w-[130px] flex-shrink-0 overflow-hidden rounded-lg"
+                        className="relative group h-full w-32.5 shrink-0 overflow-hidden rounded-lg"
                       >
                         <VideoTile
                           participant={s}
@@ -563,7 +563,7 @@ export default function TeacherView({
                           showMicIndicator={true}
                           playAudio={!mutedStudents.has(s.identity)}
                           handRaised={raisedHands.has(s.identity)}
-                          className="!w-full !h-full !rounded-lg"
+                          className="w-full! h-full! rounded-lg!"
                         />
                       </div>
                     ))}
@@ -617,7 +617,7 @@ export default function TeacherView({
                         showMicIndicator={true}
                         playAudio={!mutedStudents.has(s.identity)}
                         handRaised={raisedHands.has(s.identity)}
-                        className="!rounded-xl"
+                        className="rounded-xl!"
                       />
                     </div>
                   ))}
@@ -627,20 +627,20 @@ export default function TeacherView({
           </div>
 
           {/* Self-cam floating PIP (top-left) */}
-          <div className="absolute top-4 left-4 z-30 overflow-hidden rounded-xl shadow-xl ring-1 ring-white/[0.08] transition-shadow hover:ring-white/20">
+          <div className="absolute top-4 left-4 z-30 overflow-hidden rounded-xl shadow-xl ring-1 ring-white/8 transition-shadow hover:ring-white/20">
             <VideoTile
               participant={localParticipant}
               size="small"
               mirror={true}
               showName={false}
               showMicIndicator={true}
-              className="!w-[140px] !h-[105px] !rounded-xl"
+              className="w-35! h-26.25! rounded-xl!"
             />
           </div>
 
           {/* ── Media approval requests (floating bottom-left) ── */}
           {mediaRequests.length > 0 && (
-            <div className="absolute bottom-3 left-3 z-40 w-[300px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden">
+            <div className="absolute bottom-3 left-3 z-40 w-75 rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/8 overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 bg-[#1a73e8]/10 border-b border-[#3c4043]">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">✋</span>
@@ -655,7 +655,7 @@ export default function TeacherView({
                   Clear all
                 </button>
               </div>
-              <div className="max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+              <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
                 {mediaRequests.map((req) => (
                   <div
                     key={`${req.student_id}_${req.type}`}
@@ -691,8 +691,8 @@ export default function TeacherView({
           {/* ── Leave requests (floating bottom-left, stacked below media requests) ── */}
           {leaveRequests.length > 0 && (
             <div className={cn(
-              'absolute left-3 z-40 w-[300px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden',
-              mediaRequests.length > 0 ? 'bottom-[calc(0.75rem+280px)]' : 'bottom-3',
+              'absolute left-3 z-40 w-75 rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/8 overflow-hidden',
+              mediaRequests.length > 0 ? 'bottom-73' : 'bottom-3',
             )}>
               <div className="flex items-center justify-between px-3 py-2 bg-[#ea4335]/10 border-b border-[#3c4043]">
                 <div className="flex items-center gap-2">
@@ -708,7 +708,7 @@ export default function TeacherView({
                   Clear all
                 </button>
               </div>
-              <div className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+              <div className="max-h-50 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
                 {leaveRequests.map((req) => (
                   <div
                     key={req.student_id}
@@ -743,9 +743,9 @@ export default function TeacherView({
           {/* ── Rejoin requests panel (floating, above leave requests) ── */}
           {rejoinRequests.length > 0 && (
             <div className={cn(
-              'absolute left-3 z-40 w-[280px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden',
-              leaveRequests.length > 0 ? 'bottom-[calc(0.75rem+520px)]' :
-              mediaRequests.length > 0 ? 'bottom-[calc(0.75rem+280px)]' : 'bottom-3',
+              'absolute left-3 z-40 w-70 rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/8 overflow-hidden',
+              leaveRequests.length > 0 ? 'bottom-133' :
+              mediaRequests.length > 0 ? 'bottom-73' : 'bottom-3',
             )}>
               <div className="flex items-center justify-between px-3 py-2 bg-[#4285f4]/10 border-b border-[#3c4043]">
                 <div className="flex items-center gap-2">
@@ -761,7 +761,7 @@ export default function TeacherView({
                   Clear all
                 </button>
               </div>
-              <div className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+              <div className="max-h-50 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
                 {rejoinRequests.map((req) => (
                   <div
                     key={req.student_id}
@@ -795,7 +795,7 @@ export default function TeacherView({
 
           {/* ── Hand-raise queue (floating bottom-right) ── */}
           {handCount > 0 && (
-            <div className="absolute bottom-3 right-3 z-40 w-[260px] rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/[0.08] overflow-hidden">
+            <div className="absolute bottom-3 right-3 z-40 w-65 rounded-2xl bg-[#2d2e30] shadow-2xl ring-1 ring-white/8 overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-3 py-2 bg-[#f9ab00]/10 border-b border-[#3c4043]">
                 <div className="flex items-center gap-2">
@@ -812,7 +812,7 @@ export default function TeacherView({
                 </button>
               </div>
               {/* List — max 4 visible, scrollable */}
-              <div className="max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
+              <div className="max-h-45 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#3c4043]">
                 {sortedHands.map(([id, info]) => (
                   <div
                     key={id}

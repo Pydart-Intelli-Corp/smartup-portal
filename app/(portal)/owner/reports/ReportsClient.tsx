@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // Reports — Client Component
-// Generate and view system reports
+// Uses shared UI components — no hardcoded colors or styles
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -8,10 +8,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import {
-  LayoutDashboard, BarChart3, FileText, RefreshCw, Plus,
-  Calendar, TrendingUp, Users, GraduationCap, Briefcase,
-  BookOpen, Loader2
+  PageHeader, RefreshButton, Button,
+  FormPanel, FormField, FormGrid, FormActions,
+  Input, Select,
+  LoadingState, EmptyState, Badge,
+  useToast,
+} from '@/components/dashboard/shared';
+import {
+  BarChart3, FileText, Plus, Calendar,
+  TrendingUp, Users, GraduationCap, Briefcase,
+  BookOpen, X,
 } from 'lucide-react';
+
+// ── Types ────────────────────────────────────────────────────
 
 interface Report {
   id: string;
@@ -30,16 +39,24 @@ interface Props {
 }
 
 const REPORT_TYPES = [
-  { value: 'attendance', label: 'Attendance', icon: Users, color: 'text-blue-400' },
-  { value: 'revenue', label: 'Revenue', icon: TrendingUp, color: 'text-green-400' },
-  { value: 'teacher_performance', label: 'Teacher Performance', icon: BookOpen, color: 'text-emerald-400' },
-  { value: 'student_progress', label: 'Student Progress', icon: GraduationCap, color: 'text-violet-400' },
-  { value: 'batch_summary', label: 'Batch Summary', icon: Calendar, color: 'text-amber-400' },
-  { value: 'exam_analytics', label: 'Exam Analytics', icon: FileText, color: 'text-rose-400' },
-  { value: 'payroll_summary', label: 'Payroll Summary', icon: Briefcase, color: 'text-teal-400' },
-  { value: 'session_report', label: 'Session Report', icon: Calendar, color: 'text-cyan-400' },
-  { value: 'parent_monthly', label: 'Parent Monthly', icon: Users, color: 'text-pink-400' },
+  { value: 'attendance',          label: 'Attendance',          icon: Users,        variant: 'info' as const },
+  { value: 'revenue',             label: 'Revenue',             icon: TrendingUp,   variant: 'success' as const },
+  { value: 'teacher_performance', label: 'Teacher Performance', icon: BookOpen,      variant: 'primary' as const },
+  { value: 'student_progress',    label: 'Student Progress',    icon: GraduationCap, variant: 'primary' as const },
+  { value: 'batch_summary',       label: 'Batch Summary',       icon: Calendar,     variant: 'warning' as const },
+  { value: 'exam_analytics',      label: 'Exam Analytics',      icon: FileText,     variant: 'danger' as const },
+  { value: 'payroll_summary',     label: 'Payroll Summary',     icon: Briefcase,    variant: 'info' as const },
+  { value: 'session_report',      label: 'Session Report',      icon: Calendar,     variant: 'info' as const },
+  { value: 'parent_monthly',      label: 'Parent Monthly',      icon: Users,        variant: 'primary' as const },
 ];
+
+const VARIANT_ICON_COLORS: Record<string, string> = {
+  primary: 'text-emerald-600',
+  success: 'text-green-600',
+  warning: 'text-amber-600',
+  danger: 'text-red-600',
+  info: 'text-teal-600',
+};
 
 export default function ReportsClient({ userName, userEmail, userRole }: Props) {
   const [reports, setReports] = useState<Report[]>([]);
@@ -53,10 +70,7 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
   const [formEnd, setFormEnd] = useState('');
   const [showForm, setShowForm] = useState(false);
 
-  const navItems = [
-    { label: 'Dashboard', href: '/owner', icon: LayoutDashboard },
-    { label: 'Reports', href: '/owner/reports', icon: BarChart3, active: true },
-  ];
+  const toast = useToast();
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -82,79 +96,56 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
       const json = await res.json();
       if (json.success) {
         setShowForm(false);
+        toast.success('Report generated successfully');
         fetchReports();
       } else {
-        alert(json.error || 'Failed to generate report');
+        toast.error(json.error || 'Failed to generate report');
       }
     } catch (e) { console.error('Generate report failed', e); }
     setGenerating(false);
   };
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-blue-400" /> Reports
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Generate and review system reports</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={fetchReports} className="rounded border border-border bg-muted px-3 py-1.5 text-xs text-foreground/80 hover:bg-accent">
-              <RefreshCw className={`h-3 w-3 inline mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-            <button onClick={() => setShowForm(!showForm)}
-              className="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500">
-              <Plus className="h-3 w-3 inline mr-1" /> Generate
-            </button>
-          </div>
-        </div>
+        <PageHeader icon={BarChart3} title="Reports" subtitle="Generate and review system reports">
+          <RefreshButton loading={loading} onClick={fetchReports} />
+          <Button variant="primary" icon={Plus} onClick={() => setShowForm(!showForm)}>
+            Generate
+          </Button>
+        </PageHeader>
 
         {/* Generate Form */}
         {showForm && (
-          <div className="rounded-xl border border-border bg-muted/50 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Generate New Report</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Report Type</label>
-                <select value={formType} onChange={e => setFormType(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
-                  {REPORT_TYPES.map(rt => (
-                    <option key={rt.value} value={rt.value}>{rt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Period Start</label>
-                <input type="date" value={formStart} onChange={e => setFormStart(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Period End</label>
-                <input type="date" value={formEnd} onChange={e => setFormEnd(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
-              </div>
-              <div className="flex items-end">
-                <button onClick={generateReport} disabled={generating || !formStart || !formEnd}
-                  className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50">
-                  {generating ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Generate'}
-                </button>
-              </div>
-            </div>
-          </div>
+          <FormPanel title="Generate New Report" icon={BarChart3} onClose={() => setShowForm(false)}>
+            <FormGrid cols={4}>
+              <FormField label="Report Type">
+                <Select value={formType} onChange={setFormType}
+                  options={REPORT_TYPES.map(rt => ({ value: rt.value, label: rt.label }))} />
+              </FormField>
+              <FormField label="Period Start">
+                <Input type="date" value={formStart} onChange={e => setFormStart(e.target.value)} />
+              </FormField>
+              <FormField label="Period End">
+                <Input type="date" value={formEnd} onChange={e => setFormEnd(e.target.value)} />
+              </FormField>
+              <FormActions onCancel={() => setShowForm(false)} onSubmit={generateReport}
+                submitLabel="Generate" submitDisabled={!formStart || !formEnd} submitting={generating} />
+            </FormGrid>
+          </FormPanel>
         )}
 
         {/* Report Type Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
           {REPORT_TYPES.map(rt => {
             const Icon = rt.icon;
+            const iconColor = VARIANT_ICON_COLORS[rt.variant] || 'text-gray-500';
             return (
               <button key={rt.value}
                 onClick={() => { setFormType(rt.value); setShowForm(true); }}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-border bg-muted/50 p-4 hover:border-border hover:bg-muted transition">
-                  <Icon className={`h-6 w-6 ${rt.color}`} />
-                  <span className="text-xs text-muted-foreground text-center">{rt.label}</span>
+                className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 hover:bg-gray-50 hover:border-gray-300 transition shadow-sm">
+                <Icon className={`h-6 w-6 ${iconColor}`} />
+                <span className="text-xs text-gray-600 text-center font-medium">{rt.label}</span>
               </button>
             );
           })}
@@ -162,12 +153,14 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
 
         {/* Selected Report Detail */}
         {selectedReport && (
-          <div className="rounded-xl border border-border bg-muted/50 p-5">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-foreground">{selectedReport.title}</h3>
-              <button onClick={() => setSelectedReport(null)} className="text-xs text-muted-foreground hover:text-foreground/80">Close</button>
+              <h3 className="text-sm font-semibold text-gray-900">{selectedReport.title}</h3>
+              <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-gray-600 transition">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <pre className="text-xs text-muted-foreground bg-card rounded-lg p-4 overflow-auto max-h-96">
+            <pre className="text-xs text-gray-600 bg-gray-50 rounded-lg p-4 overflow-auto max-h-96 border border-gray-100">
               {JSON.stringify(selectedReport.data, null, 2)}
             </pre>
           </div>
@@ -175,30 +168,27 @@ export default function ReportsClient({ userName, userEmail, userRole }: Props) 
 
         {/* Report List */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          </div>
+          <LoadingState />
         ) : reports.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <FileText className="h-12 w-12 mb-3 opacity-40" />
-            <p className="text-sm">No reports generated yet</p>
-          </div>
+          <EmptyState icon={FileText} message="No reports generated yet" />
         ) : (
           <div className="space-y-2">
             {reports.map(report => {
               const rt = REPORT_TYPES.find(r => r.value === report.report_type);
               const Icon = rt?.icon || FileText;
+              const iconColor = rt ? (VARIANT_ICON_COLORS[rt.variant] || 'text-gray-400') : 'text-gray-400';
               return (
                 <button key={report.id} onClick={() => setSelectedReport(report)}
-                  className="w-full flex items-center gap-4 rounded-xl border border-border bg-muted/50 p-4 hover:bg-muted text-left transition">
-                  <Icon className={`h-5 w-5 ${rt?.color || 'text-muted-foreground'}`} />
+                  className="w-full flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 hover:bg-gray-50 text-left transition shadow-sm">
+                  <Icon className={`h-5 w-5 ${iconColor}`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{report.title}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-medium text-gray-900 truncate">{report.title}</p>
+                    <p className="text-xs text-gray-500">
                       {new Date(report.period_start).toLocaleDateString('en-IN')} — {new Date(report.period_end).toLocaleDateString('en-IN')}
                     </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <Badge label={report.report_type.replace(/_/g, ' ')} variant={rt?.variant || 'default'} />
+                  <span className="text-xs text-gray-400">
                     {new Date(report.created_at).toLocaleDateString('en-IN')}
                   </span>
                 </button>

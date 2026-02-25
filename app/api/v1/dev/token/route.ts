@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    const validRoles: PortalRole[] = ['teacher', 'teacher_screen', 'student', 'coordinator', 'academic_operator', 'academic', 'parent', 'owner', 'ghost'];
+    const validRoles: PortalRole[] = ['teacher', 'teacher_screen', 'student', 'batch_coordinator', 'academic_operator', 'academic', 'parent', 'owner', 'ghost'];
     if (!validRoles.includes(role as PortalRole)) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: `Invalid role: ${role}. Valid roles: ${validRoles.join(', ')}` },

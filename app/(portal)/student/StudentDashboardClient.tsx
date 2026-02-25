@@ -51,6 +51,7 @@ interface Props {
   userName: string;
   userEmail: string;
   userRole: string;
+  permissions?: Record<string, boolean>;
 }
 
 // ── Constants ──────────────────────────────────────────────────
@@ -167,7 +168,7 @@ function OverviewTab({ assignments, userName }: { assignments: Assignment[]; use
     <div className="space-y-6">
       {/* Live Join Banner */}
       {liveRooms.length > 0 && (
-        <div className="rounded-2xl border-2 border-green-500 bg-gradient-to-r from-green-950/60 to-emerald-950/40 p-6">
+        <div className="rounded-2xl border-2 border-green-500 bg-linear-to-r from-green-950/60 to-emerald-950/40 p-6">
           <div className="mb-4 flex items-center gap-3">
             <div className="h-3 w-3 animate-pulse rounded-full bg-green-400" />
             <h2 className="text-lg font-bold text-green-300">
@@ -573,7 +574,7 @@ function ProfileTab({ profile, loading }: { profile: StudentProfile | null; load
   return (
     <div className="max-w-2xl space-y-5">
       {/* Header card */}
-      <div className="rounded-2xl border border-violet-800 bg-gradient-to-br from-violet-950/40 to-gray-900 p-6">
+      <div className="rounded-2xl border border-violet-800 bg-linear-to-br from-violet-950/40 to-gray-900 p-6">
         <div className="flex items-center gap-5">
           <Avatar name={profile.name} size={16} color="bg-violet-600" />
           <div>
@@ -639,7 +640,7 @@ function ProfileTab({ profile, loading }: { profile: StudentProfile | null; load
 
 // ── Main Dashboard Component ───────────────────────────────────
 
-export default function StudentDashboardClient({ userName, userEmail, userRole }: Props) {
+export default function StudentDashboardClient({ userName, userEmail, userRole, permissions }: Props) {
   const [assignments,    setAssignments]    = useState<Assignment[]>([]);
   const [profile,        setProfile]        = useState<StudentProfile | null>(null);
   const [loadingRooms,   setLoadingRooms]   = useState(true);
@@ -691,14 +692,10 @@ export default function StudentDashboardClient({ userName, userEmail, userRole }
 
   const liveCount = assignments.filter((a) => a.status === 'live').length;
 
-  const navItems = [
-    { label: 'Dashboard',  href: '/student',         icon: LayoutDashboard, active: true },
-    { label: 'My Classes', href: '/student#classes',  icon: BookOpen },
-    { label: 'Exams',      href: '/student/exams',   icon: GraduationCap },
-  ];
+
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={navItems}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       {/* Page Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>

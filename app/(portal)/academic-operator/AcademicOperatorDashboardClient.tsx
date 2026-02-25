@@ -8,6 +8,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
+import { useConfirm } from '@/components/dashboard/shared';
 import { fmtSmartDateIST, fmtDateTimeIST, toISTDateValue, toISTTimeValue, istToUTCISO } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import {
@@ -58,6 +59,15 @@ interface AcademicOperatorDashboardClientProps {
   userName: string;
   userEmail: string;
   userRole: string;
+}
+
+/** Treat 'live' rooms past their end time as 'ended' (safety net). */
+function effectiveStatus(room: { status: string; scheduled_start: string; duration_minutes: number }): string {
+  if (room.status === 'live') {
+    const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
+    if (Date.now() >= endMs) return 'ended';
+  }
+  return room.status;
 }
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; dot: string; icon: typeof Radio }> = {
@@ -203,7 +213,7 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
 
   const filteredRooms = rooms
-    .filter((r) => filter === 'all' || r.status === filter)
+    .filter((r) => filter === 'all' || effectiveStatus(r) === filter)
     .filter((r) => !search ||
       r.room_name.toLowerCase().includes(search.toLowerCase()) ||
       r.subject.toLowerCase().includes(search.toLowerCase()) ||
@@ -212,15 +222,13 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
 
   const stats = {
     total: rooms.length,
-    live: rooms.filter((r) => r.status === 'live').length,
-    scheduled: rooms.filter((r) => r.status === 'scheduled').length,
-    ended: rooms.filter((r) => r.status === 'ended').length,
+    live: rooms.filter((r) => effectiveStatus(r) === 'live').length,
+    scheduled: rooms.filter((r) => effectiveStatus(r) === 'scheduled').length,
+    ended: rooms.filter((r) => effectiveStatus(r) === 'ended').length,
   };
 
   return (
-    <DashboardShell role={userRole} userName={userName} userEmail={userEmail} navItems={[
-      { label: 'Rooms', href: '/academic-operator', icon: LayoutDashboard, active: true },
-    ]}>
+    <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Rooms</h1>
@@ -357,9 +365,9 @@ function AOPRoomDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [notifying, setNotifying] = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [msg, setMsg] = useState('');
+  const { confirm } = useConfirm();
 
   const fetchDetails = useCallback(async () => {
     setLoadingDetails(true);
@@ -386,6 +394,13 @@ function AOPRoomDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
   };
 
   const handleCancel = async () => {
+    const ok = await confirm({
+      title: 'Cancel Room',
+      message: 'Cancel this room? This cannot be undone.',
+      confirmLabel: 'Yes, Cancel',
+      variant: 'danger',
+    });
+    if (!ok) return;
     setCancelling(true);
     try {
       const res = await fetch(`/api/v1/coordinator/rooms/${room.room_id}`, { method: 'DELETE' });
@@ -393,7 +408,7 @@ function AOPRoomDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
       if (data.success) onRefresh();
       else setMsg(`\u2717 ${data.error}`);
     } catch { setMsg('\u2717 Network error'); }
-    finally { setCancelling(false); setCancelConfirm(false); }
+    finally { setCancelling(false); }
   };
 
   return (
@@ -412,19 +427,11 @@ function AOPRoomDetailPanel({ room, onRefresh }: { room: Room; onRefresh: () => 
               >
                 {notifying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Notify All
               </button>
-              {!cancelConfirm ? (
-                <button onClick={() => setCancelConfirm(true)}
-                  className="flex items-center gap-1 rounded-lg border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-950/50 transition-colors"
-                ><Trash2 className="h-3 w-3" /> Cancel Room</button>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-red-400">Sure?</span>
-                  <button onClick={handleCancel} disabled={cancelling}
-                    className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-50"
-                  >{cancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Yes, Cancel'}</button>
-                  <button onClick={() => setCancelConfirm(false)} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">No</button>
-                </div>
-              )}
+              <button onClick={handleCancel} disabled={cancelling}
+                className="flex items-center gap-1 rounded-lg border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-950/50 transition-colors"
+              >
+                {cancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Cancel Room
+              </button>
             </>
           )}
         </div>
@@ -910,10 +917,10 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
             )}
           </div>
 
-          {/* ── Assign Batch Coordinator (optional) ── */}
+          {/* ── Assign Admin (optional) ── */}
           <div className="rounded-xl border border-blue-800/50 bg-blue-950/10 p-4">
             <label className="text-xs font-medium text-blue-400 flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Batch Coordinator <span className="text-muted-foreground/60">(optional)</span>
+              <Users className="h-3.5 w-3.5" /> Admin <span className="text-muted-foreground/60">(optional)</span>
             </label>
             <p className="mb-2 text-[10px] text-muted-foreground">Assign a coordinator to manage this room. Shows their active batch load.</p>
             {!form.coordinator_email ? (

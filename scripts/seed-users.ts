@@ -19,11 +19,11 @@ const DEFAULT_PASSWORD = 'Test@1234';
 const users: [string, string, string][] = [
   ['abcdqrst404@gmail.com',     'Priya Sharma',  'teacher'],
   ['official.tishnu@gmail.com', 'Rahul Nair',    'student'],
-  ['official4tishnu@gmail.com', 'Seema Verma',   'coordinator'],
+  ['official4tishnu@gmail.com', 'Seema Verma',   'batch_coordinator'],
   ['dev.poornasree@gmail.com',  'Dr. Mehta',     'academic_operator'],
   ['tech.poornasree@gmail.com',  'Ayesha Khan',   'hr'],
   ['idukki.karan404@gmail.com', 'Nair P.',        'parent'],
-  ['tishnuvichuz143@gmail.com', 'Admin Owner',   'owner'],
+  ['smartuplearningventures@gmail.com', 'Admin Owner',   'owner'],
   ['info.pydart@gmail.com',     'Nour Observer', 'ghost'],
 ];
 
@@ -35,15 +35,16 @@ async function seed() {
 
   for (const [email, name, role] of users) {
     await pool.query(
-      `INSERT INTO portal_users (email, full_name, portal_role, password_hash, is_active)
-       VALUES ($1, $2, $3, $4, TRUE)
+      `INSERT INTO portal_users (email, full_name, portal_role, password_hash, plain_password, is_active)
+       VALUES ($1, $2, $3, $4, $5, TRUE)
        ON CONFLICT (email) DO UPDATE SET
-         full_name     = $2,
-         portal_role   = $3,
-         password_hash = $4,
-         is_active     = TRUE,
-         updated_at    = NOW()`,
-      [email, name, role, passwordHash]
+         full_name      = $2,
+         portal_role    = $3,
+         password_hash  = $4,
+         plain_password = $5,
+         is_active      = TRUE,
+         updated_at     = NOW()`,
+      [email, name, role, passwordHash, DEFAULT_PASSWORD]
     );
     console.log(`  ✅ ${email.padEnd(35)} → ${role}`);
   }

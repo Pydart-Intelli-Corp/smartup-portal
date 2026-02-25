@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: { exams } });
     }
 
-    // Owner, coordinator, academic_operator see all
-    if (['owner', 'coordinator', 'academic_operator'].includes(user.role)) {
+    // Owner, batch_coordinator, academic_operator see all
+    if (['owner', 'batch_coordinator', 'academic_operator'].includes(user.role)) {
       const result = await db.query(
         `SELECT e.*,
                 (SELECT COUNT(*) FROM exam_questions WHERE exam_id = e.id) AS question_count,

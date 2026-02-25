@@ -31,7 +31,7 @@ export interface ClassroomWrapperProps {
 }
 
 // Ghost roles that use the GhostView
-const GHOST_ROLES = ['ghost', 'owner', 'coordinator', 'academic_operator', 'academic', 'parent'];
+const GHOST_ROLES = ['ghost', 'owner', 'batch_coordinator', 'academic_operator', 'academic', 'parent'];
 
 export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
   const router = useRouter();
