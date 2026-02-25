@@ -25,10 +25,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ batc
   const { batchId } = await params;
 
   const batchRes = await db.query(
-    `SELECT b.*, t.full_name AS teacher_name, c.full_name AS coordinator_name
+    `SELECT b.*, c.full_name AS coordinator_name, ao.full_name AS academic_operator_name
      FROM batches b
-     LEFT JOIN portal_users t ON t.email = b.teacher_email
      LEFT JOIN portal_users c ON c.email = b.coordinator_email
+     LEFT JOIN portal_users ao ON ao.email = b.academic_operator_email
      WHERE b.batch_id = $1`,
     [batchId]
   );
@@ -39,12 +39,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ batc
   const studentsRes = await db.query(
     `SELECT bs.student_email, bs.parent_email, bs.added_at,
             su.full_name AS student_name,
-            pu.full_name AS parent_name
+            pu.full_name AS parent_name,
+            pp.phone AS parent_phone
      FROM batch_students bs
      LEFT JOIN portal_users su ON su.email = bs.student_email
      LEFT JOIN portal_users pu ON pu.email = bs.parent_email
+     LEFT JOIN user_profiles pp ON pp.email = bs.parent_email
      WHERE bs.batch_id = $1
      ORDER BY bs.added_at`,
+    [batchId]
+  );
+
+  const teachersRes = await db.query(
+    `SELECT bt.teacher_email, bt.subject, bt.added_at,
+            u.full_name AS teacher_name
+     FROM batch_teachers bt
+     LEFT JOIN portal_users u ON u.email = bt.teacher_email
+     WHERE bt.batch_id = $1
+     ORDER BY bt.subject`,
     [batchId]
   );
 
@@ -53,6 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ batc
     data: {
       batch: batchRes.rows[0],
       students: studentsRes.rows,
+      teachers: teachersRes.rows,
     },
   });
 }
@@ -67,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ba
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 }); }
 
-  const updateableFields = ['batch_name', 'subject', 'grade', 'board', 'teacher_email', 'coordinator_email', 'max_students', 'status', 'notes'];
+  const updateableFields = ['batch_name', 'subjects', 'grade', 'section', 'board', 'coordinator_email', 'academic_operator_email', 'max_students', 'status', 'notes'];
   const sets: string[] = [];
   const values: unknown[] = [];
 
@@ -78,22 +91,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ba
     }
   }
 
-  if (sets.length === 0) {
+  if (sets.length === 0 && !Array.isArray(body.students) && !Array.isArray(body.teachers)) {
     return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
   }
 
-  values.push(batchId);
-  const sql = `UPDATE batches SET ${sets.join(', ')} WHERE batch_id = $${values.length} RETURNING batch_id`;
-  const result = await db.query(sql, values);
+  await db.withTransaction(async (client) => {
+    if (sets.length > 0) {
+      values.push(batchId);
+      const sql = `UPDATE batches SET ${sets.join(', ')} WHERE batch_id = $${values.length} RETURNING batch_id`;
+      const result = await client.query(sql, values);
+      if (result.rows.length === 0) {
+        throw new Error('Batch not found');
+      }
+    }
 
-  if (result.rows.length === 0) {
-    return NextResponse.json({ success: false, error: 'Batch not found' }, { status: 404 });
-  }
+    // Handle teacher-subject assignments update
+    if (Array.isArray(body.teachers)) {
+      const teacherList = body.teachers as { email: string; subject: string }[];
+      await client.query('DELETE FROM batch_teachers WHERE batch_id = $1', [batchId]);
+      for (const t of teacherList) {
+        if (t.email && t.subject) {
+          await client.query(
+            `INSERT INTO batch_teachers (batch_id, teacher_email, subject)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (batch_id, subject) DO UPDATE SET teacher_email = EXCLUDED.teacher_email`,
+            [batchId, t.email.trim().toLowerCase(), t.subject.trim()]
+          );
+        }
+      }
+    }
 
-  // Handle student list update if provided
-  if (Array.isArray(body.students)) {
-    const studentList = body.students as { email: string; parent_email?: string }[];
-    await db.withTransaction(async (client) => {
+    // Handle student list update
+    if (Array.isArray(body.students)) {
+      const studentList = body.students as { email: string; parent_email?: string }[];
       await client.query('DELETE FROM batch_students WHERE batch_id = $1', [batchId]);
       for (const s of studentList) {
         await client.query(
@@ -102,8 +132,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ba
           [batchId, s.email.trim().toLowerCase(), s.parent_email || null]
         );
       }
-    });
-  }
+    }
+  });
 
   return NextResponse.json({ success: true, message: 'Batch updated' });
 }

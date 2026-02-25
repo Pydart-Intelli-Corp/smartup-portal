@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// Batch Management — Client Component (Complete Rewrite)
-// Template-based batch creation with multi-step wizard flow
+// Batch Management — Class-based batches (Class 10 A, Class 10 B)
+// Multi-subject and per-subject teacher assignment
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -21,19 +21,21 @@ import {
   GraduationCap, User, X, Trash2,
   ChevronRight, ChevronLeft,
   UserCheck, CheckCircle, AlertCircle, Layers,
+  Settings, Save,
 } from 'lucide-react';
 
-// ── Constants ────────────────────────────────────────────────
+// ── Default fallbacks (used until settings load) ────────────
 
-const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'Social Science', 'English', 'Malayalam', 'Arabic'];
-const GRADES = Array.from({ length: 12 }, (_, i) => String(i + 1));
-const BOARDS = ['CBSE', 'ICSE', 'State Board'];
+const DEFAULT_SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'Social Science', 'English', 'Malayalam', 'Arabic'];
+const DEFAULT_GRADES = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const DEFAULT_SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const DEFAULT_BOARDS = ['CBSE', 'ICSE', 'State Board'];
 
 const BATCH_TEMPLATES = [
   {
     type: 'one_to_one' as const,
     label: 'One-to-One',
-    description: '1 Student — 1 Teacher. Personal tuition.',
+    description: '1 Student — Personal tuition.',
     maxStudents: 1,
     icon: User,
     color: 'bg-blue-50 border-blue-200 text-blue-700',
@@ -42,7 +44,7 @@ const BATCH_TEMPLATES = [
   {
     type: 'one_to_three' as const,
     label: 'One-to-Three',
-    description: 'Up to 3 Students — 1 Teacher. Small group.',
+    description: 'Up to 3 Students — Small group.',
     maxStudents: 3,
     icon: Users,
     color: 'bg-emerald-50 border-emerald-200 text-emerald-700',
@@ -50,9 +52,9 @@ const BATCH_TEMPLATES = [
   },
   {
     type: 'one_to_many' as const,
-    label: 'One-to-Many',
-    description: 'Multiple Students — 1 Teacher. Classroom style.',
-    maxStudents: 50,
+    label: 'Classroom',
+    description: 'Full class batch — Multiple students.',
+    maxStudents: 15,
     icon: GraduationCap,
     color: 'bg-purple-50 border-purple-200 text-purple-700',
     selectedColor: 'bg-purple-100 border-purple-500 ring-2 ring-purple-300',
@@ -60,7 +62,7 @@ const BATCH_TEMPLATES = [
   {
     type: 'custom' as const,
     label: 'Custom',
-    description: 'Custom configuration batch.',
+    description: 'Custom configuration.',
     maxStudents: 999,
     icon: Layers,
     color: 'bg-amber-50 border-amber-200 text-amber-700',
@@ -76,13 +78,15 @@ interface Batch {
   batch_id: string;
   batch_name: string;
   batch_type: BatchType;
+  subjects: string[] | null;
   subject: string | null;
   grade: string | null;
+  section: string | null;
   board: string | null;
-  teacher_email: string | null;
-  teacher_name: string | null;
   coordinator_email: string | null;
   coordinator_name: string | null;
+  academic_operator_email: string | null;
+  academic_operator_name: string | null;
   max_students: number;
   status: string;
   notes: string | null;
@@ -90,11 +94,21 @@ interface Batch {
   created_at: string;
   updated_at: string;
   student_count: number;
+  teacher_count: number;
+  teachers: BatchTeacher[];
+}
+
+interface BatchTeacher {
+  teacher_email: string;
+  teacher_name: string | null;
+  subject: string;
+  added_at?: string;
 }
 
 interface BatchDetail {
   batch: Batch;
   students: BatchStudent[];
+  teachers: BatchTeacher[];
 }
 
 interface BatchStudent {
@@ -102,6 +116,7 @@ interface BatchStudent {
   student_name: string | null;
   parent_email: string | null;
   parent_name: string | null;
+  parent_phone: string | null;
   added_at: string;
 }
 
@@ -125,11 +140,12 @@ interface Props {
 
 // ── Wizard Step ──────────────────────────────────────────────
 
-type WizardStep = 'template' | 'details' | 'students' | 'review';
+type WizardStep = 'template' | 'details' | 'teachers' | 'students' | 'review';
 
 const WIZARD_STEPS: { key: WizardStep; label: string }[] = [
   { key: 'template', label: 'Template' },
   { key: 'details', label: 'Details' },
+  { key: 'teachers', label: 'Subjects & Teachers' },
   { key: 'students', label: 'Students' },
   { key: 'review', label: 'Review' },
 ];
@@ -159,6 +175,23 @@ function batchTypeBadgeVariant(t: string): 'primary' | 'success' | 'info' | 'war
 // ── Main Component ───────────────────────────────────────────
 
 export default function BatchesClient({ userName, userEmail, userRole }: Props) {
+  // ── Top-level page tab ──
+  const [pageTab, setPageTab] = useState<'batches' | 'academics'>('batches');
+
+  // ── Academic settings (configurable) ──
+  const [SUBJECTS, setSubjects] = useState<string[]>(DEFAULT_SUBJECTS);
+  const [GRADES, setGrades] = useState<string[]>(DEFAULT_GRADES);
+  const [SECTIONS, setSections] = useState<string[]>(DEFAULT_SECTIONS);
+  const [BOARDS, setBoards] = useState<string[]>(DEFAULT_BOARDS);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState<string | null>(null);
+
+  // Inline add inputs for each setting
+  const [newSubject, setNewSubject] = useState('');
+  const [newGrade, setNewGrade] = useState('');
+  const [newSection, setNewSection] = useState('');
+  const [newBoard, setNewBoard] = useState('');
+
   // ── List state ──
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,13 +212,17 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   // Wizard form values
   const [formType, setFormType] = useState<BatchType | ''>('');
   const [formName, setFormName] = useState('');
-  const [formSubject, setFormSubject] = useState('');
+  const [formSubjects, setFormSubjects] = useState<string[]>([]);
   const [formGrade, setFormGrade] = useState('');
+  const [formSection, setFormSection] = useState('');
   const [formBoard, setFormBoard] = useState('');
-  const [formTeacher, setFormTeacher] = useState('');
   const [formCoordinator, setFormCoordinator] = useState('');
+  const [formAcademicOperator, setFormAcademicOperator] = useState('');
   const [formMaxStudents, setFormMaxStudents] = useState('');
   const [formNotes, setFormNotes] = useState('');
+
+  // Subject → Teacher assignments
+  const [subjectTeachers, setSubjectTeachers] = useState<Record<string, string>>({});
 
   // Selected students for the batch
   const [selectedStudents, setSelectedStudents] = useState<{ email: string; name: string; parent_email: string | null; parent_name: string | null }[]>([]);
@@ -194,8 +231,10 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   const [students, setStudents] = useState<Person[]>([]);
   const [teachers, setTeachers] = useState<Person[]>([]);
   const [coordinators, setCoordinators] = useState<Person[]>([]);
+  const [academicOperators, setAcademicOperators] = useState<Person[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
+  const [subjectsDropdownOpen, setSubjectsDropdownOpen] = useState(false);
 
   // Parent creation inline
   const [showCreateParent, setShowCreateParent] = useState(false);
@@ -233,18 +272,111 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   const fetchPeople = useCallback(async () => {
     setPeopleLoading(true);
     try {
-      const [studRes, teachRes, coordRes] = await Promise.all([
+      const [studRes, teachRes, coordRes, aoRes] = await Promise.all([
+        // Students: use batches endpoint (excludes already-enrolled students)
         fetch('/api/v1/batches/people?role=student').then(r => r.json()),
+        // Teachers: use batches endpoint
         fetch('/api/v1/batches/people?role=teacher').then(r => r.json()),
-        fetch('/api/v1/batches/people?role=batch_coordinator').then(r => r.json()),
+        // Coordinators + Academic Operators: use HR endpoint (same auth, no is_active filter issues)
+        fetch('/api/v1/hr/users?role=batch_coordinator&limit=500').then(r => r.json()),
+        fetch('/api/v1/hr/users?role=academic_operator&limit=500').then(r => r.json()),
       ]);
       if (studRes.success) setStudents(studRes.data.people);
       if (teachRes.success) setTeachers(teachRes.data.people);
-      if (coordRes.success) setCoordinators(coordRes.data.people);
+      if (coordRes.success) setCoordinators(coordRes.data.users);
+      if (aoRes.success) setAcademicOperators(aoRes.data.users);
     } catch (e) { console.error('Failed to fetch people:', e); }
     setPeopleLoading(false);
   }, []);
 
+  // ── Fetch academic settings ──
+  const fetchSettings = useCallback(async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await fetch('/api/v1/academics/settings');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data as Record<string, string[]>;
+        if (d.subjects?.length) setSubjects(d.subjects);
+        if (d.grades?.length) setGrades(d.grades);
+        if (d.sections?.length) setSections(d.sections);
+        if (d.boards?.length) setBoards(d.boards);
+      }
+    } catch (e) { console.error('Failed to fetch academic settings:', e); }
+    setSettingsLoading(false);
+  }, []);
+
+  const saveSetting = async (key: string, values: string[]) => {
+    setSettingsSaving(key);
+    try {
+      const res = await fetch('/api/v1/academics/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, values }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} updated`);
+      } else {
+        toast.error(json.error || 'Failed to save');
+      }
+    } catch (e) { console.error(e); toast.error('Failed to save setting'); }
+    setSettingsSaving(null);
+  };
+
+  const addSettingItem = (key: string, value: string) => {
+    if (!value.trim()) return;
+    const v = value.trim();
+    if (key === 'subjects' && !SUBJECTS.includes(v)) {
+      const next = [...SUBJECTS, v];
+      setSubjects(next);
+      saveSetting('subjects', next);
+      setNewSubject('');
+    } else if (key === 'grades' && !GRADES.includes(v)) {
+      const next = [...GRADES, v];
+      setGrades(next);
+      saveSetting('grades', next);
+      setNewGrade('');
+    } else if (key === 'sections' && !SECTIONS.includes(v)) {
+      const next = [...SECTIONS, v];
+      setSections(next);
+      saveSetting('sections', next);
+      setNewSection('');
+    } else if (key === 'boards' && !BOARDS.includes(v)) {
+      const next = [...BOARDS, v];
+      setBoards(next);
+      saveSetting('boards', next);
+      setNewBoard('');
+    } else {
+      toast.error('Already exists');
+    }
+  };
+
+  const removeSettingItem = (key: string, value: string) => {
+    if (key === 'subjects') {
+      const next = SUBJECTS.filter(s => s !== value);
+      if (next.length === 0) { toast.error('Must have at least one subject'); return; }
+      setSubjects(next);
+      saveSetting('subjects', next);
+    } else if (key === 'grades') {
+      const next = GRADES.filter(s => s !== value);
+      if (next.length === 0) { toast.error('Must have at least one grade'); return; }
+      setGrades(next);
+      saveSetting('grades', next);
+    } else if (key === 'sections') {
+      const next = SECTIONS.filter(s => s !== value);
+      if (next.length === 0) { toast.error('Must have at least one section'); return; }
+      setSections(next);
+      saveSetting('sections', next);
+    } else if (key === 'boards') {
+      const next = BOARDS.filter(s => s !== value);
+      if (next.length === 0) { toast.error('Must have at least one board'); return; }
+      setBoards(next);
+      saveSetting('boards', next);
+    }
+  };
+
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
   useEffect(() => { fetchBatches(); }, [fetchBatches]);
 
   useEffect(() => {
@@ -262,19 +394,43 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
     setWizardStep('template');
     setFormType('');
     setFormName('');
-    setFormSubject('');
+    setFormSubjects([]);
     setFormGrade('');
+    setFormSection('');
     setFormBoard('');
-    setFormTeacher('');
     setFormCoordinator('');
+    setFormAcademicOperator('');
     setFormMaxStudents('');
     setFormNotes('');
+    setSubjectTeachers({});
     setSelectedStudents([]);
     setStudentSearch('');
+    setSubjectsDropdownOpen(false);
   };
 
   const openWizard = () => { resetWizard(); setShowCreate(true); };
   const closeWizard = () => { setShowCreate(false); resetWizard(); };
+
+  // Auto-generate batch name from grade + section
+  const autoName = (grade: string, section: string) => {
+    if (grade && section) return `Class ${grade} ${section}`;
+    if (grade) return `Class ${grade}`;
+    return '';
+  };
+
+  const handleGradeChange = (g: string) => {
+    setFormGrade(g);
+    if (!formName || formName === autoName(formGrade, formSection)) {
+      setFormName(autoName(g, formSection));
+    }
+  };
+
+  const handleSectionChange = (s: string) => {
+    setFormSection(s);
+    if (!formName || formName === autoName(formGrade, formSection)) {
+      setFormName(autoName(formGrade, s));
+    }
+  };
 
   const getMaxForType = (type: BatchType | ''): number => {
     if (!type) return 0;
@@ -284,8 +440,9 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   };
 
   const canProceedFromTemplate = formType !== '';
-  const canProceedFromDetails = formName.trim() !== '';
-  const canSubmit = formType !== '' && formName.trim() !== '';
+  const canProceedFromDetails = formName.trim() !== '' && formGrade !== '';
+  const canProceedFromTeachers = formSubjects.length > 0;
+  const canSubmit = formType !== '' && formName.trim() !== '' && formGrade !== '';
 
   // ── Student selection ──────────────────────────────────────
 
@@ -308,7 +465,7 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
       }
       setSelectedStudents(prev => [
         ...prev,
-        { email: person.email, name: person.full_name, parent_email: person.parent_email, parent_name: person.parent_name },
+        { email: person.email, name: person.full_name, parent_email: person.parent_email || null, parent_name: person.parent_name || null },
       ]);
     }
   };
@@ -352,6 +509,7 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
           )
         );
         setShowCreateParent(false);
+        setParentForStudent('');
         fetchPeople();
       } else {
         toast.error(json.error || 'Failed to create parent');
@@ -369,13 +527,17 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
       const body = {
         batch_name: formName.trim(),
         batch_type: formType,
-        subject: formSubject || null,
+        subjects: formSubjects.length > 0 ? formSubjects : null,
         grade: formGrade || null,
+        section: formSection || null,
         board: formBoard || null,
-        teacher_email: formTeacher || null,
         coordinator_email: formCoordinator || null,
+        academic_operator_email: formAcademicOperator || null,
         max_students: formType === 'custom' ? (Number(formMaxStudents) || 50) : getMaxForType(formType),
         notes: formNotes || null,
+        teachers: formSubjects
+          .filter(s => subjectTeachers[s])
+          .map(s => ({ email: subjectTeachers[s], subject: s })),
         students: selectedStudents.map(s => ({ email: s.email, parent_email: s.parent_email })),
       };
       const res = await fetch('/api/v1/batches', {
@@ -424,9 +586,10 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
     const matchSearch = !search ||
       b.batch_name.toLowerCase().includes(search.toLowerCase()) ||
       b.batch_id.toLowerCase().includes(search.toLowerCase()) ||
-      b.subject?.toLowerCase().includes(search.toLowerCase()) ||
-      b.teacher_name?.toLowerCase().includes(search.toLowerCase()) ||
-      b.coordinator_name?.toLowerCase().includes(search.toLowerCase());
+      (b.subjects || []).some(s => s.toLowerCase().includes(search.toLowerCase())) ||
+      b.section?.toLowerCase().includes(search.toLowerCase()) ||
+      b.coordinator_name?.toLowerCase().includes(search.toLowerCase()) ||
+      b.teachers?.some(t => t.teacher_name?.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = statusFilter === 'all' || b.status === statusFilter;
     const matchType = typeFilter === 'all' || b.batch_type === typeFilter;
     return matchSearch && matchStatus && matchType;
@@ -443,36 +606,13 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
 
   const stepIdx = WIZARD_STEPS.findIndex(s => s.key === wizardStep);
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-center gap-1 mb-6">
-      {WIZARD_STEPS.map((step, idx) => {
-        const isDone = idx < stepIdx;
-        const isCurrent = idx === stepIdx;
-        return (
-          <div key={step.key} className="flex items-center gap-1">
-            {idx > 0 && <div className={`w-8 h-0.5 ${idx <= stepIdx ? 'bg-blue-400' : 'bg-gray-200'}`} />}
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                isCurrent ? 'bg-blue-100 text-blue-700 border border-blue-300' :
-                isDone ? 'bg-blue-50 text-blue-600' :
-                'bg-gray-50 text-gray-400'
-              }`}
-            >
-              {isDone ? <CheckCircle className="h-3.5 w-3.5" /> : <span className="w-4 text-center">{idx + 1}</span>}
-              <span>{step.label}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
   // ── Step 1: Template selection ─────────────────────────────
 
   const renderTemplateStep = () => (
     <div>
-      <p className="text-sm text-gray-500 mb-4 text-center">Choose a batch template to get started</p>
-      <div className="grid grid-cols-2 gap-4">
+      <h3 className="text-xl font-bold text-gray-900 mb-1">Choose Batch Type</h3>
+      <p className="text-gray-500 mb-8">Select the type of batch you want to create</p>
+      <div className="grid grid-cols-2 gap-5">
         {BATCH_TEMPLATES.map(tpl => {
           const Icon = tpl.icon;
           const isSelected = formType === tpl.type;
@@ -481,15 +621,28 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
               key={tpl.type}
               type="button"
               onClick={() => setFormType(tpl.type)}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${isSelected ? tpl.selectedColor : tpl.color} hover:shadow-md`}
+              className={`group relative p-6 rounded-2xl border-2 text-left transition-all duration-200 hover:shadow-lg ${
+                isSelected
+                  ? 'border-emerald-500 bg-emerald-50 shadow-emerald-100 shadow-md ring-2 ring-emerald-200'
+                  : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
+              }`}
             >
-              <div className="flex items-start gap-3">
-                <Icon className="h-6 w-6 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm">{tpl.label}</p>
-                  <p className="text-xs mt-1 opacity-80">{tpl.description}</p>
-                  <p className="text-xs mt-2 font-medium">Max students: {tpl.maxStudents === 999 ? 'Custom' : tpl.maxStudents}</p>
+              {isSelected && (
+                <div className="absolute top-3 right-3">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
                 </div>
+              )}
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${
+                isSelected ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+              }`}>
+                <Icon className="h-6 w-6" />
+              </div>
+              <h4 className={`text-base font-bold mb-1 ${isSelected ? 'text-emerald-800' : 'text-gray-800'}`}>{tpl.label}</h4>
+              <p className="text-sm text-gray-500 mb-3 leading-relaxed">{tpl.description}</p>
+              <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                isSelected ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-600'
+              }`}>
+                Max: {tpl.maxStudents === 999 ? 'Custom' : `${tpl.maxStudents} student${tpl.maxStudents > 1 ? 's' : ''}`}
               </div>
             </button>
           );
@@ -502,38 +655,56 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
 
   const renderDetailsStep = () => (
     <div>
-      <FormGrid cols={2}>
+      <h3 className="text-xl font-bold text-gray-900 mb-1">Batch Details</h3>
+      <p className="text-gray-500 mb-8">Configure the basic information for this batch</p>
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-6">
+          <FormField label="Grade" required>
+            <Select value={formGrade} onChange={handleGradeChange}
+              options={[{ value: '', label: 'Select Grade' }, ...GRADES.map(g => ({ value: g, label: `Grade ${g}` }))]}
+            />
+          </FormField>
+          <FormField label="Section">
+            <Select value={formSection} onChange={handleSectionChange}
+              options={[{ value: '', label: 'Select Section' }, ...SECTIONS.map(s => ({ value: s, label: `Section ${s}` }))]}
+            />
+          </FormField>
+        </div>
         <FormField label="Batch Name" required>
-          <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Physics Grade 10 Batch A" />
+          <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Class 10 A" />
         </FormField>
-        <FormField label="Subject">
-          <Select value={formSubject} onChange={setFormSubject}
-            options={[{ value: '', label: 'Select Subject' }, ...SUBJECTS.map(s => ({ value: s, label: s }))]}
-          />
-        </FormField>
-        <FormField label="Grade">
-          <Select value={formGrade} onChange={setFormGrade}
-            options={[{ value: '', label: 'Select Grade' }, ...GRADES.map(g => ({ value: g, label: `Grade ${g}` }))]}
-          />
-        </FormField>
-        <FormField label="Board">
-          <Select value={formBoard} onChange={setFormBoard}
-            options={[{ value: '', label: 'Select Board' }, ...BOARDS.map(b => ({ value: b, label: b }))]}
-          />
-        </FormField>
-        <FormField label="Teacher">
-          <Select value={formTeacher} onChange={setFormTeacher}
+        <div className="grid grid-cols-2 gap-6">
+          <FormField label="Board">
+            <Select value={formBoard} onChange={setFormBoard}
+              options={[{ value: '', label: 'Select Board' }, ...BOARDS.map(b => ({ value: b, label: b }))]}
+            />
+          </FormField>
+          <FormField label="Coordinator">
+            <Select value={formCoordinator} onChange={setFormCoordinator}
+              options={[
+                { value: '', label: 'Select Coordinator' },
+                ...coordinators.map(c => {
+                  const batchCount = batches.filter(b => b.coordinator_email === c.email).length;
+                  return {
+                    value: c.email,
+                    label: `${c.full_name}${batchCount > 0 ? ` — ${batchCount} batch${batchCount > 1 ? 'es' : ''}` : ' — No batches'}`,
+                  };
+                }),
+              ]}
+            />
+          </FormField>
+        </div>
+        <FormField label="Academic Operator">
+          <Select value={formAcademicOperator} onChange={setFormAcademicOperator}
             options={[
-              { value: '', label: 'Select Teacher' },
-              ...teachers.map(t => ({ value: t.email, label: `${t.full_name} (${t.email})` })),
-            ]}
-          />
-        </FormField>
-        <FormField label="Coordinator">
-          <Select value={formCoordinator} onChange={setFormCoordinator}
-            options={[
-              { value: '', label: 'Select Coordinator' },
-              ...coordinators.map(c => ({ value: c.email, label: `${c.full_name} (${c.email})` })),
+              { value: '', label: 'Select Academic Operator' },
+              ...academicOperators.map(ao => {
+                const batchCount = batches.filter(b => b.academic_operator_email === ao.email).length;
+                return {
+                  value: ao.email,
+                  label: `${ao.full_name}${batchCount > 0 ? ` — ${batchCount} batch${batchCount > 1 ? 'es' : ''}` : ' — No batches'}`,
+                };
+              }),
             ]}
           />
         </FormField>
@@ -542,10 +713,114 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
             <Input type="number" value={formMaxStudents} onChange={e => setFormMaxStudents(e.target.value)} placeholder="50" />
           </FormField>
         )}
-        <FormField label="Notes" className="sm:col-span-2">
-          <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Optional notes…" rows={2} />
+        <FormField label="Notes">
+          <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Optional notes about this batch…" rows={3} />
         </FormField>
-      </FormGrid>
+      </div>
+    </div>
+  );
+
+  // ── Step 3: Subjects & Teacher assignment ──────────────────
+
+  const toggleSubject = (subj: string) => {
+    setFormSubjects(prev => {
+      if (prev.includes(subj)) {
+        const next = prev.filter(s => s !== subj);
+        // Also remove teacher assignment for removed subject
+        setSubjectTeachers(st => {
+          const copy = { ...st };
+          delete copy[subj];
+          return copy;
+        });
+        return next;
+      }
+      return [...prev, subj];
+    });
+  };
+
+  const renderTeachersStep = () => (
+    <div>
+      <h3 className="text-xl font-bold text-gray-900 mb-1">Subjects & Teachers</h3>
+      <p className="text-gray-500 mb-8">Select subjects and assign a teacher to each one</p>
+
+      {/* Subject selection — pill grid */}
+      <div className="mb-8">
+        <label className="block text-sm font-semibold text-gray-700 mb-3">Select Subjects *</label>
+        <div className="flex flex-wrap gap-2.5">
+          {SUBJECTS.map(subj => {
+            const isSelected = formSubjects.includes(subj);
+            return (
+              <button
+                key={subj}
+                type="button"
+                onClick={() => toggleSubject(subj)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all duration-150 ${
+                  isSelected
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300 hover:bg-emerald-50/50'
+                }`}
+              >
+                {isSelected && <span className="mr-1.5">✓</span>}
+                {subj}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">{formSubjects.length} of {SUBJECTS.length} subjects selected</p>
+      </div>
+
+      {/* Per-subject teacher assignment cards */}
+      {formSubjects.length > 0 && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Assign Teachers
+            <span className="ml-2 text-xs font-normal text-gray-400">
+              {formSubjects.filter(s => subjectTeachers[s]).length} / {formSubjects.length} assigned
+            </span>
+          </label>
+          <div className="space-y-3">
+            {formSubjects.map(subj => {
+              const assigned = !!subjectTeachers[subj];
+              return (
+                <div key={subj} className={`flex items-center gap-4 rounded-xl px-5 py-4 border-2 transition-all ${
+                  assigned ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200 bg-gray-50/50'
+                }`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                    assigned ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-30">
+                    <span className="text-sm font-semibold text-gray-800">{subj}</span>
+                  </div>
+                  <div className="flex-1">
+                    <Select
+                      value={subjectTeachers[subj] || ''}
+                      onChange={(val) => setSubjectTeachers(prev => ({ ...prev, [subj]: val }))}
+                      options={[
+                        { value: '', label: 'Select Teacher…' },
+                        ...teachers
+                          .filter(t => {
+                            const tSubjects = t.subjects || [];
+                            return tSubjects.length === 0 || tSubjects.some(ts => ts.toLowerCase() === subj.toLowerCase());
+                          })
+                          .map(t => ({
+                            value: t.email,
+                            label: `${t.full_name}${t.subjects ? ` (${t.subjects.join(', ')})` : ''}`,
+                          })),
+                      ]}
+                    />
+                  </div>
+                  {assigned && <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0" />}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400 mt-3">
+            Teachers are filtered by their registered subjects.
+          </p>
+        </div>
+      )}
     </div>
   );
 
@@ -555,50 +830,110 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
     const max = getMaxForType(formType);
     return (
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-600">
-            Add students to this batch
-            <span className="ml-2 font-medium text-gray-800">{selectedStudents.length} / {max === 999 ? '∞' : max}</span>
-          </p>
-          <SearchInput value={studentSearch} onChange={setStudentSearch} placeholder="Search students…" className="!w-64" />
+        <h3 className="text-xl font-bold text-gray-900 mb-1">Add Students</h3>
+        <p className="text-gray-500 mb-6">Select students for this batch</p>
+
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+              <span className="text-sm font-semibold text-emerald-700">{selectedStudents.length}</span>
+              <span className="text-xs text-emerald-500 ml-1">/ {max === 999 ? '∞' : max}</span>
+            </div>
+            <span className="text-sm text-gray-500">students selected</span>
+          </div>
+          <SearchInput value={studentSearch} onChange={setStudentSearch} placeholder="Search students…" className="w-72!" />
         </div>
 
         {/* Selected students with parent info */}
         {selectedStudents.length > 0 && (
-          <div className="mb-4 space-y-2">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Selected Students</h4>
-            {selectedStudents.map(s => (
-              <div key={s.email} className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <UserCheck className="h-4 w-4 text-blue-500" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                    <p className="text-xs text-gray-500">{s.email}</p>
+          <div className="mb-5 space-y-3">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Selected Students</h4>
+            {selectedStudents.map(s => {
+              const hasParent = !!s.parent_email;
+              const isAddingParent = parentForStudent === s.email;
+              return (
+                <div key={s.email} className="rounded-xl border-2 border-emerald-200 overflow-hidden">
+                  {/* Student row */}
+                  <div className="flex items-center justify-between bg-emerald-50/80 px-5 py-3.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                        {s.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{s.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{s.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {hasParent ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
+                          <CheckCircle className="h-3.5 w-3.5" /> Parent: {s.parent_name || s.parent_email}
+                        </span>
+                      ) : isAddingParent ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-100 px-3 py-1.5 rounded-lg">
+                          <UserCheck className="h-3.5 w-3.5" /> Filling parent details below…
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openCreateParent(s.email); }}
+                          className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 bg-amber-100 border-2 border-amber-300 px-4 py-2 rounded-lg hover:bg-amber-200 hover:border-amber-400 transition-all shadow-sm cursor-pointer"
+                        >
+                          <AlertCircle className="h-4 w-4" /> No Parent — Click to Add
+                        </button>
+                      )}
+                      <IconButton icon={X} onClick={() => removeStudent(s.email)} className="text-red-400 hover:text-red-600 hover:bg-red-50" />
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    {s.parent_email ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        <CheckCircle className="h-3 w-3" /> Parent: {s.parent_name || s.parent_email}
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => openCreateParent(s.email)}
-                        className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full hover:bg-amber-100 transition-colors"
-                      >
-                        <AlertCircle className="h-3 w-3" /> No Parent — Add
-                      </button>
-                    )}
-                  </div>
+
+                  {/* Inline parent creation form — expands below */}
+                  {!hasParent && isAddingParent && (
+                    <div className="bg-amber-50 border-t-2 border-amber-200 px-6 py-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-amber-400 text-white flex items-center justify-center">
+                          <UserCheck className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-amber-800">Create Parent Account</p>
+                          <p className="text-xs text-amber-600">for {s.name}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name *</label>
+                          <Input value={newParentName} onChange={e => setNewParentName(e.target.value)} placeholder="Parent's full name" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email *</label>
+                          <Input type="email" value={newParentEmail} onChange={e => setNewParentEmail(e.target.value)} placeholder="parent@email.com" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Phone</label>
+                          <Input value={newParentPhone} onChange={e => setNewParentPhone(e.target.value)} placeholder="+91 …" />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-amber-600">A parent account will be created via HR module. Password will be shown after creation.</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => { setParentForStudent(''); }}>
+                            Cancel
+                          </Button>
+                          <Button variant="primary" size="sm" onClick={createParent}
+                            disabled={!newParentName.trim() || !newParentEmail.trim() || creatingParent}>
+                            {creatingParent ? 'Creating…' : 'Create Parent'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <IconButton icon={X} onClick={() => removeStudent(s.email)} className="text-red-400 hover:text-red-600 hover:bg-red-50" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* Available students list */}
-        <div className="border rounded-lg max-h-64 overflow-y-auto">
+        <div className="border rounded-xl max-h-72 overflow-y-auto">
           {peopleLoading ? (
             <div className="p-8 text-center text-sm text-gray-400">Loading students…</div>
           ) : filteredStudents.length === 0 ? (
@@ -619,28 +954,30 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                   return (
                     <tr
                       key={s.email}
-                      className={`border-t hover:bg-gray-50 cursor-pointer transition-colors ${selected ? 'bg-blue-50/50' : ''}`}
+                      className={`border-t hover:bg-emerald-50/30 cursor-pointer transition-colors ${selected ? 'bg-emerald-50/50' : ''}`}
                       onClick={() => toggleStudent(s)}
                     >
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         <p className="font-medium text-gray-800">{s.full_name}</p>
                         <p className="text-xs text-gray-400">{s.email}</p>
                       </td>
-                      <td className="px-3 py-2 text-gray-500">{s.grade || '—'}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3 text-gray-500">{s.grade || '—'}</td>
+                      <td className="px-4 py-3">
                         {s.parent_email ? (
                           <span className="text-xs text-emerald-600">{s.parent_name || s.parent_email}</span>
                         ) : (
-                          <span className="text-xs text-amber-500">No parent</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                            <AlertCircle className="h-3 w-3" /> No parent
+                          </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-4 py-3 text-right">
                         {selected ? (
-                          <span className="text-xs text-blue-600 font-medium">✓ Selected</span>
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium"><CheckCircle className="h-3.5 w-3.5" /> Selected</span>
                         ) : maxReached ? (
                           <span className="text-xs text-gray-300">Max reached</span>
                         ) : (
-                          <span className="text-xs text-gray-400">Click to add</span>
+                          <span className="text-xs text-gray-400 hover:text-emerald-600">+ Add</span>
                         )}
                       </td>
                     </tr>
@@ -651,30 +988,7 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
           )}
         </div>
 
-        {/* Create Parent Modal */}
-        <Modal open={showCreateParent} onClose={() => setShowCreateParent(false)} title="Add Parent Account" maxWidth="sm">
-          <p className="text-sm text-gray-500 mb-4">
-            Create a parent account for student: <strong>{parentForStudent}</strong>
-          </p>
-          <FormGrid cols={1}>
-            <FormField label="Parent Full Name" required>
-              <Input value={newParentName} onChange={e => setNewParentName(e.target.value)} placeholder="Parent name" />
-            </FormField>
-            <FormField label="Parent Email" required>
-              <Input type="email" value={newParentEmail} onChange={e => setNewParentEmail(e.target.value)} placeholder="parent@email.com" />
-            </FormField>
-            <FormField label="Phone">
-              <Input value={newParentPhone} onChange={e => setNewParentPhone(e.target.value)} placeholder="+91 …" />
-            </FormField>
-          </FormGrid>
-          <FormActions
-            onCancel={() => setShowCreateParent(false)}
-            onSubmit={createParent}
-            submitLabel="Create Parent"
-            submitDisabled={!newParentName.trim() || !newParentEmail.trim()}
-            submitting={creatingParent}
-          />
-        </Modal>
+
       </div>
     );
   };
@@ -682,30 +996,65 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   // ── Step 4: Review & submit ───────────────────────────────
 
   const renderReviewStep = () => (
-    <div className="space-y-4">
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-gray-600 mb-3">Batch Summary</h4>
-        <div className="grid grid-cols-2 gap-3 text-sm">
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-bold text-gray-900 mb-1">Review & Create</h3>
+        <p className="text-gray-500 mb-6">Confirm the batch details before creating</p>
+      </div>
+
+      <div className="bg-linear-to-r from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
+        <h4 className="text-sm font-bold text-emerald-800 mb-4">Batch Summary</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-gray-400">Name:</span> <span className="font-medium text-gray-800">{formName}</span></div>
           <div><span className="text-gray-400">Type:</span> <Badge label={batchTypeLabel(formType)} variant={batchTypeBadgeVariant(formType)} /></div>
-          <div><span className="text-gray-400">Subject:</span> <span className="font-medium text-gray-800">{formSubject || '—'}</span></div>
-          <div><span className="text-gray-400">Grade:</span> <span className="font-medium text-gray-800">{formGrade ? `Grade ${formGrade}` : '—'}</span></div>
+          <div><span className="text-gray-400">Grade / Section:</span> <span className="font-medium text-gray-800">Grade {formGrade}{formSection ? ` ${formSection}` : ''}</span></div>
           <div><span className="text-gray-400">Board:</span> <span className="font-medium text-gray-800">{formBoard || '—'}</span></div>
-          <div><span className="text-gray-400">Teacher:</span> <span className="font-medium text-gray-800">{teachers.find(t => t.email === formTeacher)?.full_name || formTeacher || '—'}</span></div>
           <div><span className="text-gray-400">Coordinator:</span> <span className="font-medium text-gray-800">{coordinators.find(c => c.email === formCoordinator)?.full_name || formCoordinator || '—'}</span></div>
+          <div><span className="text-gray-400">Acad. Operator:</span> <span className="font-medium text-gray-800">{academicOperators.find(a => a.email === formAcademicOperator)?.full_name || formAcademicOperator || '—'}</span></div>
           <div><span className="text-gray-400">Students:</span> <span className="font-medium text-gray-800">{selectedStudents.length}</span></div>
         </div>
       </div>
 
+      {/* Subject → Teacher Assignments */}
+      {formSubjects.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Subjects & Teachers ({formSubjects.length})</h4>
+          <div className="space-y-2">
+            {formSubjects.map(subj => {
+              const teacherEmail = subjectTeachers[subj];
+              const teacher = teachers.find(t => t.email === teacherEmail);
+              return (
+                <div key={subj} className="flex items-center gap-3 bg-white border rounded-xl px-4 py-3 text-sm">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    teacher ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'
+                  }`}>
+                    <BookOpen className="h-4 w-4" />
+                  </div>
+                  <span className="font-semibold text-gray-700 min-w-30">{subj}</span>
+                  <span className="text-gray-300">→</span>
+                  {teacher ? (
+                    <span className="text-emerald-600">{teacher.full_name}</span>
+                  ) : (
+                    <span className="text-amber-500 italic">No teacher assigned</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {selectedStudents.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Enrolled Students</h4>
-          <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Enrolled Students ({selectedStudents.length})</h4>
+          <div className="space-y-2">
             {selectedStudents.map(s => (
-              <div key={s.email} className="flex items-center gap-3 bg-white border rounded px-3 py-1.5 text-sm">
-                <User className="h-3.5 w-3.5 text-gray-400" />
-                <span className="font-medium text-gray-700">{s.name}</span>
-                <span className="text-gray-400">{s.email}</span>
+              <div key={s.email} className="flex items-center gap-3 bg-white border rounded-xl px-4 py-3 text-sm">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold shrink-0">
+                  {s.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="font-semibold text-gray-700">{s.name}</span>
+                <span className="text-gray-400 text-xs">{s.email}</span>
                 {s.parent_email ? (
                   <span className="ml-auto text-xs text-emerald-600">Parent: {s.parent_name || s.parent_email}</span>
                 ) : (
@@ -718,8 +1067,8 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
       )}
 
       {formNotes && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notes</h4>
+        <div className="bg-gray-50 rounded-xl p-5">
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Notes</h4>
           <p className="text-sm text-gray-600">{formNotes}</p>
         </div>
       )}
@@ -739,6 +1088,7 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   const canGoNext = (): boolean => {
     if (wizardStep === 'template') return canProceedFromTemplate;
     if (wizardStep === 'details') return canProceedFromDetails;
+    if (wizardStep === 'teachers') return canProceedFromTeachers;
     if (wizardStep === 'students') return true;
     return false;
   };
@@ -751,9 +1101,165 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
 
         {/* ── Header ── */}
         <PageHeader icon={Database} title="Batch Management" subtitle="Create and manage batches with template-based flow">
-          <RefreshButton loading={loading} onClick={fetchBatches} />
-          <Button variant="primary" icon={Plus} onClick={openWizard}>New Batch</Button>
+          {pageTab === 'batches' && (
+            <>
+              <RefreshButton loading={loading} onClick={fetchBatches} />
+              <Button variant="primary" icon={Plus} onClick={openWizard}>New Batch</Button>
+            </>
+          )}
         </PageHeader>
+
+        {/* ── Page-level tabs: Batches / Academics ── */}
+        <TabBar
+          tabs={[
+            { key: 'batches', label: 'Batches' },
+            { key: 'academics', label: 'Academics' },
+          ]}
+          active={pageTab}
+          onChange={(k) => setPageTab(k as 'batches' | 'academics')}
+        />
+
+        {/* ══════════════════════════════════════════════════════
+            ACADEMICS TAB — Manage Subjects, Grades, Sections, Boards
+           ══════════════════════════════════════════════════════ */}
+        {pageTab === 'academics' && (
+          <div className="space-y-6">
+            <p className="text-sm text-gray-500">Configure the academic options available when creating batches. Changes are saved instantly.</p>
+
+            {settingsLoading ? (
+              <LoadingState />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {/* ── Subjects Card ── */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center"><BookOpen className="h-5 w-5" /></div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800">Subjects</h3>
+                      <p className="text-xs text-gray-400">{SUBJECTS.length} subjects configured</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {SUBJECTS.map(s => (
+                      <span key={s} className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        {s}
+                        <button type="button" onClick={() => removeSettingItem('subjects', s)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-400 hover:text-red-500">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input value={newSubject} onChange={e => setNewSubject(e.target.value)} placeholder="New subject name…"
+                      onKeyDown={e => { if (e.key === 'Enter') addSettingItem('subjects', newSubject); }} />
+                    <Button variant="primary" size="sm" onClick={() => addSettingItem('subjects', newSubject)}
+                      disabled={!newSubject.trim() || settingsSaving === 'subjects'}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* ── Grades Card ── */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center"><GraduationCap className="h-5 w-5" /></div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800">Grades</h3>
+                      <p className="text-xs text-gray-400">{GRADES.length} grades configured</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {GRADES.map(g => (
+                      <span key={g} className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Grade {g}
+                        <button type="button" onClick={() => removeSettingItem('grades', g)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-emerald-400 hover:text-red-500">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input value={newGrade} onChange={e => setNewGrade(e.target.value)} placeholder="New grade (e.g. 13, KG)…"
+                      onKeyDown={e => { if (e.key === 'Enter') addSettingItem('grades', newGrade); }} />
+                    <Button variant="primary" size="sm" onClick={() => addSettingItem('grades', newGrade)}
+                      disabled={!newGrade.trim() || settingsSaving === 'grades'}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* ── Sections Card ── */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center"><Layers className="h-5 w-5" /></div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800">Sections</h3>
+                      <p className="text-xs text-gray-400">{SECTIONS.length} sections configured</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {SECTIONS.map(s => (
+                      <span key={s} className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                        Section {s}
+                        <button type="button" onClick={() => removeSettingItem('sections', s)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-purple-400 hover:text-red-500">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input value={newSection} onChange={e => setNewSection(e.target.value)} placeholder="New section (e.g. G, H)…"
+                      onKeyDown={e => { if (e.key === 'Enter') addSettingItem('sections', newSection); }} />
+                    <Button variant="primary" size="sm" onClick={() => addSettingItem('sections', newSection)}
+                      disabled={!newSection.trim() || settingsSaving === 'sections'}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* ── Boards Card ── */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><Settings className="h-5 w-5" /></div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800">Boards</h3>
+                      <p className="text-xs text-gray-400">{BOARDS.length} boards configured</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {BOARDS.map(b => (
+                      <span key={b} className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        {b}
+                        <button type="button" onClick={() => removeSettingItem('boards', b)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-400 hover:text-red-500">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input value={newBoard} onChange={e => setNewBoard(e.target.value)} placeholder="New board name…"
+                      onKeyDown={e => { if (e.key === 'Enter') addSettingItem('boards', newBoard); }} />
+                    <Button variant="primary" size="sm" onClick={() => addSettingItem('boards', newBoard)}
+                      disabled={!newBoard.trim() || settingsSaving === 'boards'}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════
+            BATCHES TAB — Existing batch list + wizard
+           ══════════════════════════════════════════════════════ */}
+        {pageTab === 'batches' && (<>
 
         {/* ── Status tabs ── */}
         <TabBar
@@ -786,36 +1292,81 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
           </div>
         </div>
 
-        {/* ── Create Wizard Modal ── */}
-        <Modal open={showCreate} onClose={closeWizard} title="Create New Batch" maxWidth="lg">
-          {renderStepIndicator()}
+        {/* ── Create Wizard Overlay ── */}
+        {showCreate && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={closeWizard}>
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* ── Left sidebar — step indicator ── */}
+              <div className="w-60 bg-linear-to-b from-emerald-600 via-emerald-700 to-teal-800 p-6 flex flex-col shrink-0">
+                <div className="mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+                    <Database className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-white font-bold text-lg">New Batch</h2>
+                  <p className="text-emerald-200 text-xs mt-1">Step {stepIdx + 1} of {WIZARD_STEPS.length}</p>
+                </div>
+                <div className="space-y-1 flex-1">
+                  {WIZARD_STEPS.map((step, idx) => {
+                    const isDone = idx < stepIdx;
+                    const isCurrent = idx === stepIdx;
+                    return (
+                      <div
+                        key={step.key}
+                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
+                          isCurrent ? 'bg-white/20 text-white shadow-lg shadow-black/10' : isDone ? 'text-emerald-200' : 'text-emerald-400/50'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                          isDone ? 'bg-emerald-400 text-emerald-900' : isCurrent ? 'bg-white text-emerald-700' : 'bg-emerald-500/30 text-emerald-300/70'
+                        }`}>
+                          {isDone ? '✓' : idx + 1}
+                        </div>
+                        <span className="text-sm font-medium">{step.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button onClick={closeWizard} className="mt-4 text-emerald-200 hover:text-white text-xs flex items-center gap-2 transition">
+                  <X className="h-3.5 w-3.5" /> Cancel & Close
+                </button>
+              </div>
 
-          {wizardStep === 'template' && renderTemplateStep()}
-          {wizardStep === 'details' && renderDetailsStep()}
-          {wizardStep === 'students' && renderStudentsStep()}
-          {wizardStep === 'review' && renderReviewStep()}
+              {/* ── Right content area ── */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="px-10 pt-8 pb-6 flex-1 overflow-y-auto">
+                  {wizardStep === 'template' && renderTemplateStep()}
+                  {wizardStep === 'details' && renderDetailsStep()}
+                  {wizardStep === 'teachers' && renderTeachersStep()}
+                  {wizardStep === 'students' && renderStudentsStep()}
+                  {wizardStep === 'review' && renderReviewStep()}
+                </div>
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t">
-            <div>
-              {stepIdx > 0 && (
-                <Button variant="ghost" icon={ChevronLeft} onClick={goPrev}>Back</Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" onClick={closeWizard}>Cancel</Button>
-              {wizardStep !== 'review' ? (
-                <Button variant="primary" icon={ChevronRight} onClick={goNext} disabled={!canGoNext()}>
-                  Next
-                </Button>
-              ) : (
-                <Button variant="primary" icon={CheckCircle} onClick={submitBatch} disabled={!canSubmit || creating}>
-                  {creating ? 'Creating…' : 'Create Batch'}
-                </Button>
-              )}
+                {/* ── Footer navigation ── */}
+                <div className="px-10 py-5 border-t bg-gray-50/80 flex items-center justify-between">
+                  <div>
+                    {stepIdx > 0 && (
+                      <Button variant="ghost" icon={ChevronLeft} onClick={goPrev} size="md">Back</Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {wizardStep !== 'review' ? (
+                      <Button variant="primary" iconRight={ChevronRight} onClick={goNext} disabled={!canGoNext()} size="lg">
+                        Continue
+                      </Button>
+                    ) : (
+                      <Button variant="primary" icon={CheckCircle} onClick={submitBatch} disabled={!canSubmit || creating} size="lg">
+                        {creating ? 'Creating…' : 'Create Batch'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </Modal>
+        )}
 
         {/* ── Table ── */}
         {loading && batches.length === 0 ? (
@@ -834,10 +1385,11 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
             <THead>
               <TH>Batch</TH>
               <TH>Type</TH>
-              <TH>Subject</TH>
+              <TH>Subjects</TH>
               <TH>Grade</TH>
-              <TH>Teacher</TH>
+              <TH>Teachers</TH>
               <TH>Coordinator</TH>
+              <TH>Acad. Operator</TH>
               <TH>Students</TH>
               <TH>Status</TH>
               <TH className="text-right">Actions</TH>
@@ -857,22 +1409,44 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                     <Badge label={batchTypeLabel(batch.batch_type)} variant={batchTypeBadgeVariant(batch.batch_type)} />
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 text-gray-700">
-                      <BookOpen className="h-3.5 w-3.5 text-gray-400" /> {batch.subject || '—'}
-                    </span>
+                    {(batch.subjects && batch.subjects.length > 0) ? (
+                      <div className="flex flex-wrap gap-1">
+                        {batch.subjects.slice(0, 3).map(s => (
+                          <span key={s} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700">{s}</span>
+                        ))}
+                        {batch.subjects.length > 3 && (
+                          <span className="text-xs text-gray-400">+{batch.subjects.length - 3}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1 text-gray-700">
-                      <GraduationCap className="h-3.5 w-3.5 text-gray-400" /> {batch.grade || '—'}
+                      <GraduationCap className="h-3.5 w-3.5 text-gray-400" /> {batch.grade || '—'}{batch.section ? ` ${batch.section}` : ''}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-sm text-gray-700 truncate max-w-36">{batch.teacher_name || '—'}</p>
-                    {batch.teacher_email && <p className="text-xs text-gray-400">{batch.teacher_email}</p>}
+                    {batch.teachers && batch.teachers.length > 0 ? (
+                      <div>
+                        <p className="text-sm text-gray-700">{batch.teacher_count} teacher{batch.teacher_count !== 1 ? 's' : ''}</p>
+                        <p className="text-xs text-gray-400 truncate max-w-36">
+                          {batch.teachers.slice(0, 2).map(t => t.teacher_name || t.teacher_email).join(', ')}
+                          {batch.teachers.length > 2 ? ` +${batch.teachers.length - 2}` : ''}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-sm text-gray-700 truncate max-w-36">{batch.coordinator_name || '—'}</p>
                     {batch.coordinator_email && <p className="text-xs text-gray-400">{batch.coordinator_email}</p>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-gray-700 truncate max-w-36">{batch.academic_operator_name || '—'}</p>
+                    {batch.academic_operator_email && <p className="text-xs text-gray-400">{batch.academic_operator_email}</p>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center gap-1 text-gray-700">
@@ -906,22 +1480,61 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <InfoCard label="Status"><StatusBadge status={detail.batch.status} /></InfoCard>
                   <InfoCard label="Type"><Badge label={batchTypeLabel(detail.batch.batch_type)} variant={batchTypeBadgeVariant(detail.batch.batch_type)} /></InfoCard>
-                  <InfoCard label="Subject / Grade">
-                    <p className="text-sm font-medium text-gray-800">{detail.batch.subject || '—'} — Grade {detail.batch.grade || '—'}</p>
+                  <InfoCard label="Grade / Section">
+                    <p className="text-sm font-medium text-gray-800">Grade {detail.batch.grade || '—'}{detail.batch.section ? ` ${detail.batch.section}` : ''}</p>
                   </InfoCard>
                   <InfoCard label="Board">
                     <p className="text-sm font-medium text-gray-800">{detail.batch.board || '—'}</p>
                   </InfoCard>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoCard label="Teacher">
-                    <p className="text-sm font-medium text-gray-800">{detail.batch.teacher_name || '—'}</p>
-                    {detail.batch.teacher_email && <p className="text-xs text-gray-400">{detail.batch.teacher_email}</p>}
-                  </InfoCard>
+                {/* Subjects */}
+                <InfoCard label="Subjects">
+                  {(detail.batch.subjects && detail.batch.subjects.length > 0) ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {detail.batch.subjects.map(s => (
+                        <span key={s} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{s}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">No subjects assigned</p>
+                  )}
+                </InfoCard>
+
+                {/* Teachers — per-subject */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-blue-400" /> Subject Teachers ({detail.teachers?.length || 0})
+                  </h4>
+                  {(!detail.teachers || detail.teachers.length === 0) ? (
+                    <EmptyState message="No teachers assigned yet" />
+                  ) : (
+                    <div className="space-y-2">
+                      {detail.teachers.map(t => (
+                        <div key={`${t.subject}-${t.teacher_email}`} className="flex items-center gap-3 bg-white border rounded-lg px-4 py-2.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 min-w-25">{t.subject}</span>
+                          <span className="text-gray-400">→</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{t.teacher_name || t.teacher_email}</p>
+                            <p className="text-xs text-gray-400">{t.teacher_email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
                   <InfoCard label="Coordinator">
                     <p className="text-sm font-medium text-gray-800">{detail.batch.coordinator_name || '—'}</p>
                     {detail.batch.coordinator_email && <p className="text-xs text-gray-400">{detail.batch.coordinator_email}</p>}
+                  </InfoCard>
+                  <InfoCard label="Academic Operator">
+                    <p className="text-sm font-medium text-gray-800">{detail.batch.academic_operator_name || '—'}</p>
+                    {detail.batch.academic_operator_email && <p className="text-xs text-gray-400">{detail.batch.academic_operator_email}</p>}
+                  </InfoCard>
+                  <InfoCard label="Max Students">
+                    <p className="text-sm font-medium text-gray-800">{detail.batch.max_students}</p>
                   </InfoCard>
                 </div>
 
@@ -937,7 +1550,9 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                       <THead>
                         <TH>Student</TH>
                         <TH>Email</TH>
-                        <TH>Parent</TH>
+                        <TH>Parent Name</TH>
+                        <TH>Parent Email</TH>
+                        <TH>Parent Phone</TH>
                         <TH>Added</TH>
                       </THead>
                       <tbody>
@@ -946,10 +1561,24 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                             <td className="px-3 py-2 font-medium text-gray-800">{s.student_name || s.student_email}</td>
                             <td className="px-3 py-2 text-gray-500 text-xs">{s.student_email}</td>
                             <td className="px-3 py-2">
-                              {s.parent_email ? (
-                                <span className="text-xs text-emerald-600">{s.parent_name || s.parent_email}</span>
+                              {s.parent_name ? (
+                                <span className="text-sm text-gray-800 font-medium">{s.parent_name}</span>
                               ) : (
                                 <span className="text-xs text-amber-500">Not assigned</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {s.parent_email ? (
+                                <span className="text-xs text-emerald-600">{s.parent_email}</span>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {s.parent_phone ? (
+                                <span className="text-xs text-gray-600">{s.parent_phone}</span>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
                               )}
                             </td>
                             <td className="px-3 py-2 text-xs text-gray-400">
@@ -971,6 +1600,8 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
             )}
           </DetailPanel>
         )}
+
+        </>)}{/* end pageTab === 'batches' */}
       </div>
     </DashboardShell>
   );

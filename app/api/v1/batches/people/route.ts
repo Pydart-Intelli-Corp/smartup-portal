@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const role = url.searchParams.get('role') || 'all';
   const search = url.searchParams.get('q') || '';
 
-  const validRoles = ['student', 'teacher', 'batch_coordinator', 'parent'];
+  const validRoles = ['student', 'teacher', 'batch_coordinator', 'parent', 'academic_operator'];
 
   let sql = `
     SELECT u.email, u.full_name, u.portal_role, u.is_active,
@@ -41,6 +41,15 @@ export async function GET(req: NextRequest) {
     sql += ` AND u.portal_role = $${params.length}`;
   } else if (role === 'all') {
     sql += ` AND u.portal_role IN ('student', 'teacher', 'batch_coordinator', 'parent')`;
+  }
+
+  // Exclude students already assigned to an active batch
+  if (role === 'student') {
+    sql += ` AND u.email NOT IN (
+      SELECT bs.student_email FROM batch_students bs
+      JOIN batches b ON b.batch_id = bs.batch_id
+      WHERE b.status = 'active'
+    )`;
   }
 
   if (search) {
