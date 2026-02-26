@@ -15,6 +15,11 @@ export default async function LoginPage() {
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-black">
+      {/* ── Logo — top-left on desktop ── */}
+      <div className="absolute top-6 left-8 z-40 hidden sm:block">
+        <img src="/logo/full.png" alt="SmartUp" className="h-10 object-contain drop-shadow-lg" />
+      </div>
+
       {/* ── Fullscreen image slideshow ── */}
       <LoginSlideshow />
 
@@ -31,14 +36,7 @@ export default async function LoginPage() {
         </div>
       </div>
 
-      {/* ── Logo top-left on the image ── */}
-      <div className="absolute top-6 left-6 z-20 hidden sm:block">
-        <img
-          src="/logo/full.png"
-          alt="SmartUp"
-          className="h-12 object-contain drop-shadow-lg"
-        />
-      </div>
+
     </main>
   );
 }

@@ -68,7 +68,13 @@ export async function GET(req: NextRequest) {
       p.phone, p.whatsapp, p.subjects, p.grade, p.section, p.board,
       p.parent_email, p.qualification, p.experience_years, p.per_hour_rate, p.assigned_region,
       p.admission_date, p.notes, p.address,
-      par.full_name AS parent_name
+      par.full_name AS parent_name,
+      (
+        SELECT COALESCE(json_agg(json_build_object('name', cu.full_name, 'email', cu.email)), '[]'::json)
+        FROM user_profiles cp
+        JOIN portal_users cu ON cu.email = cp.email
+        WHERE cp.parent_email = u.email
+      ) AS children
     FROM portal_users u
     LEFT JOIN user_profiles p ON p.email = u.email
     LEFT JOIN portal_users par ON par.email = p.parent_email

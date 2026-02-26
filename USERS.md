@@ -10,7 +10,7 @@
 
 | # | Name | Email | Password | Portal Role | Dashboard |
 |---|------|-------|----------|-------------|-----------|
-| 1 | Admin Owner | `tishnuvichuz143@gmail.com` | `Test@1234` | `owner` | `/owner` |
+| 1 | Admin Owner | `smartuplearningventures@gmail.com` | `Test@1234` | `owner` | `/owner` |
 | 2 | Seema Verma | `official4tishnu@gmail.com` | `Test@1234` | `coordinator` | `/coordinator` |
 | 3 | Dr. Mehta | `dev.poornasree@gmail.com` | `Test@1234` | `academic_operator` | `/academic-operator` |
 | 4 | Ayesha Khan | `tech.poornasree@gmail.com` | `Test@1234` | `hr` | `/hr` |
@@ -26,7 +26,7 @@
 ### 👑 Owner
 | Name | Email | Password |
 |------|-------|----------|
-| Admin Owner | `tishnuvichuz143@gmail.com` | `Test@1234` |
+| Admin Owner | `smartuplearningventures@gmail.com` | `Test@1234` |
 
 > Full access to all routes and dashboards. Can access every portal role's pages.
 
@@ -119,5 +119,5 @@
 - **Seeding:** Run `npm run db:seed` from `smartup-portal/` to create all accounts in PostgreSQL.
 - **Passwords** are bcrypt-hashed (`rounds=12`) and stored in `portal_users.password_hash`.
 - **Adding new users:** Log in as `Ayesha Khan` (HR) and use the HR dashboard to create accounts — a generated password is emailed automatically.
-- **Owner bypass:** `tishnuvichuz143@gmail.com` can log in to any role's dashboard regardless of route restrictions.
+- **Owner bypass:** `smartuplearningventures@gmail.com` can log in to any role's dashboard regardless of route restrictions.
 - **`academic` role** is a legacy alias — users with this role are redirected to `/academic-operator`.

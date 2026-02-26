@@ -63,9 +63,9 @@ export default function LoginForm() {
 
   return (
     <div className="flex flex-col h-full justify-center max-w-sm mx-auto">
-      {/* Mobile-only logo */}
-      <div className="sm:hidden flex justify-center mb-6">
-        <img src="/logo/full.png" alt="SmartUp" className="h-10 object-contain" />
+      {/* Logo — mobile only (desktop logo is in the page top-left) */}
+      <div className="mb-6 sm:hidden">
+        <img src="/logo/full.png" alt="SmartUp" className="h-10 object-contain drop-shadow-lg" />
       </div>
 
       {/* Greeting */}

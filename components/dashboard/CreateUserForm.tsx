@@ -275,24 +275,27 @@ export function CreateUserModal({
   const emailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // ── Step definitions (3 steps) ──
-  type StepKey = 'basic' | 'details' | 'review';
+  // ── Dynamic step definitions (per role) ──
+  type StepKey = 'basic' | 'teaching' | 'academic' | 'guardian' | 'coordinator' | 'operator' | 'notes' | 'review';
 
-  const HAS_ROLE_FIELDS = ['teacher', 'student', 'coordinator', 'batch_coordinator', 'academic_operator'].includes(role);
-
-  const detailsLabel: Record<string, string> = {
-    teacher: 'Teaching Details',
-    student: 'Academic Details',
-    coordinator: 'Coordinator Details',
-    batch_coordinator: 'Coordinator Details',
-    academic_operator: 'Operator Details',
-  };
-
-  const STEPS: { key: StepKey; label: string; icon: React.ElementType; desc: string }[] = [
-    { key: 'basic', label: 'Basic Info', icon: User, desc: 'Name, email, password & contact' },
-    { key: 'details', label: detailsLabel[role] || 'Additional Info', icon: ROLE_ICONS[role] || FileText, desc: 'Role details, address & notes' },
-    { key: 'review', label: 'Review', icon: CheckCircle, desc: 'Confirm & create' },
-  ];
+  const STEPS: { key: StepKey; label: string; icon: React.ElementType; desc: string }[] = (() => {
+    const s: { key: StepKey; label: string; icon: React.ElementType; desc: string }[] = [
+      { key: 'basic', label: 'Basic Info', icon: User, desc: 'Name, email, password & contact' },
+    ];
+    if (role === 'teacher')
+      s.push({ key: 'teaching', label: 'Teaching Details', icon: GraduationCap, desc: 'Subjects, qualification & experience' });
+    if (role === 'student') {
+      s.push({ key: 'academic', label: 'Academic Details', icon: BookOpen, desc: 'Grade, board & admission' });
+      s.push({ key: 'guardian', label: 'Guardian Details', icon: Users, desc: 'Parent / guardian account' });
+    }
+    if (role === 'coordinator' || role === 'batch_coordinator')
+      s.push({ key: 'coordinator', label: 'Coordinator Details', icon: Shield, desc: 'Region & qualification' });
+    if (role === 'academic_operator')
+      s.push({ key: 'operator', label: 'Operator Details', icon: Shield, desc: 'Region, experience & qualification' });
+    s.push({ key: 'notes', label: 'Internal Notes', icon: FileText, desc: 'HR notes & remarks' });
+    s.push({ key: 'review', label: 'Review', icon: CheckCircle, desc: 'Confirm & create' });
+    return s;
+  })();
 
   const [stepIdx, setStepIdx] = useState(0);
   const currentStep = STEPS[stepIdx]?.key || 'basic';
@@ -353,7 +356,12 @@ export function CreateUserModal({
   const isStepValid = (step: StepKey): boolean => {
     switch (step) {
       case 'basic': return !!(form.full_name.trim() && form.email.trim() && form.email.includes('@') && emailStatus !== 'taken');
-      case 'details': return true; // all optional
+      case 'teaching': return true;
+      case 'academic': return true;
+      case 'guardian': return true;
+      case 'coordinator': return true;
+      case 'operator': return true;
+      case 'notes': return true;
       case 'review': return isStepValid('basic');
       default: return true;
     }
@@ -471,126 +479,143 @@ export function CreateUserModal({
           <Input type="tel" value={form.whatsapp} onChange={(e) => f('whatsapp', e.target.value)} placeholder="+971 50 123 4567" />
         </FormField>
       </FormGrid>
+      <FormField label="Address">
+        <Textarea rows={2} value={form.address} onChange={(e) => f('address', e.target.value)} placeholder="Full address..." />
+      </FormField>
     </div>
   );
 
-  const renderDetailsStep = () => {
-    const roleFields = (() => {
-      if (role === 'teacher') return (
-        <>
-          <FormField label="Subjects" hint="Select all that apply">
-            <SubjectSelector selected={form.subjects} onChange={(s) => f('subjects', s)} />
-          </FormField>
-          <FormGrid cols={2}>
-            <FormField label="Qualification">
-              <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
-            </FormField>
-            <FormField label="Experience (years)">
-              <Input type="number" min={0} max={50} value={form.experience_years} onChange={(e) => f('experience_years', e.target.value)} placeholder="e.g. 5" />
-            </FormField>
-          </FormGrid>
-          <FormField label="Per Hour Rate" hint="Amount per teaching hour">
-            <Input type="number" min={0} step={1} value={form.per_hour_rate} onChange={(e) => f('per_hour_rate', e.target.value)} placeholder="e.g. 500" />
-          </FormField>
-        </>
-      );
-      if (role === 'student') return (
-        <>
-          <FormGrid cols={2}>
-            <FormField label="Grade" required>
-              <Select value={form.grade} onChange={(v) => f('grade', v)} options={GRADES.map(g => ({ value: g, label: g }))} />
-            </FormField>
-            <FormField label="Section / Batch">
-              <Input type="text" value={form.section} onChange={(e) => f('section', e.target.value)} placeholder="e.g. A, Morning" />
-            </FormField>
-          </FormGrid>
-          <FormGrid cols={2}>
-            <FormField label="Board" required>
-              <Select value={form.board} onChange={(v) => f('board', v)} options={BOARDS.map(b => ({ value: b, label: b }))} />
-            </FormField>
-            <FormField label="Admission Date">
-              <Input type="date" value={form.admission_date} onChange={(e) => f('admission_date', e.target.value)} />
-            </FormField>
-          </FormGrid>
-          <FormField label="Parent Email" hint="A parent account will be auto-created if it doesn&apos;t exist">
-            <Input type="email" value={form.parent_email} onChange={(e) => f('parent_email', e.target.value)} placeholder="parent@gmail.com" />
-          </FormField>
-          {form.parent_email.trim() && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-4">
-              <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
-                <Users className="h-4 w-4" /> Parent Account Details
-              </p>
-              <FormField label="Parent Full Name" required>
-                <Input type="text" value={form.parent_name} onChange={(e) => f('parent_name', e.target.value)} placeholder="e.g. Rajesh Sharma" />
-              </FormField>
-              <FormField label="Parent Password" hint="Leave blank to auto-generate">
-                <PwdInput value={form.parent_password} onChange={(v) => f('parent_password', v)} />
-              </FormField>
-              <div className="rounded-lg bg-blue-100/60 border border-blue-200 px-3 py-2">
-                <p className="text-xs text-blue-700">
-                  If a parent account already exists with this email, the student will be linked to it. Otherwise, a new parent account will be created automatically.
-                </p>
-              </div>
-            </div>
-          )}
-        </>
-      );
-      if (role === 'coordinator' || role === 'batch_coordinator') return (
-        <FormGrid cols={2}>
-          <FormField label="Assigned Region (GCC)">
-            <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
-              options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
-          </FormField>
-          <FormField label="Qualification">
-            <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
-          </FormField>
-        </FormGrid>
-      );
-      if (role === 'academic_operator') return (
-        <>
-          <FormGrid cols={2}>
-            <FormField label="Assigned Region (GCC)">
-              <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
-                options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
-            </FormField>
-            <FormField label="Experience (years)">
-              <Input type="number" min={0} max={50} value={form.experience_years} onChange={(e) => f('experience_years', e.target.value)} />
-            </FormField>
-          </FormGrid>
-          <FormField label="Qualification">
-            <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
-          </FormField>
-        </>
-      );
-      return null;
-    })();
-
-    const heading = HAS_ROLE_FIELDS
-      ? (detailsLabel[role] || 'Role Details')
-      : 'Additional Information';
-    const headingDesc = HAS_ROLE_FIELDS
-      ? 'Role-specific fields, address & notes'
-      : 'Address and internal notes (optional)';
-
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">{heading}</h2>
-          <p className="text-sm text-gray-500 mt-1">{headingDesc}</p>
-        </div>
-        {roleFields}
-        {HAS_ROLE_FIELDS && <div className="border-t border-gray-200 pt-6" />}
-        <FormField label="Address">
-          <Textarea rows={3} value={form.address} onChange={(e) => f('address', e.target.value)} placeholder="Full address..." />
-        </FormField>
-        <FormField label="Notes (internal)">
-          <Textarea rows={3} value={form.notes} onChange={(e) => f('notes', e.target.value)} placeholder="Any internal HR notes..." />
-        </FormField>
+  // ── Teaching Details step (teacher only) ──
+  const renderTeachingStep = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Teaching Details</h2>
+        <p className="text-sm text-gray-500 mt-1">Subjects, qualification, and experience</p>
       </div>
-    );
-  };
+      <FormField label="Subjects" hint="Select all that apply">
+        <SubjectSelector selected={form.subjects} onChange={(s) => f('subjects', s)} />
+      </FormField>
+      <FormGrid cols={2}>
+        <FormField label="Qualification">
+          <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
+        </FormField>
+        <FormField label="Experience (years)">
+          <Input type="number" min={0} max={50} value={form.experience_years} onChange={(e) => f('experience_years', e.target.value)} placeholder="e.g. 5" />
+        </FormField>
+      </FormGrid>
+      <FormField label="Per Hour Rate" hint="Amount per teaching hour">
+        <Input type="number" min={0} step={1} value={form.per_hour_rate} onChange={(e) => f('per_hour_rate', e.target.value)} placeholder="e.g. 500" />
+      </FormField>
+    </div>
+  );
+
+  // ── Academic Details step (student only) ──
+  const renderAcademicStep = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Academic Details</h2>
+        <p className="text-sm text-gray-500 mt-1">Grade, board, and admission information</p>
+      </div>
+      <FormGrid cols={2}>
+        <FormField label="Grade" required>
+          <Select value={form.grade} onChange={(v) => f('grade', v)} options={GRADES.map(g => ({ value: g, label: g }))} />
+        </FormField>
+        <FormField label="Board" required>
+          <Select value={form.board} onChange={(v) => f('board', v)} options={BOARDS.map(b => ({ value: b, label: b }))} />
+        </FormField>
+      </FormGrid>
+      <FormGrid cols={2}>
+        <FormField label="Admission Date">
+          <Input type="date" value={form.admission_date} onChange={(e) => f('admission_date', e.target.value)} />
+        </FormField>
+      </FormGrid>
+
+    </div>
+  );
+
+  // ── Guardian Details step (student only) ──
+  const renderGuardianStep = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Guardian Details</h2>
+        <p className="text-sm text-gray-500 mt-1">Parent or guardian account — will be auto-created if it doesn&apos;t exist</p>
+      </div>
+      <FormField label="Parent / Guardian Email">
+        <Input type="email" value={form.parent_email} onChange={(e) => f('parent_email', e.target.value)} placeholder="parent@gmail.com" />
+      </FormField>
+      {form.parent_email.trim() && (
+        <>
+          <FormField label="Parent Full Name" required>
+            <Input type="text" value={form.parent_name} onChange={(e) => f('parent_name', e.target.value)} placeholder="e.g. Rajesh Sharma" />
+          </FormField>
+          <FormField label="Parent Password" hint="Leave blank to auto-generate">
+            <PwdInput value={form.parent_password} onChange={(v) => f('parent_password', v)} />
+          </FormField>
+        </>
+      )}
+      <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+        <p className="text-sm text-blue-800">
+          If a parent account already exists with this email, the student will be linked to it. Otherwise, a new parent account will be created and credentials emailed automatically.
+        </p>
+      </div>
+    </div>
+  );
+
+  // ── Coordinator Details step ──
+  const renderCoordinatorStep = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Coordinator Details</h2>
+        <p className="text-sm text-gray-500 mt-1">Region and qualification</p>
+      </div>
+      <FormGrid cols={2}>
+        <FormField label="Assigned Region (GCC)">
+          <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
+            options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
+        </FormField>
+        <FormField label="Qualification">
+          <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
+        </FormField>
+      </FormGrid>
+    </div>
+  );
+
+  // ── Operator Details step (academic_operator) ──
+  const renderOperatorStep = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Operator Details</h2>
+        <p className="text-sm text-gray-500 mt-1">Region, experience, and qualification</p>
+      </div>
+      <FormGrid cols={2}>
+        <FormField label="Assigned Region (GCC)">
+          <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
+            options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
+        </FormField>
+        <FormField label="Experience (years)">
+          <Input type="number" min={0} max={50} value={form.experience_years} onChange={(e) => f('experience_years', e.target.value)} />
+        </FormField>
+      </FormGrid>
+      <FormField label="Qualification">
+        <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
+      </FormField>
+    </div>
+  );
+
+  const renderNotesStep = () => (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-white">Internal Notes</h3>
+        <p className="text-sm text-gray-400 mt-1">Add any internal HR notes or remarks about this user.</p>
+      </div>
+      <FormField label="Notes (internal)">
+        <Textarea rows={4} value={form.notes} onChange={(e) => f('notes', e.target.value)} placeholder="Any internal HR notes..." />
+      </FormField>
+    </div>
+  );
 
   const renderReviewStep = () => {
+
     const rows: { label: string; value: string }[] = [
       { label: 'Full Name', value: form.full_name },
       { label: 'Email', value: form.email },
@@ -692,7 +717,12 @@ export function CreateUserModal({
     return (
       <form ref={formRef} onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-5">
         {renderBasicStep()}
-        {renderDetailsStep()}
+        {role === 'teacher' && renderTeachingStep()}
+        {role === 'student' && renderAcademicStep()}
+        {role === 'student' && renderGuardianStep()}
+        {(role === 'coordinator' || role === 'batch_coordinator') && renderCoordinatorStep()}
+        {role === 'academic_operator' && renderOperatorStep()}
+        {renderNotesStep()}
       </form>
     );
   }
@@ -751,7 +781,12 @@ export function CreateUserModal({
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="px-10 pt-8 pb-6 flex-1 overflow-y-auto">
             {currentStep === 'basic' && renderBasicStep()}
-            {currentStep === 'details' && renderDetailsStep()}
+            {currentStep === 'teaching' && renderTeachingStep()}
+            {currentStep === 'academic' && renderAcademicStep()}
+            {currentStep === 'guardian' && renderGuardianStep()}
+            {currentStep === 'coordinator' && renderCoordinatorStep()}
+            {currentStep === 'operator' && renderOperatorStep()}
+            {currentStep === 'notes' && renderNotesStep()}
             {currentStep === 'review' && renderReviewStep()}
           </div>
 

@@ -107,7 +107,7 @@
 
 | Email | Role | Name |
 |-------|------|------|
-| `tishnuvichuz143@gmail.com` | owner | Admin Owner |
+| `smartuplearningventures@gmail.com` | owner | Admin Owner |
 | `official4tishnu@gmail.com` | coordinator | Seema Verma |
 | `dev.poornasree@gmail.com` | academic_operator | Dr. Mehta |
 | `tech.poornasree@gmail.com` | hr | Ayesha Khan |

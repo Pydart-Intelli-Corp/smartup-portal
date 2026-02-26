@@ -54,6 +54,7 @@ interface UserRow {
   admission_date?: string;
   notes?: string;
   address?: string;
+  children?: { name: string; email: string }[];
 }
 
 interface Stats {
@@ -477,7 +478,11 @@ function UsersTab({ role, label, permissions }: { role: string; label: string; p
                       </td>
                     )}
                     {role === 'parent' && (
-                      <td className="px-4 py-3 text-xs text-gray-500">—</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        {u.children && u.children.length > 0
+                          ? u.children.map(c => c.name).join(', ')
+                          : <span className="text-gray-300">No children linked</span>}
+                      </td>
                     )}
                     {(role === 'coordinator' || role === 'academic_operator') && (
                       <td className="px-4 py-3 text-xs text-gray-500">{u.assigned_region || '—'}</td>

@@ -145,9 +145,9 @@ type WizardStep = 'template' | 'details' | 'teachers' | 'students' | 'review';
 
 const WIZARD_STEPS: { key: WizardStep; label: string }[] = [
   { key: 'template', label: 'Template' },
+  { key: 'students', label: 'Students' },
   { key: 'details', label: 'Details' },
   { key: 'teachers', label: 'Subjects & Teachers' },
-  { key: 'students', label: 'Students' },
   { key: 'review', label: 'Review' },
 ];
 
@@ -486,9 +486,9 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
     setShowCreateUser(true);
   };
 
-  const handleUserCreated = (data?: { email: string; full_name: string; temp_password: string }) => {
+  const handleUserCreated = async (data?: { email: string; full_name: string; temp_password: string }) => {
     if (data && parentForStudent) {
-      // Auto-link created parent to the student
+      // Auto-link created parent to the student (local state)
       setSelectedStudents(prev =>
         prev.map(s =>
           s.email === parentForStudent
@@ -496,6 +496,21 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
             : s
         )
       );
+      setStudents(prev =>
+        prev.map(s =>
+          s.email === parentForStudent
+            ? { ...s, parent_email: data.email, parent_name: data.full_name }
+            : s
+        )
+      );
+      // Link parent to student in the database
+      try {
+        await fetch(`/api/v1/hr/users/${encodeURIComponent(parentForStudent)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parent_email: data.email }),
+        });
+      } catch (e) { console.error('Failed to link parent to student:', e); }
     }
     fetchPeople();
   };
