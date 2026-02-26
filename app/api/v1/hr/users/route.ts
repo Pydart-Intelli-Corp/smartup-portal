@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     // Teacher
     subjects,
     // Student
-    grade, section, board, parent_email,
+    grade, section, board, parent_email, parent_name, parent_password,
   } = body as Record<string, unknown>;
 
   if (!email || !full_name || !portal_role) {
@@ -149,14 +149,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'An account with this email already exists' }, { status: 409 });
   }
 
-  // Parent validation for students
+  // Auto-create parent for students if parent_email provided and doesn't exist
+  let parentCreated = false;
+  let parentTempPassword = '';
   if (roleStr === 'student' && parent_email) {
+    const parentEmailStr = (parent_email as string).trim().toLowerCase();
     const parentCheck = await db.query(
-      `SELECT email FROM portal_users WHERE email = $1 AND portal_role = 'parent'`,
-      [(parent_email as string).trim().toLowerCase()]
+      `SELECT email, portal_role FROM portal_users WHERE email = $1`,
+      [parentEmailStr]
     );
     if (parentCheck.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'Parent email not found. Create parent account first.' }, { status: 400 });
+      // Auto-create parent account
+      const pName = (parent_name as string | undefined)?.trim() || 'Parent';
+      parentTempPassword = (parent_password as string | undefined)?.trim() || generatePassword();
+      const parentHash = await hash(parentTempPassword, 12);
+      await db.query(
+        `INSERT INTO portal_users (email, full_name, portal_role, password_hash, plain_password, is_active)
+         VALUES ($1, $2, 'parent', $3, $4, TRUE)`,
+        [parentEmailStr, pName, parentHash, parentTempPassword]
+      );
+      await db.query(
+        `INSERT INTO user_profiles (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`,
+        [parentEmailStr]
+      );
+      parentCreated = true;
+
+      // Send credentials to parent
+      const parentTpl = credentialsTemplate({
+        recipientEmail: parentEmailStr,
+        recipientName: pName,
+        role: 'Parent',
+        loginEmail: parentEmailStr,
+        tempPassword: parentTempPassword,
+        loginUrl: `${BASE_URL}/login`,
+      });
+      sendEmail({ to: parentEmailStr, subject: parentTpl.subject, html: parentTpl.html, text: parentTpl.text })
+        .catch((err) => console.error('[HR] parent credentials email failed:', err));
+    } else if (parentCheck.rows[0].portal_role !== 'parent') {
+      return NextResponse.json({ success: false, error: `Email ${parentEmailStr} exists but is not a parent account (role: ${parentCheck.rows[0].portal_role})` }, { status: 400 });
     }
   }
 
@@ -228,15 +258,27 @@ export async function POST(req: NextRequest) {
   sendEmail({ to: emailStr, subject: tpl.subject, html: tpl.html, text: tpl.text })
     .catch((err) => console.error('[HR] credentials email failed:', err));
 
+  const responseData: Record<string, unknown> = {
+    email: emailStr,
+    full_name: (full_name as string).trim(),
+    portal_role: roleStr,
+    temp_password: tempPassword,
+    email_sent: true,
+  };
+
+  let message = `${roleLabel} account created. Credentials sent to ${emailStr}`;
+
+  if (parentCreated && parent_email) {
+    const parentEmailStr = (parent_email as string).trim().toLowerCase();
+    responseData.parent_created = true;
+    responseData.parent_email = parentEmailStr;
+    responseData.parent_temp_password = parentTempPassword;
+    message += `. Parent account also created for ${parentEmailStr}`;
+  }
+
   return NextResponse.json({
     success: true,
-    data: {
-      email: emailStr,
-      full_name: (full_name as string).trim(),
-      portal_role: roleStr,
-      temp_password: tempPassword,
-      email_sent: true,
-    },
-    message: `${roleLabel} account created. Credentials sent to ${emailStr}`,
+    data: responseData,
+    message,
   }, { status: 201 });
 }

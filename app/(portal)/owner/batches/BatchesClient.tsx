@@ -20,9 +20,10 @@ import {
   Database, Plus, Filter, Users, BookOpen,
   GraduationCap, User, X, Trash2,
   ChevronRight, ChevronLeft,
-  UserCheck, CheckCircle, AlertCircle, Layers,
-  Settings, Save,
+  CheckCircle, AlertCircle, Layers,
+  Settings, Save, Power,
 } from 'lucide-react';
+import { CreateUserModal } from '@/components/dashboard/CreateUserForm';
 
 // ── Default fallbacks (used until settings load) ────────────
 
@@ -236,13 +237,10 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   const [studentSearch, setStudentSearch] = useState('');
   const [subjectsDropdownOpen, setSubjectsDropdownOpen] = useState(false);
 
-  // Parent creation inline
-  const [showCreateParent, setShowCreateParent] = useState(false);
+  // Parent/user creation via reusable modal
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [createUserRole, setCreateUserRole] = useState('parent');
   const [parentForStudent, setParentForStudent] = useState('');
-  const [newParentName, setNewParentName] = useState('');
-  const [newParentEmail, setNewParentEmail] = useState('');
-  const [newParentPhone, setNewParentPhone] = useState('');
-  const [creatingParent, setCreatingParent] = useState(false);
 
   const toast = useToast();
   const { confirm } = useConfirm();
@@ -418,19 +416,25 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
     return '';
   };
 
-  const handleGradeChange = (g: string) => {
-    setFormGrade(g);
-    if (!formName || formName === autoName(formGrade, formSection)) {
-      setFormName(autoName(g, formSection));
-    }
+  // Get sections already used for a given grade
+  const getUsedSections = (grade: string): string[] =>
+    batches
+      .filter(b => b.grade === grade && b.section)
+      .map(b => b.section as string);
+
+  // Get the next available section letter for a grade
+  const getNextSection = (grade: string): string => {
+    const used = getUsedSections(grade);
+    return SECTIONS.find(s => !used.includes(s)) || '';
   };
 
-  const handleSectionChange = (s: string) => {
-    setFormSection(s);
-    if (!formName || formName === autoName(formGrade, formSection)) {
-      setFormName(autoName(formGrade, s));
-    }
+  const handleGradeChange = (g: string) => {
+    setFormGrade(g);
+    const nextSection = g ? getNextSection(g) : '';
+    setFormSection(nextSection);
+    setFormName(autoName(g, nextSection));
   };
+
 
   const getMaxForType = (type: BatchType | ''): number => {
     if (!type) return 0;
@@ -474,48 +478,31 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
     setSelectedStudents(prev => prev.filter(s => s.email !== email));
   };
 
-  // ── Create parent inline ──────────────────────────────────
+  // ── Create user via reusable modal ────────────────────────
 
   const openCreateParent = (studentEmail: string) => {
     setParentForStudent(studentEmail);
-    setNewParentName('');
-    setNewParentEmail('');
-    setNewParentPhone('');
-    setShowCreateParent(true);
+    setCreateUserRole('parent');
+    setShowCreateUser(true);
   };
 
-  const createParent = async () => {
-    if (!newParentName.trim() || !newParentEmail.trim()) return;
-    setCreatingParent(true);
-    try {
-      const res = await fetch('/api/v1/hr/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: newParentEmail.trim().toLowerCase(),
-          full_name: newParentName.trim(),
-          portal_role: 'parent',
-          phone: newParentPhone || undefined,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success(`Parent account created. Password: ${json.data.temp_password}`);
-        setSelectedStudents(prev =>
-          prev.map(s =>
-            s.email === parentForStudent
-              ? { ...s, parent_email: newParentEmail.trim().toLowerCase(), parent_name: newParentName.trim() }
-              : s
-          )
-        );
-        setShowCreateParent(false);
-        setParentForStudent('');
-        fetchPeople();
-      } else {
-        toast.error(json.error || 'Failed to create parent');
-      }
-    } catch (e) { console.error(e); toast.error('Failed to create parent'); }
-    setCreatingParent(false);
+  const handleUserCreated = (data?: { email: string; full_name: string; temp_password: string }) => {
+    if (data && parentForStudent) {
+      // Auto-link created parent to the student
+      setSelectedStudents(prev =>
+        prev.map(s =>
+          s.email === parentForStudent
+            ? { ...s, parent_email: data.email, parent_name: data.full_name }
+            : s
+        )
+      );
+    }
+    fetchPeople();
+  };
+
+  const handleCreateUserClose = () => {
+    setShowCreateUser(false);
+    setParentForStudent('');
   };
 
   // ── Create batch ──────────────────────────────────────────
@@ -558,6 +545,34 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
   };
 
   // ── Delete batch ──────────────────────────────────────────
+
+  const toggleBatchStatus = async (batchId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const ok = await confirm({
+      title: newStatus === 'active' ? 'Activate Batch' : 'Deactivate Batch',
+      message: newStatus === 'active'
+        ? 'Mark this batch as active? Students and teachers will be able to access it.'
+        : 'Mark this batch as inactive? It will be hidden from active views.',
+      confirmLabel: newStatus === 'active' ? 'Activate' : 'Deactivate',
+      variant: newStatus === 'active' ? 'info' : 'warning',
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/v1/batches/${batchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(`Batch marked as ${newStatus}`);
+        fetchBatches();
+        if (selectedBatch === batchId) fetchDetail(batchId);
+      } else {
+        toast.error(json.error || 'Failed to update status');
+      }
+    } catch (e) { console.error(e); toast.error('Failed to update status'); }
+  };
 
   const deleteBatch = async (batchId: string) => {
     const ok = await confirm({
@@ -664,10 +679,24 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
               options={[{ value: '', label: 'Select Grade' }, ...GRADES.map(g => ({ value: g, label: `Grade ${g}` }))]}
             />
           </FormField>
-          <FormField label="Section">
-            <Select value={formSection} onChange={handleSectionChange}
-              options={[{ value: '', label: 'Select Section' }, ...SECTIONS.map(s => ({ value: s, label: `Section ${s}` }))]}
-            />
+          <FormField label="Section (auto-assigned)">
+            <div className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border-2 ${
+              formSection ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-gray-50'
+            }`}>
+              {formSection ? (
+                <>
+                  <span className="text-2xl font-bold text-emerald-700">{formSection}</span>
+                  <div className="text-sm">
+                    <p className="font-semibold text-emerald-800">Section {formSection}</p>
+                    <p className="text-xs text-emerald-500">
+                      {getUsedSections(formGrade).length} section{getUsedSections(formGrade).length !== 1 ? 's' : ''} already used for Grade {formGrade}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">Select a grade to auto-assign section</p>
+              )}
+            </div>
           </FormField>
         </div>
         <FormField label="Batch Name" required>
@@ -850,7 +879,6 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Selected Students</h4>
             {selectedStudents.map(s => {
               const hasParent = !!s.parent_email;
-              const isAddingParent = parentForStudent === s.email;
               return (
                 <div key={s.email} className="rounded-xl border-2 border-emerald-200 overflow-hidden">
                   {/* Student row */}
@@ -869,10 +897,6 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
                           <CheckCircle className="h-3.5 w-3.5" /> Parent: {s.parent_name || s.parent_email}
                         </span>
-                      ) : isAddingParent ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-100 px-3 py-1.5 rounded-lg">
-                          <UserCheck className="h-3.5 w-3.5" /> Filling parent details below…
-                        </span>
                       ) : (
                         <button
                           type="button"
@@ -885,47 +909,6 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                       <IconButton icon={X} onClick={() => removeStudent(s.email)} className="text-red-400 hover:text-red-600 hover:bg-red-50" />
                     </div>
                   </div>
-
-                  {/* Inline parent creation form — expands below */}
-                  {!hasParent && isAddingParent && (
-                    <div className="bg-amber-50 border-t-2 border-amber-200 px-6 py-5">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-amber-400 text-white flex items-center justify-center">
-                          <UserCheck className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-amber-800">Create Parent Account</p>
-                          <p className="text-xs text-amber-600">for {s.name}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name *</label>
-                          <Input value={newParentName} onChange={e => setNewParentName(e.target.value)} placeholder="Parent's full name" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email *</label>
-                          <Input type="email" value={newParentEmail} onChange={e => setNewParentEmail(e.target.value)} placeholder="parent@email.com" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Phone</label>
-                          <Input value={newParentPhone} onChange={e => setNewParentPhone(e.target.value)} placeholder="+91 …" />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-amber-600">A parent account will be created via HR module. Password will be shown after creation.</p>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Button variant="ghost" size="sm" onClick={() => { setParentForStudent(''); }}>
-                            Cancel
-                          </Button>
-                          <Button variant="primary" size="sm" onClick={createParent}
-                            disabled={!newParentName.trim() || !newParentEmail.trim() || creatingParent}>
-                            {creatingParent ? 'Creating…' : 'Create Parent'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -1457,6 +1440,12 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                   <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <IconButton
+                        icon={Power}
+                        onClick={() => toggleBatchStatus(batch.batch_id, batch.status)}
+                        className={batch.status === 'active' ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100'}
+                        title={batch.status === 'active' ? 'Deactivate batch' : 'Activate batch'}
+                      />
+                      <IconButton
                         icon={Trash2}
                         onClick={() => deleteBatch(batch.batch_id)}
                         className="text-red-500 hover:bg-red-50"
@@ -1603,6 +1592,17 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
 
         </>)}{/* end pageTab === 'batches' */}
       </div>
+
+      {/* Reusable Create User Modal (parent creation from batch wizard) */}
+      <CreateUserModal
+        role={createUserRole}
+        open={showCreateUser}
+        onClose={handleCreateUserClose}
+        onCreated={handleUserCreated}
+        fixedRole
+        title={parentForStudent ? `Create Parent for Student` : undefined}
+        subtitle={parentForStudent ? `A parent account will be linked to ${parentForStudent}` : undefined}
+      />
     </DashboardShell>
   );
 }
