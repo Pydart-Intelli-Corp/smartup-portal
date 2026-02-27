@@ -118,6 +118,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
       role: 'teacher',
       token: teacherToken,
     });
+
+    // Teacher screen-share token (for tablet device)
+    const screenToken = await createLiveKitToken({
+      roomName,
+      participantIdentity: `teacher_${session.teacher_email}_screen`,
+      participantName: `${(session.teacher_name as string) || 'Teacher'} (Screen)`,
+      role: 'teacher_screen' as PortalRole,
+      metadata: JSON.stringify({
+        portal_user_id: session.teacher_email,
+        portal_role: 'teacher',
+        effective_role: 'teacher_screen',
+        room_name: roomDisplayName,
+        device: 'screen',
+      }),
+    });
+    tokens.push({
+      email: session.teacher_email as string,
+      name: `${(session.teacher_name as string) || 'Teacher'} (Screen)`,
+      role: 'teacher_screen',
+      token: screenToken,
+    });
   }
 
   // Student tokens

@@ -151,3 +151,43 @@
 ### Nav Config & Verification
 - [x] Nav config: Student→Requests, Parent→Requests, Teacher→Leave, AO→Requests, HR→Leave Requests, Ghost→By Batch/Teacher
 - [x] TypeScript: 0 errors
+
+---
+
+## Phase: LiveKit Critical Fixes (Feb 28, 2026 — Session 2)
+
+### Token Identity & Metadata
+- [x] `/start` route: All token identities changed from raw email to `{role}_{email}` format
+- [x] `/start` route: All tokens now include metadata (portal_user_id, portal_role, effective_role, room_name, device)
+- [x] Fixes teacher showing "student" badge in People tab
+
+### Attendance Webhook Fix
+- [x] Added `extractEmail()` helper to parse real email from `{role}_{email}` identity
+- [x] `recordJoin()` and `recordLeave()` now receive plain email via `extractEmail()`
+- [x] Uses `metadata.portal_user_id` as primary email source with prefix-stripping fallback
+
+### Payment Gate Fix
+- [x] `session-check/route.ts`: Resolves `batch_session_id` → actual `room_id` before fee lookup
+- [x] `join/route.ts`: Uses `actualRoomId` for `room_assignments` lookup, `calculateSessionFee()`, `checkSessionPayment()`, and rejoin detection
+
+### Join Flow Fix
+- [x] `join/[room_id]/page.tsx`: Passes resolved `room.room_id` to `JoinRoomClient` instead of raw URL param
+
+### UI Fixes
+- [x] Teacher dashboard: Classroom opens in new tab (`window.open`)
+- [x] Hand-raise icon: Updated to Lucide-style SVG + filled `HandRaisedIcon` for active state
+- [x] Ended page: Feedback submission persisted in sessionStorage to prevent duplicate prompts on refresh
+- [x] Batch ID format: Changed to `smartup_{date}_{time}_{shortId}`
+
+### Tablet Fixes
+- [x] IST timing: Manual formatting instead of `DateFormat.format()` which used device timezone
+- [x] Grade/section display: Added `grade`, `section` fields to `SessionData` model
+- [x] Emojis → Material Icons: All emoji strings replaced with `Icon()` widgets
+- [x] "Class" → "Session": 7 string replacements in dashboard labels and buttons
+- [x] Null safety: Fixed `teacherToken` null assertion warning
+
+### Verified Working
+- [x] Student join gate: `CLASS_NOT_LIVE` returns 403, polling every 5s for 5min
+- [x] AI features: MediaPipe attention monitoring, data channel broadcast, monitoring ingestion
+- [x] Variable naming: Consistent across DB (snake_case), TypeScript, Flutter (camelCase)
+- [x] Room ID/Session ID: Dual-lookup queries working in all critical routes
