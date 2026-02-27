@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
       b.batch_name, b.batch_type, b.grade, b.section,
       -- attendance for this student in this session
       a.status AS attendance_status,
-      a.is_late,
+      a.late_join AS is_late,
       a.first_join_at,
       a.last_leave_at,
-      a.time_in_class_seconds,
+      a.total_duration_sec AS time_in_class_seconds,
       a.join_count,
       a.engagement_score,
       -- class portion and remarks from room
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     JOIN batch_students bs ON bs.batch_id = s.batch_id AND bs.student_email = $1
     JOIN batches b ON b.batch_id = s.batch_id
     LEFT JOIN rooms r ON r.room_name = s.livekit_room_name
-    LEFT JOIN attendance_sessions a ON a.room_id = r.room_id AND a.student_email = $1
+    LEFT JOIN attendance_sessions a ON a.room_id = r.room_id AND a.participant_email = $1
     WHERE 1=1
   `;
   const params: unknown[] = [studentEmail];

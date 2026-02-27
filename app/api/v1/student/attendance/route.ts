@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
          COUNT(ra.room_id) AS total_sessions,
          COUNT(a.room_id) FILTER (WHERE a.status = 'present') AS present,
          COUNT(*) FILTER (WHERE r.status = 'ended' AND a.room_id IS NULL) AS absent,
-         COUNT(a.room_id) FILTER (WHERE a.is_late = true) AS late_count,
-         COALESCE(AVG(a.time_in_class_seconds), 0) AS avg_time_sec,
+         COUNT(a.room_id) FILTER (WHERE a.late_join = true) AS late_count,
+         COALESCE(AVG(a.total_duration_sec), 0) AS avg_time_sec,
          COALESCE(SUM(a.join_count), 0) AS total_rejoins
        FROM room_assignments ra
        JOIN rooms r ON r.room_id = ra.room_id
@@ -57,11 +57,11 @@ export async function GET(req: NextRequest) {
          COALESCE(a.status,
            CASE WHEN r.status = 'ended' THEN 'absent' ELSE NULL END
          ) AS status,
-         a.is_late,
-         a.late_by_seconds,
+         a.late_join AS is_late,
+         a.late_by_sec AS late_by_seconds,
          a.first_join_at,
          a.last_leave_at,
-         a.time_in_class_seconds,
+         a.total_duration_sec AS time_in_class_seconds,
          a.join_count,
          a.engagement_score,
          COALESCE(a.mic_off_count, 0) AS mic_off_count,

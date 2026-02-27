@@ -21,9 +21,9 @@ export async function GET(req: NextRequest) {
     // ── Batches the student belongs to ───────────────────────
     const batchesResult = await db.query(
       `SELECT
-         b.id,
-         b.name,
-         b.type,
+         b.batch_id AS id,
+         b.batch_name AS name,
+         b.batch_type AS type,
          b.grade,
          b.section,
          b.subjects,
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
          coord.email AS coordinator_email,
          ao.full_name AS ao_name
        FROM batch_students bs
-       JOIN batches b ON b.id = bs.batch_id
+       JOIN batches b ON b.batch_id = bs.batch_id
        LEFT JOIN portal_users coord ON coord.email = b.coordinator_email
        LEFT JOIN portal_users ao ON ao.email = b.academic_operator_email
        WHERE bs.student_email = $1
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
            COUNT(DISTINCT a.room_id) AS total,
            COUNT(a.*) FILTER (WHERE a.status = 'present') AS present,
            COUNT(a.*) FILTER (WHERE a.status = 'absent') AS absent,
-           COUNT(a.*) FILTER (WHERE a.is_late = true) AS late
+           COUNT(a.*) FILTER (WHERE a.late_join = true) AS late
          FROM attendance_sessions a
          JOIN rooms r ON r.room_id = a.room_id
          WHERE a.participant_email = $1
