@@ -1115,6 +1115,8 @@ export default function TeacherView({
         whiteboardActive={whiteboardActive}
         onToggleWhiteboard={() => setWhiteboardActive(!whiteboardActive)}
         onEndClass={onEndClass}
+        scheduledStart={scheduledStart}
+        durationMinutes={durationMinutes}
       />
     </div>
   );

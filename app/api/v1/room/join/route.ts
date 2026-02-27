@@ -219,6 +219,24 @@ export async function POST(request: NextRequest) {
     // ── Rejoin detection for students ─────────────────────────
     let is_rejoin = false;
     if (user.role === 'student') {
+      // Block re-entry if student already submitted feedback (attendance + rating)
+      try {
+        const fbRes = await db.query(
+          `SELECT id FROM student_feedback
+           WHERE room_id = $1 AND student_email = $2
+           LIMIT 1`,
+          [actualRoomId, user.id],
+        );
+        if (fbRes.rows.length > 0) {
+          return NextResponse.json<ApiResponse>(
+            { success: false, error: 'SESSION_COMPLETED', message: 'You have already completed this session (attendance confirmed and feedback submitted). You cannot rejoin.' },
+            { status: 403 }
+          );
+        }
+      } catch {
+        // student_feedback table may not exist — skip
+      }
+
       try {
         const attRes = await db.query(
           `SELECT join_count FROM attendance_sessions

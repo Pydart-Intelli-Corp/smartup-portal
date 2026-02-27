@@ -606,13 +606,6 @@ export default function StudentView({
       } catch {}
     };
     sendRequest();
-    // Auto-approve after 60s if teacher doesn't respond (fallback)
-    setTimeout(() => {
-      setRejoinBlocked((prev) => {
-        if (prev) showToast('Teacher did not respond — rejoined automatically');
-        return false;
-      });
-    }, 60000);
   }, [isRejoin, localParticipant, showToast]);
 
   const requestLeave = useCallback(async () => {

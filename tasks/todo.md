@@ -1,5 +1,27 @@
 ﻿# SmartUp Portal — Task Tracker
 
+## Phase: Session Integrity & Approval Flows (Current Sprint)
+
+### ✅ Already Fixed
+- [x] Payment callback: `participant_email` → `student_email` in `lib/payment.ts`
+- [x] Teacher end class: `handleEndClass` now calls `DELETE /api/v1/room/${roomId}`
+- [x] Teacher leave approve/reject: Fixed field names in AO dashboard (`leave_id→request_id`, `reason→notes`)
+
+### Current Sprint
+- [ ] Fix double DELETE: ControlBar + ClassroomWrapper both call DELETE. Remove from ClassroomWrapper.
+- [ ] Student re-entry block: Join route checks `student_feedback` — if exists, return SESSION_COMPLETED
+- [ ] Remove 60s auto-approve: StudentView rejoin fallback — require teacher approval only
+- [ ] End-class coordinator approval: If ending before scheduled time → require coordinator approval
+- [ ] Coordinator dashboard: Show pending end-class requests
+- [ ] Deploy & verify all changes
+
+### Deferred (Next Sprint)
+- [ ] Batch coordinator UI rewrite with shared components
+- [ ] Tablet teaching materials after screen share
+- [ ] Razorpay payment flow (batch fee from admin, mobile network error)
+
+---
+
 ## Phase: Terminology Migration — "Class" → "Session" (Feb 28, 2026)
 
 ### Rename all user-facing "class" text to "session"

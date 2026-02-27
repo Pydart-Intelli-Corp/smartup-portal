@@ -182,6 +182,8 @@ export default function CoordinatorDashboardClient({
   const [loadingPerf, setLoadingPerf] = useState(false);
   const [reports, setReports] = useState<MonitoringReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
+  // End-class request state
+  const [endClassRequests, setEndClassRequests] = useState<{ room_id: string; room_name: string; teacher_name: string; reason: string; requested_at: string }[]>([]);
   const router = useRouter();
 
   const fetchRooms = useCallback(async () => {
@@ -227,7 +229,47 @@ export default function CoordinatorDashboardClient({
     finally { setLoadingReports(false); }
   }, []);
 
-  useEffect(() => { fetchRooms(); fetchAlerts(); }, [fetchRooms, fetchAlerts]);
+  // Fetch pending end-class requests from all live rooms
+  const fetchEndClassRequests = useCallback(async () => {
+    try {
+      // Get live rooms, then check each for pending end-class requests
+      const res = await fetch('/api/v1/coordinator/rooms');
+      const data = await res.json();
+      if (!data.success) return;
+      const liveRooms = (data.data?.rooms || []).filter((r: Room) => effectiveStatus(r) === 'live');
+      const requests: { room_id: string; room_name: string; teacher_name: string; reason: string; requested_at: string }[] = [];
+      await Promise.all(liveRooms.map(async (r: Room) => {
+        try {
+          const reqRes = await fetch(`/api/v1/room/${r.room_id}/end-request`);
+          const reqData = await reqRes.json();
+          if (reqData?.data?.status === 'pending') {
+            requests.push({
+              room_id: r.room_id,
+              room_name: r.room_name,
+              teacher_name: r.teacher_email || 'Teacher',
+              reason: reqData.data.reason || '',
+              requested_at: reqData.data.requested_at || new Date().toISOString(),
+            });
+          }
+        } catch {}
+      }));
+      setEndClassRequests(requests);
+    } catch (err) { console.error('Failed to fetch end-class requests:', err); }
+  }, []);
+
+  const handleEndClassDecision = useCallback(async (roomId: string, action: 'approve' | 'deny') => {
+    try {
+      await fetch(`/api/v1/room/${roomId}/end-request`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      setEndClassRequests((prev) => prev.filter((r) => r.room_id !== roomId));
+      if (action === 'approve') fetchRooms(); // Refresh rooms to show ended status
+    } catch (err) { console.error('Failed to process end-class decision:', err); }
+  }, [fetchRooms]);
+
+  useEffect(() => { fetchRooms(); fetchAlerts(); fetchEndClassRequests(); }, [fetchRooms, fetchAlerts]);
 
   useEffect(() => {
     if (activeTab === 'students' && perfStudents.length === 0) fetchPerformance();
@@ -235,9 +277,9 @@ export default function CoordinatorDashboardClient({
   }, [activeTab, perfStudents.length, reports.length, fetchPerformance, fetchReports]);
 
   useEffect(() => {
-    const iv = setInterval(fetchAlerts, 30_000);
+    const iv = setInterval(() => { fetchAlerts(); fetchEndClassRequests(); }, 30_000);
     return () => clearInterval(iv);
-  }, [fetchAlerts]);
+  }, [fetchAlerts, fetchEndClassRequests]);
 
   // Sync activeTab with URL hash so sidebar nav links work
   useEffect(() => {
@@ -363,6 +405,27 @@ export default function CoordinatorDashboardClient({
             <p className="text-xs text-red-300/70">{alerts.find(a => a.severity === 'critical')?.message}</p>
           </div>
           <button onClick={() => setActiveTab('monitoring')} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">View Alerts</button>
+        </div>
+      )}
+
+      {/* End-class requests banner */}
+      {endClassRequests.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {endClassRequests.map((req) => (
+            <div key={req.room_id} className="rounded-xl border border-amber-700 bg-amber-950/40 p-3 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-400">End Session Request — {req.room_name}</p>
+                <p className="text-xs text-amber-300/70">{req.teacher_name} wants to end the session early{req.reason ? `: ${req.reason}` : ''}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleEndClassDecision(req.room_id, 'deny')}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50">Deny</button>
+                <button onClick={() => handleEndClassDecision(req.room_id, 'approve')}
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">Approve End</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

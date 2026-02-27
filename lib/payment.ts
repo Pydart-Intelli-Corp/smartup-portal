@@ -241,7 +241,7 @@ export async function completePayment(invoiceId: string, paymentId: string, paym
 
     // Update the payment_attempts table too (legacy)
     await client.query(
-      `INSERT INTO payment_attempts (room_id, participant_email, order_id, amount_paise, status, transaction_id, raw_callback)
+      `INSERT INTO payment_attempts (room_id, student_email, order_id, amount_paise, status, transaction_id, raw_callback)
        SELECT ra.room_id, $1, $2, $3, 'completed', $4, $5::jsonb
        FROM room_assignments ra
        WHERE ra.participant_email = $1

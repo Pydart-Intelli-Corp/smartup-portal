@@ -217,8 +217,8 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
     [router, roomId]
   );
 
-  // Handle end class (teacher) — navigate directly, disconnect fires CLIENT_INITIATED
-  const handleEndClass = useCallback(() => {
+  // Handle end class (teacher) — ControlBar already called DELETE API, just disconnect + navigate
+  const handleEndClass = useCallback(async () => {
     room.disconnect();
     router.push(`/classroom/${roomId}/ended`);
   }, [room, router, roomId]);

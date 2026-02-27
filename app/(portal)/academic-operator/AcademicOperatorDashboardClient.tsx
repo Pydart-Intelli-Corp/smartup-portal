@@ -4886,7 +4886,7 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
       const url = type === 'session' ? '/api/v1/session-requests' : '/api/v1/teacher-leave';
       const body: Record<string, string> = type === 'session'
         ? { action, request_id: id, ...(reason ? { rejection_reason: reason } : {}) }
-        : { action, leave_id: id, level: 'ao', ...(reason ? { reason } : {}) };
+        : { action, request_id: id, ...(reason ? { notes: reason } : {}) };
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (data.success) { toast.success(`Request ${action}d successfully`); onRefresh(); setShowReject(null); setRejectReason(''); }
