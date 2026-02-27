@@ -137,9 +137,12 @@ function generateInvoiceHTML(invoice: Record<string, unknown>): string {
   </div>
   <div class="invoice">
     <div class="header">
-      <div>
-        <h1>SmartUp Learning</h1>
-        <p class="logo-text">Online Education Platform</p>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="/logo/full.png" alt="SmartUp" width="48" height="48" style="border-radius:10px;" />
+        <div>
+          <h1>SmartUp Learning</h1>
+          <p class="logo-text">Online Education Platform</p>
+        </div>
       </div>
       <div class="invoice-number">
         <div class="label">Invoice</div>
@@ -235,8 +238,13 @@ function generateReceiptHTML(receipt: Record<string, unknown>): string {
   </div>
   <div class="receipt">
     <div class="header">
-      <h1>SmartUp Learning</h1>
-      <p class="subtitle">Online Education Platform</p>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;">
+        <img src="/logo/full.png" alt="SmartUp" width="48" height="48" style="border-radius:10px;" />
+        <div>
+          <h1>SmartUp Learning</h1>
+          <p class="subtitle">Online Education Platform</p>
+        </div>
+      </div>
     </div>
     <div class="body">
       <div class="receipt-title">

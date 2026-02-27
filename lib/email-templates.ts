@@ -23,7 +23,15 @@ function masterLayout(body: string, recipientEmail: string): string {
           <!-- Header -->
           <tr>
             <td style="background-color:#1a1a2e; padding:24px 32px;">
-              <h1 style="margin:0; color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;">SmartUp</h1>
+              <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td style="vertical-align:middle; padding-right:14px;">
+                  <img src="https://portal.smartuplearning.online/logo/full.png" alt="SmartUp" width="44" height="44" style="display:block; border-radius:8px;" />
+                </td>
+                <td style="vertical-align:middle;">
+                  <h1 style="margin:0; color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;">SmartUp</h1>
+                  <p style="margin:2px 0 0; color:#a0a0c0; font-size:11px;">Online Classes</p>
+                </td>
+              </tr></table>
             </td>
           </tr>
           <!-- Body -->

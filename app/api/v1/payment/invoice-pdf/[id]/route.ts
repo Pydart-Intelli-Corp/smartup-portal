@@ -134,9 +134,12 @@ export async function GET(
 <body>
   <div class="page">
     <div class="header">
-      <div>
-        <h1>SmartUp Academy</h1>
-        <div class="subtitle">Education Management System</div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="/logo/full.png" alt="SmartUp" width="48" height="48" style="border-radius:10px;" />
+        <div>
+          <h1>SmartUp Academy</h1>
+          <div class="subtitle">Education Management System</div>
+        </div>
       </div>
       <div class="invoice-label">
         <div class="tag">${isPaid ? 'RECEIPT' : 'INVOICE'}</div>
