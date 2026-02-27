@@ -29,27 +29,51 @@ jobs:
         run: npm ci
 
       - name: Create .env.local from GitHub Secrets
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          PORTAL_BASE_URL: ${{ secrets.PORTAL_BASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NEXT_PUBLIC_LIVEKIT_URL: ${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM_NAME: ${{ secrets.EMAIL_FROM_NAME }}
+          EMAIL_FROM_ADDRESS: ${{ secrets.EMAIL_FROM_ADDRESS }}
+          EMAIL_MODE: ${{ secrets.EMAIL_MODE }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
         run: |
-          echo "NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}"         >> .env.local
-          echo "PORTAL_BASE_URL=${{ secrets.PORTAL_BASE_URL }}"                 >> .env.local
-          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"                           >> .env.local
-          echo "NEXT_PUBLIC_LIVEKIT_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}" >> .env.local
-          echo "LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}"                 >> .env.local
-          echo "LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}"           >> .env.local
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"                       >> .env.local
-          echo "REDIS_URL=${{ secrets.REDIS_URL }}"                             >> .env.local
-          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}"                             >> .env.local
-          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}"                             >> .env.local
-          echo "SMTP_USER=${{ secrets.SMTP_USER }}"                             >> .env.local
-          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"                             >> .env.local
-          echo "EMAIL_FROM_NAME=${{ secrets.EMAIL_FROM_NAME }}"                 >> .env.local
-          echo "EMAIL_FROM_ADDRESS=${{ secrets.EMAIL_FROM_ADDRESS }}"           >> .env.local
-          echo "EMAIL_MODE=${{ secrets.EMAIL_MODE }}"                           >> .env.local
-          echo "OWNER_EMAIL=${{ secrets.OWNER_EMAIL }}"                         >> .env.local
-          echo "OWNER_PASSWORD=${{ secrets.OWNER_PASSWORD }}"                   >> .env.local
+          set -e
+          env_vars=(
+            NEXT_PUBLIC_APP_URL PORTAL_BASE_URL JWT_SECRET
+            NEXT_PUBLIC_LIVEKIT_URL LIVEKIT_API_KEY LIVEKIT_API_SECRET
+            DATABASE_URL REDIS_URL
+            SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS
+            EMAIL_FROM_NAME EMAIL_FROM_ADDRESS EMAIL_MODE
+            OWNER_EMAIL OWNER_PASSWORD
+          )
+          for var in "${env_vars[@]}"; do
+            printf '%s=%s\n' "$var" "${!var}" >> .env.local
+          done
 
+      # CI build validates the code compiles. The production server
+      # receives the same .env.local via SCP before rebuilding.
       - name: Build Next.js
         run: npm run build
+
+      - name: Copy .env.local to production server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: .env.local
+          target: /var/www/smartup-portal
 
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1
