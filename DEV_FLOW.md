@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** Comprehensive endpoint testing & bug fix sweep — fixed 15+ column name mismatches across 9 files (attendance_sessions, batches, exam_attempts), all 100 API routes and 31 pages verified working across 8 roles
+**Latest Commit:** Complete real-life workflow re-test — 70 GET endpoints across 8 roles, 10 POST workflow chains (admission pipeline, batch, session, exam, payment, leave, cancellation, room, session requests, HR user creation), 30 UI pages, 2 bug fixes (room/create coordinator_email, system room FK)
 
 ---
 

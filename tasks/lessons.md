@@ -98,3 +98,27 @@
 **Rule:** Filter exams by `grade` only, not by `batch_id`.
 
 **Rule:** After any production deploy, run the full endpoint test suite (29 endpoints) to catch regressions immediately. Don't assume green locally means green in production.
+
+---
+
+## rooms Table Has Strict NOT NULL + CHECK Constraints
+
+**Pattern:** The `rooms` table requires: `room_id`, `room_name`, `subject`, `grade`, `coordinator_email`, `status`, `scheduled_start`, `duration_minutes`, `open_at`, `expires_at`. Status must be one of: `scheduled`, `live`, `ended`, `cancelled`. Duration must be > 0.
+
+**Rule:** When inserting into `rooms`, ALWAYS include `coordinator_email`. Auto-resolve it from the batch's `coordinator_email`, or from the caller if they are a coordinator. Never skip NOT NULL columns.
+
+---
+
+## room_events FK Requires Valid room_id
+
+**Pattern:** `room_events.room_id` has a foreign key to `rooms.room_id`. Using `'system'` as a room_id for system-level events fails unless a `'system'` room row exists.
+
+**Rule:** For non-room events (admission status changes, etc.), either use a dedicated `'system'` room (must be pre-created in DB), or use the `notifications` table, or wrap the event logging in try-catch so it doesn't break the main operation.
+
+---
+
+## exam_questions.correct_answer Is Integer, Not Text
+
+**Pattern:** `correct_answer` column in `exam_questions` is `integer` type — it represents the 0-based index of the correct option in the `options` array, NOT the answer text.
+
+**Rule:** When creating exams via API, send `correct_answer` as an integer index (0, 1, 2, 3...), not as the option text string.

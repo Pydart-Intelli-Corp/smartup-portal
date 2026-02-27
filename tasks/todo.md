@@ -1,44 +1,53 @@
 ﻿# SmartUp Portal — Task Tracker
 
-## Phase: Comprehensive Endpoint Testing & Bug Fix Sweep (Feb 28, 2026)
+## Phase: Complete Real-Life Workflow Re-Test (Feb 28, 2026 — Session 2)
 
-### Full Endpoint Testing — All 8 Roles
-- [x] Owner: 28/28 GET endpoints PASS (monitoring/events = POST-only, expected 405)
+### GET Endpoint Testing — All 8 Roles (Fresh Re-Run)
+- [x] Owner: 33 PASS / 1 expected RBAC 403 (coordinator/student-performance)
 - [x] Teacher: 6/6 PASS
-- [x] Student: 6/6 PASS (3 previously failing fixed)
+- [x] Student: 6/6 PASS
 - [x] Parent: 5/5 PASS
-- [x] Coordinator: 2/2 PASS (student-performance previously failing, fixed)
-- [x] Academic Operator: 4/4 PASS
-- [x] HR: 5/5 PASS (students/performance previously failing, fixed)
+- [x] Coordinator: 4/4 PASS + 1 expected RBAC 401 (batches requires owner/AO)
+- [x] Academic Operator: 8/8 PASS
+- [x] HR: 7/7 PASS
 - [x] Ghost: 1/1 PASS
+- **Total: 70 GET endpoints tested, 70 PASS, 0 unexpected failures**
 
-### Column Name Bug Sweep
-- [x] Fix student/sessions: is_late→late_join, time_in_class_seconds→total_duration_sec, student_email→participant_email
-- [x] Fix student/attendance: is_late→late_join, late_by_seconds→late_by_sec, time_in_class_seconds→total_duration_sec
-- [x] Fix student/batches: b.id→b.batch_id, b.name→b.batch_name, b.type→b.batch_type, is_late→late_join
-- [x] Fix lib/reports.ts: is_late→late_join, time_in_class_seconds→total_duration_sec (2 locations)
-- [x] Fix parent/attendance: is_late→late_join, late_by_seconds→late_by_sec, time_in_class_seconds→total_duration_sec
-- [x] Fix hr/students/performance: b.id→b.batch_id, participant_type→participant_role, total_questions removed
-- [x] Fix coordinator/student-performance: b.id→b.batch_id, b.name→b.batch_name, u.name→u.full_name, exams.batch_id removed, bs.is_active removed
-- [x] Fix batches/[batchId]: participant_type→participant_role in attendance_sessions
-- [x] Fix monitoring-reports.ts: b.name→b.batch_name, b.id→b.batch_id, student_email→participant_email, session_date→created_at, left_at/joined_at→total_duration_sec
+### Full Real-Life POST Workflow Tests
+- [x] **Admission Pipeline**: create → registered → fee_confirmed → allocated → active (all 5 stages, auto user+profile creation)
+- [x] **Batch Workflow**: create batch (201) → PATCH add students+teachers (200) → verify details
+- [x] **Session Scheduling**: create session (201) → PATCH topic (200) → start (live) → end (ended) → create 2nd → DELETE cancel (200)
+- [x] **Exam Lifecycle**: create exam with 5 MCQs (200) → publish (200) → student start attempt (200) → submit answers (100%, A+) → teacher grades (96%, A+)
+- [x] **Payment/Fee**: create fee structure (200) → generate monthly invoices (200) → create manual invoice (200) → initiate payment order (200) → verify GET invoices
+- [x] **Teacher Leave**: teacher submit (200) → AO approve (ao level) → HR approve (overall approved) → teacher withdraw (200)
+- [x] **Session Requests**: student cancellation request (200) → coordinator approve (200)
+- [x] **Room Creation**: create room with batch association (201) → coordinator_email auto-resolved from batch
+- [x] **Cancellation Flow**: request cancel (201) → coordinator approve (200)
+- [x] **HR User Creation**: create teacher account with auto-generated password + email (201)
 
-### Real Workflow Tests
-- [x] Admission creation (POST /api/v1/admissions action=create): 201 ✅
-- [x] Batch creation (POST /api/v1/batches): 201 ✅
-- [x] Session scheduling (POST /api/v1/batch-sessions): 201 ✅
-- [x] Exam creation (POST /api/v1/exams): 400 expected without questions array ✅
+### Bugs Found & Fixed This Session
+- [x] **room_events FK violation**: `room_id='system'` didn't exist in rooms table → Created 'system' room row + migration 033
+- [x] **room/create missing coordinator_email**: INSERT didn't include coordinator_email (NOT NULL) → Added auto-resolution from batch/caller
+- [x] **Type assertion**: `coordinator_email` needed `as string` cast for TypeScript strict mode
 
-### UI Page Load Verification
-- [x] All 31 page routes load: 200 OK
-- [x] Owner sub-pages (12): all PASS
-- [x] Role dashboards (8): all PASS
-- [x] Coordinator sub-pages (3): all PASS
+### UI Page Load Verification (All 30 Pages)
+- [x] Login: 200 ✅
+- [x] Owner (13 pages): owner, batches, exams, fees, payroll, reports, roles, teachers, users, system, hr, academic-operator — all PASS
+- [x] Coordinator (3 pages): dashboard, admissions, cancellations — all PASS
+- [x] Academic Operator: 200 ✅
+- [x] HR: 200 ✅
+- [x] Teacher (2 pages): dashboard, exams — all PASS
+- [x] Student (2 pages): dashboard, exams — all PASS
+- [x] Parent: 200 ✅
+- [x] Ghost (2 pages): dashboard, monitor — all PASS
+- [x] Dev: 200 ✅
+- [x] Dynamic pages (4): join/[room_id], classroom/[roomId], classroom/[roomId]/ended, student/exams/[id] — all PASS
+- **Total: 30 pages, 30 PASS, 0 FAIL**
 
 ### Deployment
-- [x] 5 commits deployed to production
-- [x] All fixes verified on live server
-- [x] tasks/lessons.md updated with new patterns
+- [x] Commit b751278: room/create coordinator_email fix + migration 033
+- [x] Commit c4e9d6b: TypeScript type assertion fix
+- [x] Both deployed to production, build successful
 
 ---
 
