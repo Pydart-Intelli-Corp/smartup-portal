@@ -85,8 +85,10 @@ export async function POST(
     }
 
     // Update DB: scheduled → live using resolved room_id
+    // Store actual go-live timestamp
+    const goLiveAt = new Date().toISOString();
     const updateResult = await db.query(
-      `UPDATE rooms SET status = 'live', updated_at = NOW()
+      `UPDATE rooms SET status = 'live', updated_at = NOW(), go_live_at = NOW()
        WHERE room_id = $1 AND status = 'scheduled'`,
       [actualRoomId]
     );
@@ -107,11 +109,11 @@ export async function POST(
       ).catch(e => console.warn('[go-live] batch_session sync warning:', e));
     }
 
-    // Log event
+    // Log event with go_live_at for coordinator reporting
     await db.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
        VALUES ($1, 'room_started', $2, $3)`,
-      [actualRoomId, user.id, JSON.stringify({ started_by: user.name, role: user.role })]
+      [actualRoomId, user.id, JSON.stringify({ started_by: user.name, role: user.role, go_live_at: goLiveAt })]
     );
 
     // Fire-and-forget: notify students that class has started
@@ -128,6 +130,7 @@ export async function POST(
       {
         success: true,
         message: `Class "${room.room_name}" is now live!`,
+        data: { go_live_at: goLiveAt },
       },
       { status: 200 }
     );

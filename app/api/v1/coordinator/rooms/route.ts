@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
            r.coordinator_email, r.teacher_email, r.status,
            r.scheduled_start, r.duration_minutes, r.max_participants,
            r.fee_paise, r.notes_for_teacher, r.open_at, r.expires_at,
-           r.livekit_room_id, r.created_at, r.updated_at,
+           r.livekit_room_id, r.created_at, r.updated_at, r.go_live_at,
            (SELECT COUNT(*) FROM room_assignments ra WHERE ra.room_id = r.room_id AND ra.participant_type = 'student')::int AS student_count,
            (SELECT ra.participant_name FROM room_assignments ra WHERE ra.room_id = r.room_id AND ra.participant_type = 'teacher' LIMIT 1) AS teacher_name
     FROM rooms r

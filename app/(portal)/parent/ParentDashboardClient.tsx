@@ -2,7 +2,33 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
-import { fmtDateBriefIST, fmtTimeIST } from '@/lib/utils';
+import {
+  PageHeader,
+  RefreshButton,
+  TabBar,
+  StatCard,
+  Card,
+  Badge,
+  StatusBadge,
+  LoadingState,
+  EmptyState,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  FormPanel,
+  FormField,
+  FormGrid,
+  FormActions,
+  Modal,
+  money,
+  TableWrapper,
+  THead,
+  TH,
+  TRow,
+  type TabItem,
+} from '@/components/dashboard/shared';
+import { fmtSmartDateIST, fmtTimeIST } from '@/lib/utils';
 import Script from 'next/script';
 import {
   LayoutDashboard,
@@ -10,7 +36,6 @@ import {
   Calendar,
   Clock,
   Radio,
-  RefreshCw,
   Eye,
   CheckCircle2,
   CreditCard,
@@ -26,10 +51,8 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
-  X,
   Brain,
   Download,
-  Loader2,
   Shield,
   CalendarClock,
   Ban,
@@ -37,7 +60,6 @@ import {
 
 /* ─── Interfaces ──────────────────────────────────────────── */
 
-/** Treat 'live' rooms past their end time as 'ended' (safety net). */
 function effectiveStatus(room: { status: string; scheduled_start: string; duration_minutes: number }): string {
   if (room.status === 'live') {
     const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
@@ -57,6 +79,8 @@ interface ChildRoom {
   teacher_email: string | null;
   student_email?: string;
   student_name?: string;
+  batch_session_id?: string;
+  batch_id?: string;
 }
 
 interface AttendanceChild {
@@ -224,7 +248,15 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
   const [sessionRequests, setSessionRequests] = useState<ParentSessionRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
-  const [requestForm, setRequestForm] = useState({ sessionId: '', batchId: '', childEmail: '', requestType: 'reschedule' as 'reschedule' | 'cancel', reason: '', proposedDate: '', proposedTime: '' });
+  const [requestForm, setRequestForm] = useState({
+    sessionId: '',
+    batchId: '',
+    childEmail: '',
+    requestType: 'reschedule' as 'reschedule' | 'cancel',
+    reason: '',
+    proposedDate: '',
+    proposedTime: '',
+  });
   const [requestSubmitting, setRequestSubmitting] = useState(false);
 
   /* ─── Fetchers ─────────────────────────────────────────── */
@@ -310,7 +342,6 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
     finally { setMonitorLoading(false); }
   }, []);
 
-  // Razorpay global type
   const getRazorpay = () => (window as unknown as { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void } }).Razorpay;
 
   const handlePayInvoice = useCallback(async (invoiceId: string) => {
@@ -327,7 +358,6 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
       const order = data.data;
 
       if (order.mode === 'test' || order.mode === 'mock') {
-        // Mock mode: auto-complete
         const cbRes = await fetch('/api/v1/payment/callback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -337,7 +367,6 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
         if (cbData.success) { fetchLedger(); fetchInvoices(); }
         else { alert('Payment failed'); }
       } else {
-        // Live Razorpay
         const Razorpay = getRazorpay();
         if (!Razorpay) { alert('Payment gateway loading...'); return; }
         const rzp = new Razorpay({
@@ -348,7 +377,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
           description: 'Fee Payment',
           order_id: order.orderId,
           prefill: order.prefill,
-          theme: { color: '#2563eb' },
+          theme: { color: '#059669' },
           handler: async (response: Record<string, string>) => {
             await fetch('/api/v1/payment/callback', {
               method: 'POST',
@@ -389,20 +418,55 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
         if (requestForm.proposedDate) body.proposed_date = requestForm.proposedDate;
         if (requestForm.proposedTime) body.proposed_time = requestForm.proposedTime;
       }
-      const res = await fetch('/api/v1/session-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch('/api/v1/session-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
-      if (data.success) { setShowRequestForm(false); setRequestForm({ sessionId: '', batchId: '', childEmail: '', requestType: 'reschedule', reason: '', proposedDate: '', proposedTime: '' }); fetchSessionRequests(); }
-    } catch { /* */ } finally { setRequestSubmitting(false); }
+      if (data.success) {
+        setShowRequestForm(false);
+        setRequestForm({ sessionId: '', batchId: '', childEmail: '', requestType: 'reschedule', reason: '', proposedDate: '', proposedTime: '' });
+        fetchSessionRequests();
+      }
+    } catch { /* */ }
+    finally { setRequestSubmitting(false); }
   };
 
   const withdrawSessionRequest = async (id: string) => {
     try {
-      await fetch('/api/v1/session-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'withdraw', request_id: id }) });
+      await fetch('/api/v1/session-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'withdraw', request_id: id }),
+      });
       fetchSessionRequests();
     } catch { /* */ }
   };
 
-  // Hash sync — keep URL hash in sync with active tab
+  /* ─── Submit complaint ──────────────────────────────────── */
+
+  const submitComplaint = async () => {
+    if (!complaintForm.subject.trim() || !complaintForm.description.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/v1/parent/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(complaintForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowComplaintForm(false);
+        setComplaintForm({ subject: '', category: 'general', description: '', priority: 'medium' });
+        fetchComplaints();
+      }
+    } catch (err) { console.error('Complaint submit failed:', err); }
+    finally { setSubmitting(false); }
+  };
+
+  /* ─── Hash sync ──────────────────────────────────────────── */
+
   useEffect(() => {
     const hash = activeTab === 'overview' ? '' : `#${activeTab}`;
     window.history.replaceState(null, '', window.location.pathname + hash);
@@ -438,1074 +502,1009 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
       fetchAttendance, fetchExams, fetchComplaints, fetchLedger, fetchReports, fetchMonitorReports, fetchSessionRequests,
       sessionRequests.length, requestsLoading]);
 
+  /* ─── Derived ────────────────────────────────────────────── */
+
   const live = rooms.filter((r) => effectiveStatus(r) === 'live');
   const upcoming = rooms.filter((r) => effectiveStatus(r) === 'scheduled');
+  const ended = rooms.filter((r) => effectiveStatus(r) === 'ended');
+  const pendingRequestCount = sessionRequests.filter(r => r.status === 'pending').length;
 
+  // Session picker options for requests tab
+  const sessionPickerOptions = rooms
+    .filter(r => ['scheduled', 'live', 'ended'].includes(effectiveStatus(r)))
+    .map(r => ({
+      value: r.batch_session_id || r.room_id,
+      label: `${r.subject} - ${r.room_name} (${fmtSmartDateIST(r.scheduled_start)})`,
+      batchId: r.batch_id || '',
+    }));
 
-
-  const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    ...(permissions?.attendance_view !== false ? [{ id: 'attendance' as TabId, label: 'Attendance', icon: ClipboardList }] : []),
-    ...(permissions?.exams_view !== false ? [{ id: 'exams' as TabId, label: 'Exams', icon: GraduationCap }] : []),
-    ...(permissions?.fees_view !== false ? [{ id: 'fees' as TabId, label: 'Fee Ledger', icon: CreditCard }] : []),
-    ...(permissions?.reports_view !== false ? [{ id: 'reports' as TabId, label: 'Reports', icon: BarChart3 }] : []),
-    { id: 'monitoring' as TabId, label: 'AI Monitoring', icon: Brain },
-    { id: 'requests' as TabId, label: `Requests${sessionRequests.filter(r => r.status === 'pending').length > 0 ? ' · ' + sessionRequests.filter(r => r.status === 'pending').length : ''}`, icon: CalendarClock },
-    ...(permissions?.complaints_file !== false ? [{ id: 'complaints' as TabId, label: 'Complaints', icon: MessageSquare }] : []),
+  const tabs: TabItem[] = [
+    { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+    ...(permissions?.attendance_view !== false ? [{ key: 'attendance', label: 'Attendance', icon: ClipboardList }] : []),
+    ...(permissions?.exams_view !== false ? [{ key: 'exams', label: 'Exams', icon: GraduationCap }] : []),
+    ...(permissions?.fees_view !== false ? [{ key: 'fees', label: 'Fee Ledger', icon: CreditCard }] : []),
+    ...(permissions?.reports_view !== false ? [{ key: 'reports', label: 'Reports', icon: BarChart3 }] : []),
+    { key: 'monitoring', label: 'AI Monitoring', icon: Brain },
+    { key: 'requests', label: 'Requests', icon: CalendarClock, count: pendingRequestCount || undefined },
+    ...(permissions?.complaints_file !== false ? [{ key: 'complaints', label: 'Complaints', icon: MessageSquare }] : []),
   ];
-
-  /* ─── Submit complaint ──────────────────────────────────── */
-
-  const submitComplaint = async () => {
-    if (!complaintForm.subject.trim() || !complaintForm.description.trim()) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/v1/parent/complaints', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(complaintForm),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowComplaintForm(false);
-        setComplaintForm({ subject: '', category: 'general', description: '', priority: 'medium' });
-        fetchComplaints();
-      }
-    } catch (err) { console.error('Complaint submit failed:', err); }
-    finally { setSubmitting(false); }
-  };
-
-  /* ─── Helpers ────────────────────────────────────────────── */
-
-  const fmtCurrency = (paise: number, currency: string = 'INR') => {
-    const symbols: Record<string, string> = {
-      INR: '₹', AED: 'د.إ', SAR: '﷼', QAR: 'ر.ق', KWD: 'د.ك', OMR: 'ر.ع.', BHD: '.د.ب', USD: '$',
-    };
-    return `${symbols[currency] || currency} ${(paise / 100).toFixed(2)}`;
-  };
-
-  const statusBadge: Record<string, string> = {
-    paid: 'text-green-400 border-green-700 bg-green-950/30',
-    pending: 'text-yellow-400 border-yellow-700 bg-yellow-950/30',
-    overdue: 'text-red-400 border-red-700 bg-red-950/30',
-    open: 'text-blue-400 border-blue-700 bg-blue-950/30',
-    in_progress: 'text-yellow-400 border-yellow-700 bg-yellow-950/30',
-    resolved: 'text-green-400 border-green-700 bg-green-950/30',
-    closed: 'text-muted-foreground border-border',
-  };
 
   /* ─── Render ──────────────────────────────────────────── */
 
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="afterInteractive" />
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Parent Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Monitor your child&apos;s sessions, progress, and fees</p>
-      </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all whitespace-nowrap
-                ${activeTab === tab.id
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <PageHeader icon={Shield} title="Parent Dashboard" subtitle="Monitor your child's sessions, progress, and fees">
+          <RefreshButton loading={loading} onClick={() => { fetchRooms(); fetchInvoices(); }} label="Refresh" />
+        </PageHeader>
 
-      {/* ─── OVERVIEW TAB ──────────────────────────────── */}
-      {activeTab === 'overview' && (
-        <>
-          {/* Stats */}
-          <div className="mb-6 grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-green-700 bg-card p-4">
-              <p className="text-xs text-muted-foreground">Live Now</p>
-              <p className="mt-1 text-2xl font-bold text-green-400">{live.length}</p>
-            </div>
-            <div className="rounded-xl border border-primary/30 bg-card p-4">
-              <p className="text-xs text-muted-foreground">Upcoming</p>
-              <p className="mt-1 text-2xl font-bold text-primary">{upcoming.length}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="mt-1 text-2xl font-bold">{rooms.length}</p>
-            </div>
-          </div>
+        {/* Tabs */}
+        <TabBar tabs={tabs} active={activeTab} onChange={(key) => setActiveTab(key as TabId)} />
 
-          {/* Live classes with observe */}
-          {live.length > 0 && (
-            <div className="mb-6">
-              <h2 className="mb-3 text-sm font-semibold text-green-400 uppercase tracking-wider flex items-center gap-2">
-                <Radio className="h-4 w-4 animate-pulse" /> Live Now
-              </h2>
-              {live.map((room) => (
-                <div key={room.room_id} className="mb-3 flex items-center gap-4 rounded-xl border border-green-800 bg-green-950/30 p-4">
-                  <Radio className="h-6 w-6 text-green-400" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium truncate">{room.room_name}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {room.subject} · {room.grade} · Teacher: {room.teacher_email || '—'}
-                    </p>
-                  </div>
-                  <a
-                    href={`/classroom/${room.room_id}?mode=observe`}
-                    className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> Observe
-                  </a>
-                </div>
-              ))}
+        {/* ─── OVERVIEW TAB ──────────────────────────────── */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard icon={Radio} label="Live Now" value={live.length} variant="success" />
+              <StatCard icon={Calendar} label="Upcoming" value={upcoming.length} variant="info" />
+              <StatCard icon={CheckCircle2} label="Total Sessions" value={rooms.length} variant="default" />
             </div>
-          )}
 
-          {/* Upcoming */}
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Upcoming Sessions
-          </h2>
-          <div className="space-y-3">
-            {loading && rooms.length === 0 ? (
-              <div className="flex items-center justify-center py-16 text-muted-foreground">
-                <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading...
-              </div>
-            ) : upcoming.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border py-12 text-center">
-                <Calendar className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-                <p className="text-muted-foreground text-sm">No upcoming sessions</p>
-              </div>
-            ) : (
-              upcoming.map((room) => {
-                const d = new Date(room.scheduled_start);
-                return (
-                  <div key={room.room_id} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-                    <Calendar className="h-8 w-8 text-primary" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium truncate">{room.room_name}</h3>
-                      <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>{room.subject} · {room.grade}</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {fmtDateBriefIST(d)} {fmtTimeIST(d)}
-                        </span>
+            {/* Live classes with observe */}
+            {live.length > 0 && (
+              <div>
+                <h2 className="mb-3 text-sm font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-2">
+                  <Radio className="h-4 w-4 animate-pulse" /> Live Now
+                </h2>
+                <div className="space-y-3">
+                  {live.map((room) => (
+                    <Card key={room.room_id} className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                          <Radio className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">{room.room_name}</h3>
+                          <p className="text-xs text-gray-500">
+                            {room.subject} · {room.grade} · Teacher: {room.teacher_email || '—'}
+                          </p>
+                        </div>
+                        <a
+                          href={`/classroom/${room.room_id}?mode=observe`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 transition"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Observe
+                        </a>
                       </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Completed */}
-          {rooms.filter((r) => r.status === 'ended').length > 0 && (
-            <>
-              <h2 className="mt-8 mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" /> Completed
-              </h2>
-              <div className="space-y-2">
-                {rooms.filter((r) => r.status === 'ended').slice(0, 5).map((room) => (
-                  <div key={room.room_id} className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-3 opacity-60">
-                    <CheckCircle2 className="h-5 w-5 text-muted-foreground/60" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{room.room_name}</p>
-                      <p className="text-xs text-muted-foreground/80">{room.subject} · {room.grade}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Quick Fee Summary */}
-          <h2 className="mt-8 mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <CreditCard className="h-4 w-4" /> Fee Summary
-          </h2>
-          {invoices.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border py-8 text-center">
-              <CreditCard className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-              <p className="text-muted-foreground text-sm">No invoices found</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {invoices.slice(0, 5).map((inv, idx) => {
-                const st = inv.status as string;
-                return (
-                  <div key={idx} className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-3">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{inv.invoice_number as string || `Invoice #${idx + 1}`}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {fmtCurrency(inv.amount_paise as number, inv.currency as string)} · Due: {inv.due_date ? new Date(inv.due_date as string).toLocaleDateString('en-IN') : '—'}
-                      </p>
-                    </div>
-                    <span className={`text-[10px] font-semibold uppercase border rounded px-2 py-0.5 ${statusBadge[st] || 'text-muted-foreground border-border'}`}>
-                      {st}
-                    </span>
-                  </div>
-                );
-              })}
-              {invoices.length > 5 && (
-                <button onClick={() => setActiveTab('fees')} className="text-xs text-primary hover:underline">
-                  View all {invoices.length} invoices →
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ─── ATTENDANCE TAB ──────────────────────────────── */}
-      {activeTab === 'attendance' && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Attendance Reports</h2>
-            <button onClick={fetchAttendance} className="flex items-center gap-1 text-xs text-primary hover:underline">
-              <RefreshCw className="h-3 w-3" /> Refresh
-            </button>
-          </div>
-
-          {attendanceLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading attendance...
-            </div>
-          ) : attendanceChildren.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border py-12 text-center">
-              <ClipboardList className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-              <p className="text-muted-foreground text-sm">No attendance records found</p>
-            </div>
-          ) : (
-            attendanceChildren.map((child) => (
-              <div key={child.student_email} className="mb-6">
-                <h3 className="mb-3 font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  {child.student_name}
-                </h3>
-
-                {/* Summary Cards */}
-                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Attendance Rate</p>
-                    <p className={`mt-1 text-xl font-bold ${child.summary.attendance_rate >= 75 ? 'text-green-400' : 'text-red-400'}`}>
-                      {child.summary.attendance_rate}%
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Present</p>
-                    <p className="mt-1 text-xl font-bold text-green-400">{child.summary.present}/{child.summary.total_sessions}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Absent</p>
-                    <p className="mt-1 text-xl font-bold text-red-400">{child.summary.absent}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Late</p>
-                    <p className="mt-1 text-xl font-bold text-yellow-400">{child.summary.late}</p>
-                  </div>
-                </div>
-
-                {/* Recent Sessions */}
-                <h4 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Recent Sessions</h4>
-                <div className="space-y-2">
-                  {child.recent_sessions.slice(0, 10).map((session, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-3">
-                      <div className={`h-2.5 w-2.5 rounded-full ${session.status === 'present' ? 'bg-green-400' : session.status === 'absent' ? 'bg-red-400' : 'bg-yellow-400'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{session.batch_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {session.subject} · {new Date(session.scheduled_start).toLocaleDateString('en-IN')}
-                          {session.is_late && <span className="ml-2 text-yellow-400">Late by {Math.round(session.late_by_seconds / 60)}min</span>}
-                        </p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {Math.round(session.time_in_class_seconds / 60)}min
-                      </span>
-                    </div>
+                    </Card>
                   ))}
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      )}
+            )}
 
-      {/* ─── EXAMS TAB ───────────────────────────────────── */}
-      {activeTab === 'exams' && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Exam Results</h2>
-            <button onClick={fetchExams} className="flex items-center gap-1 text-xs text-primary hover:underline">
-              <RefreshCw className="h-3 w-3" /> Refresh
-            </button>
+            {/* Upcoming */}
+            <div>
+              <h2 className="mb-3 text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <Calendar className="h-4 w-4" /> Upcoming Sessions
+              </h2>
+              {loading && rooms.length === 0 ? (
+                <LoadingState />
+              ) : upcoming.length === 0 ? (
+                <EmptyState icon={Calendar} message="No upcoming sessions" />
+              ) : (
+                <div className="space-y-3">
+                  {upcoming.map((room) => (
+                    <Card key={room.room_id} className="p-4">
+                      <div className="flex items-center gap-4">
+                        <Calendar className="h-8 w-8 text-emerald-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">{room.room_name}</h3>
+                          <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                            <span>{room.subject} · {room.grade}</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {fmtSmartDateIST(room.scheduled_start)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completed */}
+            {ended.length > 0 && (
+              <div>
+                <h2 className="mb-3 text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> Completed
+                </h2>
+                <div className="space-y-2">
+                  {ended.slice(0, 5).map((room) => (
+                    <Card key={room.room_id} className="p-3 opacity-70">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-gray-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900 truncate">{room.room_name}</p>
+                          <p className="text-xs text-gray-400">{room.subject} · {room.grade}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Fee Summary */}
+            <div>
+              <h2 className="mb-3 text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <CreditCard className="h-4 w-4" /> Fee Summary
+              </h2>
+              {invoices.length === 0 ? (
+                <EmptyState icon={CreditCard} message="No invoices found" />
+              ) : (
+                <div className="space-y-2">
+                  {invoices.slice(0, 5).map((inv, idx) => {
+                    const st = inv.status as string;
+                    return (
+                      <Card key={idx} className="p-3">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-5 w-5 text-emerald-600" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900 truncate">{inv.invoice_number as string || `Invoice #${idx + 1}`}</p>
+                            <p className="text-xs text-gray-500">
+                              {money(inv.amount_paise as number, inv.currency as string)} · Due: {inv.due_date ? new Date(inv.due_date as string).toLocaleDateString('en-IN') : '—'}
+                            </p>
+                          </div>
+                          <StatusBadge status={st} />
+                        </div>
+                      </Card>
+                    );
+                  })}
+                  {invoices.length > 5 && (
+                    <button onClick={() => setActiveTab('fees')} className="text-xs text-emerald-600 hover:underline">
+                      View all {invoices.length} invoices →
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+        )}
 
-          {examLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading exams...
+        {/* ─── ATTENDANCE TAB ──────────────────────────────── */}
+        {activeTab === 'attendance' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-emerald-600" /> Attendance Reports
+              </h2>
+              <RefreshButton loading={attendanceLoading} onClick={fetchAttendance} label="Refresh" />
             </div>
-          ) : examChildren.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border py-12 text-center">
-              <GraduationCap className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-              <p className="text-muted-foreground text-sm">No exam results found</p>
-            </div>
-          ) : (
-            examChildren.map((child) => (
-              <div key={child.student_email} className="mb-6">
-                <h3 className="mb-3 font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  {child.student_name}
-                </h3>
 
-                {/* Summary */}
-                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Average Score</p>
-                    <p className={`mt-1 text-xl font-bold ${child.summary.avg_percentage >= 60 ? 'text-green-400' : 'text-red-400'}`}>
-                      {child.summary.avg_percentage}%
-                    </p>
+            {attendanceLoading ? (
+              <LoadingState />
+            ) : attendanceChildren.length === 0 ? (
+              <EmptyState icon={ClipboardList} message="No attendance records found" />
+            ) : (
+              attendanceChildren.map((child) => (
+                <div key={child.student_email} className="space-y-4">
+                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-emerald-600" />
+                    {child.student_name}
+                  </h3>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard
+                      icon={BarChart3}
+                      label="Attendance Rate"
+                      value={`${child.summary.attendance_rate}%`}
+                      variant={child.summary.attendance_rate >= 75 ? 'success' : 'danger'}
+                    />
+                    <StatCard icon={CheckCircle2} label="Present" value={`${child.summary.present}/${child.summary.total_sessions}`} variant="success" />
+                    <StatCard icon={AlertCircle} label="Absent" value={child.summary.absent} variant="danger" />
+                    <StatCard icon={Clock} label="Late" value={child.summary.late} variant="warning" />
                   </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Exams Taken</p>
-                    <p className="mt-1 text-xl font-bold">{child.summary.total_exams}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Passed</p>
-                    <p className="mt-1 text-xl font-bold text-green-400 flex items-center gap-1">
-                      <TrendingUp className="h-4 w-4" /> {child.summary.passed}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase">Failed</p>
-                    <p className="mt-1 text-xl font-bold text-red-400 flex items-center gap-1">
-                      <TrendingDown className="h-4 w-4" /> {child.summary.failed}
-                    </p>
+
+                  {/* Recent Sessions */}
+                  <div>
+                    <h4 className="mb-2 text-xs font-semibold text-gray-400 uppercase">Recent Sessions</h4>
+                    <div className="space-y-2">
+                      {child.recent_sessions.slice(0, 10).map((session, idx) => (
+                        <Card key={idx} className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                              session.status === 'present' ? 'bg-emerald-500' :
+                              session.status === 'absent' ? 'bg-red-500' : 'bg-amber-500'
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 truncate">{session.batch_name}</p>
+                              <p className="text-xs text-gray-500">
+                                {session.subject} · {new Date(session.scheduled_start).toLocaleDateString('en-IN')}
+                                {session.is_late && (
+                                  <span className="ml-2 text-amber-600">Late by {Math.round(session.late_by_seconds / 60)}min</span>
+                                )}
+                              </p>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {Math.round(session.time_in_class_seconds / 60)}min
+                            </span>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              ))
+            )}
+          </div>
+        )}
 
-                {/* Subject-wise Performance Matrix */}
-                {child.exams.length > 0 && (() => {
-                  const bySubject: Record<string, { total: number; sum: number; passed: number; count: number; best: number; worst: number }> = {};
-                  child.exams.forEach(e => {
-                    if (!bySubject[e.subject]) bySubject[e.subject] = { total: 0, sum: 0, passed: 0, count: 0, best: 0, worst: 100 };
-                    const s = bySubject[e.subject];
-                    s.count++; s.sum += e.percentage; s.total += e.total_marks;
-                    if (e.passed) s.passed++;
-                    if (e.percentage > s.best) s.best = e.percentage;
-                    if (e.percentage < s.worst) s.worst = e.percentage;
-                  });
-                  const subjects = Object.entries(bySubject);
-                  if (subjects.length < 1) return null;
-                  return (
-                    <div className="mb-4 rounded-xl border border-border bg-card p-4">
-                      <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <BarChart3 className="h-3 w-3" /> Subject Performance
-                      </h4>
-                      <div className="space-y-2.5">
-                        {subjects.map(([subject, data]) => {
-                          const avg = Math.round(data.sum / data.count);
-                          const barColor = avg >= 75 ? 'bg-green-500' : avg >= 50 ? 'bg-amber-500' : 'bg-red-500';
-                          return (
-                            <div key={subject}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium">{subject}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {avg}% avg · {data.count} exam{data.count !== 1 ? 's' : ''} · {data.passed} passed
-                                </span>
+        {/* ─── EXAMS TAB ───────────────────────────────────── */}
+        {activeTab === 'exams' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-emerald-600" /> Exam Results
+              </h2>
+              <RefreshButton loading={examLoading} onClick={fetchExams} label="Refresh" />
+            </div>
+
+            {examLoading ? (
+              <LoadingState />
+            ) : examChildren.length === 0 ? (
+              <EmptyState icon={GraduationCap} message="No exam results found" />
+            ) : (
+              examChildren.map((child) => (
+                <div key={child.student_email} className="space-y-4">
+                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-emerald-600" />
+                    {child.student_name}
+                  </h3>
+
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard
+                      icon={BarChart3}
+                      label="Average Score"
+                      value={`${child.summary.avg_percentage}%`}
+                      variant={child.summary.avg_percentage >= 60 ? 'success' : 'danger'}
+                    />
+                    <StatCard icon={BookOpen} label="Exams Taken" value={child.summary.total_exams} variant="default" />
+                    <StatCard icon={TrendingUp} label="Passed" value={child.summary.passed} variant="success" />
+                    <StatCard icon={TrendingDown} label="Failed" value={child.summary.failed} variant="danger" />
+                  </div>
+
+                  {/* Subject-wise Performance Matrix */}
+                  {child.exams.length > 0 && (() => {
+                    const bySubject: Record<string, { total: number; sum: number; passed: number; count: number; best: number; worst: number }> = {};
+                    child.exams.forEach(e => {
+                      if (!bySubject[e.subject]) bySubject[e.subject] = { total: 0, sum: 0, passed: 0, count: 0, best: 0, worst: 100 };
+                      const s = bySubject[e.subject];
+                      s.count++; s.sum += e.percentage; s.total += e.total_marks;
+                      if (e.passed) s.passed++;
+                      if (e.percentage > s.best) s.best = e.percentage;
+                      if (e.percentage < s.worst) s.worst = e.percentage;
+                    });
+                    const subjects = Object.entries(bySubject);
+                    if (subjects.length < 1) return null;
+                    return (
+                      <Card className="p-4">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                          <BarChart3 className="h-3 w-3" /> Subject Performance
+                        </h4>
+                        <div className="space-y-2.5">
+                          {subjects.map(([subject, data]) => {
+                            const avg = Math.round(data.sum / data.count);
+                            const barColor = avg >= 75 ? 'bg-emerald-500' : avg >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                            return (
+                              <div key={subject}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium text-gray-900">{subject}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {avg}% avg · {data.count} exam{data.count !== 1 ? 's' : ''} · {data.passed} passed
+                                  </span>
+                                </div>
+                                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${avg}%` }} />
+                                </div>
                               </div>
-                              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${avg}%` }} />
-                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    );
+                  })()}
+
+                  {/* Exam List */}
+                  <div className="space-y-2">
+                    {child.exams.map((exam) => (
+                      <Card key={exam.attempt_id} className="p-3">
+                        <div className="flex items-center gap-3">
+                          <BookOpen className={`h-5 w-5 ${exam.passed ? 'text-emerald-600' : 'text-red-500'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900 truncate">{exam.exam_title}</p>
+                            <p className="text-xs text-gray-500">
+                              {exam.subject} · {exam.exam_type} · {new Date(exam.submitted_at).toLocaleDateString('en-IN')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-sm font-bold ${exam.passed ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {exam.total_marks_obtained}/{exam.total_marks}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              {exam.percentage.toFixed(1)}% · {exam.grade_letter}
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ─── FEES / LEDGER TAB ────────────────────────────── */}
+        {activeTab === 'fees' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-emerald-600" /> Fees & Payments
+              </h2>
+              <RefreshButton loading={ledgerLoading} onClick={fetchLedger} label="Refresh" />
+            </div>
+
+            {ledgerLoading ? (
+              <LoadingState />
+            ) : (
+              <>
+                {/* Summary */}
+                {ledgerSummary && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard icon={FileText} label="Total Invoiced" value={money(ledgerSummary.total_invoiced_paise, ledgerSummary.currency)} variant="default" />
+                    <StatCard icon={CheckCircle2} label="Total Paid" value={money(ledgerSummary.total_paid_paise, ledgerSummary.currency)} variant="success" />
+                    <StatCard
+                      icon={AlertCircle}
+                      label="Outstanding"
+                      value={money(ledgerSummary.outstanding_paise, ledgerSummary.currency)}
+                      variant={ledgerSummary.outstanding_paise > 0 ? 'danger' : 'success'}
+                    />
+                  </div>
+                )}
+
+                {/* Pending Invoices — Pay Now */}
+                {invoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').length > 0 && (
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold text-red-600 uppercase tracking-wider flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" /> Pending Payments
+                    </h3>
+                    <div className="space-y-3">
+                      {invoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').map(inv => (
+                        <Card key={inv.id as string} className="border-amber-200 p-4">
+                          <div className="flex items-center gap-4">
+                            <CreditCard className="h-8 w-8 text-amber-600 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{inv.description as string || inv.invoice_number as string}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Invoice: {inv.invoice_number as string} · Due: {new Date(inv.due_date as string).toLocaleDateString('en-IN')}
+                              </p>
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-lg font-bold text-amber-600">{money(inv.amount_paise as number, inv.currency as string)}</p>
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                icon={CreditCard}
+                                loading={payingInvoice === inv.id}
+                                onClick={() => handlePayInvoice(inv.id as string)}
+                                className="mt-1"
+                              >
+                                {payingInvoice === inv.id ? 'Processing...' : 'Pay Now'}
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Paid Invoices with PDF download */}
+                {invoices.filter(inv => inv.status === 'paid').length > 0 && (
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" /> Payment Receipts
+                    </h3>
+                    <div className="space-y-2">
+                      {invoices.filter(inv => inv.status === 'paid').slice(0, 20).map(inv => (
+                        <Card key={inv.id as string} className="p-3">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 truncate">{inv.description as string || inv.invoice_number as string}</p>
+                              <p className="text-xs text-gray-500">
+                                {inv.invoice_number as string} · Paid: {new Date(inv.paid_at as string).toLocaleDateString('en-IN')}
+                              </p>
+                            </div>
+                            <p className="text-sm font-bold text-emerald-600 shrink-0">{money(inv.amount_paise as number, inv.currency as string)}</p>
+                            <a
+                              href={`/api/v1/payment/invoice-pdf/${inv.id as string}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
+                            >
+                              <Download className="h-3 w-3" /> PDF
+                            </a>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Full Ledger Table */}
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Transaction Ledger
+                  </h3>
+                  {ledgerEntries.length === 0 ? (
+                    <EmptyState icon={CreditCard} message="No fee transactions yet" />
+                  ) : (
+                    <TableWrapper>
+                      <THead>
+                        <TH>Date</TH>
+                        <TH>Reference</TH>
+                        <TH>Description</TH>
+                        <TH className="text-right">Debit</TH>
+                        <TH className="text-right">Credit</TH>
+                        <TH className="text-right">Balance</TH>
+                      </THead>
+                      <tbody>
+                        {ledgerEntries.map((entry, idx) => (
+                          <TRow key={idx}>
+                            <td className="px-4 py-2 text-xs text-gray-500 whitespace-nowrap">
+                              {new Date(entry.date).toLocaleDateString('en-IN')}
+                            </td>
+                            <td className="px-4 py-2 text-xs font-mono text-gray-900">{entry.reference}</td>
+                            <td className="px-4 py-2 text-xs text-gray-600 truncate max-w-[200px]">{entry.description}</td>
+                            <td className="px-4 py-2 text-xs text-right text-red-600">
+                              {entry.debit_paise > 0 ? money(entry.debit_paise, entry.currency) : ''}
+                            </td>
+                            <td className="px-4 py-2 text-xs text-right text-emerald-600">
+                              {entry.credit_paise > 0 ? money(entry.credit_paise, entry.currency) : ''}
+                            </td>
+                            <td className={`px-4 py-2 text-xs text-right font-medium ${entry.balance_paise > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                              {money(entry.balance_paise, entry.currency)}
+                            </td>
+                          </TRow>
+                        ))}
+                      </tbody>
+                    </TableWrapper>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ─── REPORTS TAB ─────────────────────────────────── */}
+        {activeTab === 'reports' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-emerald-600" /> Progress Reports
+              </h2>
+              <RefreshButton loading={reportsLoading} onClick={fetchReports} label="Refresh" />
+            </div>
+
+            {reportsLoading ? (
+              <LoadingState />
+            ) : reports.length === 0 ? (
+              <div className="text-center py-16">
+                <EmptyState icon={BarChart3} message="No reports available yet" />
+                <p className="text-xs text-gray-400 mt-1">Monthly progress reports will appear here once generated.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {reports.map((report) => {
+                  const id = String(report.id);
+                  const isExpanded = expandedReport === id;
+                  const data = report.data as Record<string, unknown>;
+                  const students = (data?.students as Array<Record<string, unknown>>) || [];
+
+                  return (
+                    <Card key={id} className="overflow-hidden">
+                      <button
+                        onClick={() => setExpandedReport(isExpanded ? null : id)}
+                        className="w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <BarChart3 className="h-5 w-5 text-emerald-600" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{report.title as string}</p>
+                          <p className="text-xs text-gray-500">
+                            {report.report_type as string} · {new Date(report.created_at as string).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                      </button>
+
+                      {isExpanded && students.length > 0 && (
+                        <div className="border-t border-gray-200 p-4 space-y-4">
+                          {students.map((student, sIdx) => {
+                            const att = student.attendance as Record<string, number> || {};
+                            const academic = student.academic as Record<string, number> || {};
+                            const fees = student.fees as Record<string, number> || {};
+
+                            return (
+                              <div key={sIdx} className="rounded-lg border border-gray-100 p-3">
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">{student.student_name as string}</h4>
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                  <div className="rounded-lg bg-gray-50 p-2">
+                                    <p className="text-gray-500">Attendance</p>
+                                    <p className="font-bold text-emerald-600">{att.attendance_rate || 0}%</p>
+                                    <p className="text-[10px] text-gray-400">{att.present || 0}/{att.total_sessions || 0} sessions</p>
+                                  </div>
+                                  <div className="rounded-lg bg-gray-50 p-2">
+                                    <p className="text-gray-500">Academics</p>
+                                    <p className="font-bold text-emerald-600">{academic.avg_percentage || 0}%</p>
+                                    <p className="text-[10px] text-gray-400">{academic.exams_taken || 0} exams</p>
+                                  </div>
+                                  <div className="rounded-lg bg-gray-50 p-2">
+                                    <p className="text-gray-500">Fees</p>
+                                    <p className={`font-bold ${(fees.overdue || 0) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                      {(fees.pending || 0) + (fees.overdue || 0) > 0 ? `${fees.pending || 0} pending` : 'Clear'}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400">{fees.paid || 0} paid</p>
+                                  </div>
+                                </div>
+                                {(student.topics_covered as Array<Record<string, unknown>>)?.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="text-[10px] text-gray-400 uppercase mb-1">Topics Covered</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {(student.topics_covered as Array<Record<string, unknown>>).slice(0, 8).map((t, tIdx) => (
+                                        <span key={tIdx} className="text-[10px] rounded bg-emerald-50 text-emerald-700 px-1.5 py-0.5">
+                                          {t.class_portion as string}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── AI MONITORING TAB ─────────────────────────────── */}
+        {activeTab === 'monitoring' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Brain className="h-5 w-5 text-emerald-600" /> AI Monitoring Reports
+              </h2>
+              <RefreshButton loading={monitorLoading} onClick={fetchMonitorReports} label="Refresh" />
+            </div>
+
+            {monitorLoading && monitorReports.length === 0 ? (
+              <LoadingState />
+            ) : monitorReports.length === 0 ? (
+              <div className="text-center">
+                <EmptyState icon={Brain} message="No monitoring reports yet" />
+                <p className="text-xs text-gray-400 -mt-4">Reports will appear here after your children attend AI-monitored sessions</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary cards */}
+                {(() => {
+                  const metrics = monitorReports.reduce<{ totalSessions: number; avgAttendance: number; avgAttention: number; totalAlerts: number }>(
+                    (acc, r) => {
+                      const m = (r.metrics || {}) as Record<string, number>;
+                      acc.totalSessions++;
+                      acc.avgAttendance += (m.attendance_rate || 0);
+                      acc.avgAttention += (m.avg_attention_score || 0);
+                      acc.totalAlerts += (m.alerts_count || 0);
+                      return acc;
+                    },
+                    { totalSessions: 0, avgAttendance: 0, avgAttention: 0, totalAlerts: 0 }
+                  );
+                  if (metrics.totalSessions > 0) {
+                    metrics.avgAttendance = Math.round(metrics.avgAttendance / metrics.totalSessions);
+                    metrics.avgAttention = Math.round(metrics.avgAttention / metrics.totalSessions);
+                  }
+                  return (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <StatCard icon={FileText} label="Reports" value={metrics.totalSessions} variant="info" />
+                      <StatCard icon={CheckCircle2} label="Avg Attendance" value={`${metrics.avgAttendance}%`} variant="success" />
+                      <StatCard
+                        icon={Eye}
+                        label="Avg Attention"
+                        value={`${metrics.avgAttention}%`}
+                        variant={metrics.avgAttention >= 70 ? 'success' : metrics.avgAttention >= 50 ? 'warning' : 'danger'}
+                      />
+                      <StatCard
+                        icon={AlertCircle}
+                        label="Total Alerts"
+                        value={metrics.totalAlerts}
+                        variant={metrics.totalAlerts > 10 ? 'danger' : 'warning'}
+                      />
                     </div>
                   );
                 })()}
 
-                {/* Exam List */}
-                <div className="space-y-2">
-                  {child.exams.map((exam) => (
-                    <div key={exam.attempt_id} className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-3">
-                      <BookOpen className={`h-5 w-5 ${exam.passed ? 'text-green-400' : 'text-red-400'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{exam.exam_title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {exam.subject} · {exam.exam_type} · {new Date(exam.submitted_at).toLocaleDateString('en-IN')}
-                        </p>
+                {/* Reports grouped by child */}
+                {(() => {
+                  const byChild: Record<string, Record<string, unknown>[]> = {};
+                  monitorReports.forEach((r) => {
+                    const key = String(r.target_email || 'unknown');
+                    if (!byChild[key]) byChild[key] = [];
+                    byChild[key].push(r);
+                  });
+                  return Object.entries(byChild).map(([email, childReports]) => {
+                    const childName = String(childReports[0]?.target_name || email);
+                    return (
+                      <Card key={email}>
+                        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 rounded-t-xl">
+                          <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                            <Users className="h-4 w-4 text-emerald-600" />
+                            {childName}
+                            <Badge label={`${childReports.length} report${childReports.length !== 1 ? 's' : ''}`} variant="primary" />
+                          </h3>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {childReports.map((report) => {
+                            const m = (report.metrics || {}) as Record<string, unknown>;
+                            const rId = String(report.id);
+                            const isExpanded = expandedReport === rId;
+                            return (
+                              <div key={rId} className="px-4 py-3">
+                                <button
+                                  onClick={() => setExpandedReport(isExpanded ? null : rId)}
+                                  className="flex w-full items-center justify-between text-left"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {String(report.report_type || 'session').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Report
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {report.period_start ? fmtSmartDateIST(String(report.period_start)) : ''}
+                                      {report.period_end ? ` – ${fmtSmartDateIST(String(report.period_end))}` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    {m.avg_attention_score != null && (
+                                      <Badge
+                                        label={`Attention: ${Number(m.avg_attention_score).toFixed(0)}%`}
+                                        variant={Number(m.avg_attention_score) >= 70 ? 'success' : Number(m.avg_attention_score) >= 50 ? 'warning' : 'danger'}
+                                      />
+                                    )}
+                                    {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                                  </div>
+                                </button>
+
+                                {isExpanded && (
+                                  <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                      {m.attendance_rate != null && (
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center">
+                                          <p className="text-sm font-bold text-gray-900">{Number(m.attendance_rate).toFixed(0)}%</p>
+                                          <p className="text-[10px] text-gray-500">Attendance</p>
+                                        </div>
+                                      )}
+                                      {m.avg_attention_score != null && (
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center">
+                                          <p className="text-sm font-bold text-gray-900">{Number(m.avg_attention_score).toFixed(0)}%</p>
+                                          <p className="text-[10px] text-gray-500">Attention</p>
+                                        </div>
+                                      )}
+                                      {m.alerts_count != null && (
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center">
+                                          <p className="text-sm font-bold text-gray-900">{Number(m.alerts_count)}</p>
+                                          <p className="text-[10px] text-gray-500">Alerts</p>
+                                        </div>
+                                      )}
+                                      {m.sessions_monitored != null && (
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center">
+                                          <p className="text-sm font-bold text-gray-900">{Number(m.sessions_monitored)}</p>
+                                          <p className="text-[10px] text-gray-500">Sessions</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {m.overall_summary ? (
+                                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
+                                        <div className="mb-1 flex items-center gap-1 font-semibold">
+                                          <Shield className="h-3.5 w-3.5" /> AI Summary
+                                        </div>
+                                        {String(m.overall_summary)}
+                                      </div>
+                                    ) : null}
+                                    {Array.isArray(m.alert_breakdown) && (m.alert_breakdown as Array<Record<string, unknown>>).length > 0 && (
+                                      <div>
+                                        <p className="mb-1 text-xs font-medium text-gray-500">Alert Breakdown</p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {(m.alert_breakdown as Array<Record<string, unknown>>).map((ab, i) => (
+                                            <Badge key={i} label={`${String(ab.type || ab.alert_type || 'alert')}: ${String(ab.count || 0)}`} variant="default" />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    );
+                  });
+                })()}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ─── REQUESTS TAB ─────────────────────────────── */}
+        {activeTab === 'requests' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <CalendarClock className="h-5 w-5 text-emerald-600" /> Session Requests
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={showRequestForm ? 'outline' : 'primary'}
+                  size="sm"
+                  icon={Send}
+                  onClick={() => setShowRequestForm(!showRequestForm)}
+                >
+                  {showRequestForm ? 'Cancel' : 'New Request'}
+                </Button>
+                <RefreshButton loading={requestsLoading} onClick={fetchSessionRequests} label="Refresh" />
+              </div>
+            </div>
+
+            {showRequestForm && (
+              <FormPanel title="Submit Request on Behalf of Child" icon={Send} onClose={() => setShowRequestForm(false)}>
+                <FormGrid cols={2}>
+                  <FormField label="Session" required>
+                    <Select
+                      value={requestForm.sessionId}
+                      onChange={(val) => {
+                        const picked = sessionPickerOptions.find(o => o.value === val);
+                        setRequestForm(f => ({
+                          ...f,
+                          sessionId: val,
+                          batchId: picked?.batchId || '',
+                        }));
+                      }}
+                      options={sessionPickerOptions.map(o => ({ value: o.value, label: o.label }))}
+                      placeholder="Select a session..."
+                    />
+                  </FormField>
+                  <FormField label="Request Type" required>
+                    <Select
+                      value={requestForm.requestType}
+                      onChange={(val) => setRequestForm(f => ({ ...f, requestType: val as 'reschedule' | 'cancel' }))}
+                      options={[
+                        { value: 'reschedule', label: 'Reschedule' },
+                        { value: 'cancel', label: 'Cancel' },
+                      ]}
+                    />
+                  </FormField>
+                  {requestForm.requestType === 'reschedule' && (
+                    <>
+                      <FormField label="Proposed Date">
+                        <Input
+                          type="date"
+                          value={requestForm.proposedDate}
+                          onChange={(e) => setRequestForm(f => ({ ...f, proposedDate: e.target.value }))}
+                        />
+                      </FormField>
+                      <FormField label="Proposed Time">
+                        <Input
+                          type="time"
+                          value={requestForm.proposedTime}
+                          onChange={(e) => setRequestForm(f => ({ ...f, proposedTime: e.target.value }))}
+                        />
+                      </FormField>
+                    </>
+                  )}
+                </FormGrid>
+                <FormField label="Reason" required className="mt-4">
+                  <Textarea
+                    rows={3}
+                    placeholder="Explain why you need this change..."
+                    value={requestForm.reason}
+                    onChange={(e) => setRequestForm(f => ({ ...f, reason: e.target.value }))}
+                  />
+                </FormField>
+                <FormActions
+                  submitLabel="Submit Request"
+                  onSubmit={submitSessionRequest}
+                  onCancel={() => setShowRequestForm(false)}
+                  submitting={requestSubmitting}
+                  submitDisabled={!requestForm.sessionId || !requestForm.reason}
+                />
+              </FormPanel>
+            )}
+
+            {requestsLoading ? (
+              <LoadingState />
+            ) : sessionRequests.length === 0 ? (
+              <EmptyState icon={CalendarClock} message="No session requests yet" />
+            ) : (
+              <div className="space-y-3">
+                {sessionRequests.map(r => (
+                  <Card key={r.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                          r.request_type === 'cancel' ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'
+                        }`}>
+                          {r.request_type === 'cancel'
+                            ? <Ban className="h-4 w-4 text-red-500" />
+                            : <CalendarClock className="h-4 w-4 text-emerald-600" />
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-medium text-gray-900">
+                              {r.request_type === 'cancel' ? 'Cancel' : 'Reschedule'} — {r.subject || 'Session'}
+                            </span>
+                            <StatusBadge status={r.status} />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {r.batch_name && `${r.batch_name} · `}
+                            {r.session_date && fmtSmartDateIST(r.session_date)}
+                            {r.proposed_date && ` → ${fmtSmartDateIST(r.proposed_date)}`}
+                            {r.proposed_time && ` at ${r.proposed_time}`}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">{r.reason}</p>
+                          {r.rejection_reason && (
+                            <p className="text-xs text-red-600 mt-1">Reason: {r.rejection_reason}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-bold ${exam.passed ? 'text-green-400' : 'text-red-400'}`}>
-                          {exam.total_marks_obtained}/{exam.total_marks}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {exam.percentage.toFixed(1)}% · {exam.grade_letter}
-                        </p>
+                      <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                        <p className="text-[10px] text-gray-400">{new Date(r.created_at).toLocaleDateString('en-IN')}</p>
+                        {r.status === 'pending' && (
+                          <button onClick={() => withdrawSessionRequest(r.id)} className="text-[10px] text-red-600 hover:text-red-700 font-medium">
+                            Withdraw
+                          </button>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </Card>
+                ))}
               </div>
-            ))
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {/* ─── FEES / LEDGER TAB ────────────────────────────── */}
-      {activeTab === 'fees' && (
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Fees & Payments</h2>
-
-          {ledgerLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading ledger...
+        {/* ─── COMPLAINTS TAB ──────────────────────────────── */}
+        {activeTab === 'complaints' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-emerald-600" /> Complaints & Feedback
+              </h2>
+              <Button variant="primary" size="sm" icon={AlertCircle} onClick={() => setShowComplaintForm(true)}>
+                Submit Complaint
+              </Button>
             </div>
-          ) : (
-            <>
-              {/* Summary */}
-              {ledgerSummary && (
-                <div className="mb-6 grid grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="text-xs text-muted-foreground">Total Invoiced</p>
-                    <p className="mt-1 text-lg font-bold">{fmtCurrency(ledgerSummary.total_invoiced_paise, ledgerSummary.currency)}</p>
-                  </div>
-                  <div className="rounded-xl border border-green-700 bg-card p-4">
-                    <p className="text-xs text-muted-foreground">Total Paid</p>
-                    <p className="mt-1 text-lg font-bold text-green-400">{fmtCurrency(ledgerSummary.total_paid_paise, ledgerSummary.currency)}</p>
-                  </div>
-                  <div className={`rounded-xl border ${ledgerSummary.outstanding_paise > 0 ? 'border-red-700' : 'border-green-700'} bg-card p-4`}>
-                    <p className="text-xs text-muted-foreground">Outstanding</p>
-                    <p className={`mt-1 text-lg font-bold ${ledgerSummary.outstanding_paise > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                      {fmtCurrency(ledgerSummary.outstanding_paise, ledgerSummary.currency)}
-                    </p>
-                  </div>
-                </div>
-              )}
 
-              {/* Pending Invoices — Pay Now */}
-              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').length > 0 && (
-                <div className="mb-6">
-                  <h3 className="mb-3 text-sm font-semibold text-red-400 uppercase tracking-wider flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" /> Pending Payments
-                  </h3>
-                  <div className="space-y-3">
-                    {invoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').map(inv => (
-                      <div key={inv.id as string} className="rounded-xl border border-amber-700/50 bg-amber-950/10 p-4 flex items-center gap-4">
-                        <CreditCard className="h-8 w-8 text-amber-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{inv.description as string || inv.invoice_number as string}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Invoice: {inv.invoice_number as string} &middot; Due: {new Date(inv.due_date as string).toLocaleDateString('en-IN')}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-lg font-bold text-amber-300">{fmtCurrency(inv.amount_paise as number, inv.currency as string)}</p>
-                          <button
-                            onClick={() => handlePayInvoice(inv.id as string)}
-                            disabled={payingInvoice === inv.id}
-                            className="mt-1 flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-                          >
-                            {payingInvoice === inv.id ? (
-                              <><Loader2 className="h-3 w-3 animate-spin" /> Processing...</>
-                            ) : (
-                              <><CreditCard className="h-3 w-3" /> Pay Now</>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* New Complaint Form */}
+            {showComplaintForm && (
+              <FormPanel title="New Complaint" icon={MessageSquare} onClose={() => setShowComplaintForm(false)}>
+                <FormGrid cols={1}>
+                  <FormField label="Subject" required>
+                    <Input
+                      placeholder="Subject"
+                      value={complaintForm.subject}
+                      onChange={(e) => setComplaintForm(f => ({ ...f, subject: e.target.value }))}
+                    />
+                  </FormField>
+                </FormGrid>
+                <FormGrid cols={2}>
+                  <FormField label="Category">
+                    <Select
+                      value={complaintForm.category}
+                      onChange={(val) => setComplaintForm(f => ({ ...f, category: val }))}
+                      options={[
+                        { value: 'general', label: 'General' },
+                        { value: 'teaching', label: 'Teaching' },
+                        { value: 'fee', label: 'Fee Related' },
+                        { value: 'facility', label: 'Facility' },
+                        { value: 'behaviour', label: 'Behaviour' },
+                        { value: 'academic', label: 'Academic' },
+                        { value: 'other', label: 'Other' },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label="Priority">
+                    <Select
+                      value={complaintForm.priority}
+                      onChange={(val) => setComplaintForm(f => ({ ...f, priority: val }))}
+                      options={[
+                        { value: 'low', label: 'Low Priority' },
+                        { value: 'medium', label: 'Medium Priority' },
+                        { value: 'high', label: 'High Priority' },
+                        { value: 'urgent', label: 'Urgent' },
+                      ]}
+                    />
+                  </FormField>
+                </FormGrid>
+                <FormField label="Description" required className="mt-4">
+                  <Textarea
+                    placeholder="Describe your complaint or feedback in detail..."
+                    value={complaintForm.description}
+                    onChange={(e) => setComplaintForm(f => ({ ...f, description: e.target.value }))}
+                    rows={4}
+                  />
+                </FormField>
+                <FormActions
+                  submitLabel={submitting ? 'Submitting...' : 'Submit Complaint'}
+                  onSubmit={submitComplaint}
+                  onCancel={() => setShowComplaintForm(false)}
+                  submitting={submitting}
+                  submitDisabled={!complaintForm.subject.trim() || !complaintForm.description.trim()}
+                />
+              </FormPanel>
+            )}
 
-              {/* Paid Invoices with PDF download */}
-              {invoices.filter(inv => inv.status === 'paid').length > 0 && (
-                <div className="mb-6">
-                  <h3 className="mb-3 text-sm font-semibold text-green-400 uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Payment Receipts
-                  </h3>
-                  <div className="space-y-2">
-                    {invoices.filter(inv => inv.status === 'paid').slice(0, 20).map(inv => (
-                      <div key={inv.id as string} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm truncate">{inv.description as string || inv.invoice_number as string}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {inv.invoice_number as string} &middot; Paid: {new Date(inv.paid_at as string).toLocaleDateString('en-IN')}
-                          </p>
-                        </div>
-                        <p className="text-sm font-bold text-green-400 shrink-0">{fmtCurrency(inv.amount_paise as number, inv.currency as string)}</p>
-                        <a
-                          href={`/api/v1/payment/invoice-pdf/${inv.id as string}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        >
-                          <Download className="h-3 w-3" /> PDF
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Full Ledger Table */}
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Transaction Ledger</h3>
-              {ledgerEntries.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border py-12 text-center">
-                  <CreditCard className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-                  <p className="text-muted-foreground text-sm">No fee transactions yet</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30">
-                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Reference</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Description</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Debit</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Credit</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ledgerEntries.map((entry, idx) => (
-                        <tr key={idx} className="border-b border-border/50 last:border-0">
-                          <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(entry.date).toLocaleDateString('en-IN')}
-                          </td>
-                          <td className="px-3 py-2 text-xs font-mono">{entry.reference}</td>
-                          <td className="px-3 py-2 text-xs truncate max-w-50">{entry.description}</td>
-                          <td className="px-3 py-2 text-xs text-right text-red-400">
-                            {entry.debit_paise > 0 ? fmtCurrency(entry.debit_paise, entry.currency) : ''}
-                          </td>
-                          <td className="px-3 py-2 text-xs text-right text-green-400">
-                            {entry.credit_paise > 0 ? fmtCurrency(entry.credit_paise, entry.currency) : ''}
-                          </td>
-                          <td className={`px-3 py-2 text-xs text-right font-medium ${entry.balance_paise > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                            {fmtCurrency(entry.balance_paise, entry.currency)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ─── REPORTS TAB ─────────────────────────────────── */}
-      {activeTab === 'reports' && (
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Progress Reports</h2>
-
-          {reportsLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading reports...
-            </div>
-          ) : reports.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border py-12 text-center">
-              <BarChart3 className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-              <p className="text-muted-foreground text-sm">No reports available yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Monthly progress reports will appear here once generated.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {reports.map((report) => {
-                const id = String(report.id);
-                const isExpanded = expandedReport === id;
-                const data = report.data as Record<string, unknown>;
-                const students = (data?.students as Array<Record<string, unknown>>) || [];
-
-                return (
-                  <div key={id} className="rounded-xl border border-border bg-card overflow-hidden">
-                    <button
-                      onClick={() => setExpandedReport(isExpanded ? null : id)}
-                      className="w-full flex items-center gap-3 p-4 text-left hover:bg-muted/20 transition-colors"
-                    >
-                      <BarChart3 className="h-5 w-5 text-primary" />
+            {/* Complaints List */}
+            {complaintsLoading ? (
+              <LoadingState />
+            ) : complaints.length === 0 ? (
+              <div className="text-center">
+                <EmptyState icon={MessageSquare} message="No complaints submitted" />
+                <p className="text-xs text-gray-400 -mt-4">Submit a complaint using the button above.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {complaints.map((complaint) => (
+                  <Card key={complaint.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{report.title as string}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {report.report_type as string} · {new Date(report.created_at as string).toLocaleDateString('en-IN')}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">{complaint.subject}</h3>
+                          <StatusBadge status={complaint.status.replace('_', ' ')} />
+                        </div>
+                        <p className="text-xs text-gray-500 line-clamp-2">{complaint.description}</p>
+                        <div className="flex gap-3 mt-2 text-[10px] text-gray-400">
+                          <span className="capitalize">{complaint.category}</span>
+                          <span>Priority: <span className="capitalize">{complaint.priority}</span></span>
+                          <span>{new Date(complaint.created_at).toLocaleDateString('en-IN')}</span>
+                        </div>
                       </div>
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </button>
-
-                    {isExpanded && students.length > 0 && (
-                      <div className="border-t border-border p-4 space-y-4">
-                        {students.map((student, sIdx) => {
-                          const att = student.attendance as Record<string, number> || {};
-                          const academic = student.academic as Record<string, number> || {};
-                          const fees = student.fees as Record<string, number> || {};
-
-                          return (
-                            <div key={sIdx} className="rounded-lg border border-border/50 p-3">
-                              <h4 className="text-sm font-medium mb-2">{student.student_name as string}</h4>
-                              <div className="grid grid-cols-3 gap-2 text-xs">
-                                <div className="rounded-lg bg-muted/30 p-2">
-                                  <p className="text-muted-foreground">Attendance</p>
-                                  <p className="font-bold text-green-400">{att.attendance_rate || 0}%</p>
-                                  <p className="text-[10px] text-muted-foreground">{att.present || 0}/{att.total_sessions || 0} sessions</p>
-                                </div>
-                                <div className="rounded-lg bg-muted/30 p-2">
-                                  <p className="text-muted-foreground">Academics</p>
-                                  <p className="font-bold text-primary">{academic.avg_percentage || 0}%</p>
-                                  <p className="text-[10px] text-muted-foreground">{academic.exams_taken || 0} exams</p>
-                                </div>
-                                <div className="rounded-lg bg-muted/30 p-2">
-                                  <p className="text-muted-foreground">Fees</p>
-                                  <p className={`font-bold ${(fees.overdue || 0) > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                    {(fees.pending || 0) + (fees.overdue || 0) > 0 ? `${fees.pending || 0} pending` : 'Clear'}
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground">{fees.paid || 0} paid</p>
-                                </div>
-                              </div>
-                              {(student.topics_covered as Array<Record<string, unknown>>)?.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Topics Covered</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {(student.topics_covered as Array<Record<string, unknown>>).slice(0, 8).map((t, tIdx) => (
-                                      <span key={tIdx} className="text-[10px] rounded bg-primary/10 text-primary px-1.5 py-0.5">
-                                        {t.class_portion as string}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                    </div>
+                    {complaint.resolution && (
+                      <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+                        <p className="text-[10px] text-emerald-600 uppercase font-semibold mb-1">Resolution</p>
+                        <p className="text-xs text-emerald-700">{complaint.resolution}</p>
                       </div>
                     )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── AI MONITORING TAB ─────────────────────────────── */}
-      {activeTab === 'monitoring' && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">AI Monitoring Reports</h2>
-            <button
-              onClick={fetchMonitorReports}
-              disabled={monitorLoading}
-              className="flex items-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-medium hover:bg-muted/80"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${monitorLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          </div>
-
-          {monitorLoading && monitorReports.length === 0 ? (
-            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading monitoring data…
-            </div>
-          ) : monitorReports.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-12 text-center">
-              <Brain className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-muted-foreground">No monitoring reports yet</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">Reports will appear here after your children attend AI-monitored sessions</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Summary cards */}
-              {(() => {
-                const metrics = monitorReports.reduce<{ totalSessions: number; avgAttendance: number; avgAttention: number; totalAlerts: number }>(
-                  (acc, r) => {
-                    const m = (r.metrics || {}) as Record<string, number>;
-                    acc.totalSessions++;
-                    acc.avgAttendance += (m.attendance_rate || 0);
-                    acc.avgAttention += (m.avg_attention_score || 0);
-                    acc.totalAlerts += (m.alerts_count || 0);
-                    return acc;
-                  },
-                  { totalSessions: 0, avgAttendance: 0, avgAttention: 0, totalAlerts: 0 }
-                );
-                if (metrics.totalSessions > 0) {
-                  metrics.avgAttendance = Math.round(metrics.avgAttendance / metrics.totalSessions);
-                  metrics.avgAttention = Math.round(metrics.avgAttention / metrics.totalSessions);
-                }
-                return (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div className="rounded-lg border bg-card p-3 text-center">
-                      <p className="text-2xl font-bold text-primary">{metrics.totalSessions}</p>
-                      <p className="text-xs text-muted-foreground">Reports</p>
-                    </div>
-                    <div className="rounded-lg border bg-card p-3 text-center">
-                      <p className="text-2xl font-bold text-green-600">{metrics.avgAttendance}%</p>
-                      <p className="text-xs text-muted-foreground">Avg Attendance</p>
-                    </div>
-                    <div className="rounded-lg border bg-card p-3 text-center">
-                      <p className={`text-2xl font-bold ${metrics.avgAttention >= 70 ? 'text-green-600' : metrics.avgAttention >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                        {metrics.avgAttention}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">Avg Attention</p>
-                    </div>
-                    <div className="rounded-lg border bg-card p-3 text-center">
-                      <p className={`text-2xl font-bold ${metrics.totalAlerts > 10 ? 'text-red-600' : 'text-yellow-600'}`}>
-                        {metrics.totalAlerts}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Total Alerts</p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Reports grouped by child */}
-              {(() => {
-                const byChild: Record<string, Record<string, unknown>[]> = {};
-                monitorReports.forEach((r) => {
-                  const key = String(r.target_email || 'unknown');
-                  if (!byChild[key]) byChild[key] = [];
-                  byChild[key].push(r);
-                });
-                return Object.entries(byChild).map(([email, childReports]) => {
-                  const childName = String(childReports[0]?.target_name || email);
-                  return (
-                    <div key={email} className="rounded-lg border bg-card">
-                      <div className="border-b bg-muted/30 px-4 py-3">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold">
-                          <Users className="h-4 w-4 text-primary" />
-                          {childName}
-                          <span className="ml-auto rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                            {childReports.length} report{childReports.length !== 1 ? 's' : ''}
-                          </span>
-                        </h3>
-                      </div>
-                      <div className="divide-y">
-                        {childReports.map((report) => {
-                          const m = (report.metrics || {}) as Record<string, unknown>;
-                          const rId = String(report.id);
-                          const isExpanded = expandedReport === rId;
-                          return (
-                            <div key={rId} className="px-4 py-3">
-                              <button
-                                onClick={() => setExpandedReport(isExpanded ? null : rId)}
-                                className="flex w-full items-center justify-between text-left"
-                              >
-                                <div>
-                                  <p className="text-sm font-medium">
-                                    {String(report.report_type || 'session').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Report
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {report.period_start ? fmtDateBriefIST(String(report.period_start)) : ''}
-                                    {report.period_end ? ` – ${fmtDateBriefIST(String(report.period_end))}` : ''}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  {m.avg_attention_score != null && (
-                                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${
-                                      Number(m.avg_attention_score) >= 70 ? 'bg-green-100 text-green-700' :
-                                      Number(m.avg_attention_score) >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-red-100 text-red-700'
-                                    }`}>
-                                      Attention: {Number(m.avg_attention_score).toFixed(0)}%
-                                    </span>
-                                  )}
-                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                </div>
-                              </button>
-
-                              {isExpanded && (
-                                <div className="mt-3 space-y-3 border-t pt-3">
-                                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                    {m.attendance_rate != null && (
-                                      <div className="rounded bg-muted/50 p-2 text-center">
-                                        <p className="text-sm font-bold">{Number(m.attendance_rate).toFixed(0)}%</p>
-                                        <p className="text-[10px] text-muted-foreground">Attendance</p>
-                                      </div>
-                                    )}
-                                    {m.avg_attention_score != null && (
-                                      <div className="rounded bg-muted/50 p-2 text-center">
-                                        <p className="text-sm font-bold">{Number(m.avg_attention_score).toFixed(0)}%</p>
-                                        <p className="text-[10px] text-muted-foreground">Attention</p>
-                                      </div>
-                                    )}
-                                    {m.alerts_count != null && (
-                                      <div className="rounded bg-muted/50 p-2 text-center">
-                                        <p className="text-sm font-bold">{Number(m.alerts_count)}</p>
-                                        <p className="text-[10px] text-muted-foreground">Alerts</p>
-                                      </div>
-                                    )}
-                                    {m.sessions_monitored != null && (
-                                      <div className="rounded bg-muted/50 p-2 text-center">
-                                        <p className="text-sm font-bold">{Number(m.sessions_monitored)}</p>
-                                        <p className="text-[10px] text-muted-foreground">Sessions</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {m.overall_summary ? (
-                                    <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
-                                      <div className="mb-1 flex items-center gap-1 font-semibold">
-                                        <Shield className="h-3.5 w-3.5" /> AI Summary
-                                      </div>
-                                      {String(m.overall_summary)}
-                                    </div>
-                                  ) : null}
-                                  {Array.isArray(m.alert_breakdown) && (m.alert_breakdown as Array<Record<string, unknown>>).length > 0 && (
-                                    <div>
-                                      <p className="mb-1 text-xs font-medium text-muted-foreground">Alert Breakdown</p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {(m.alert_breakdown as Array<Record<string, unknown>>).map((ab, i) => (
-                                          <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">
-                                            {String(ab.type || ab.alert_type || 'alert')}: {String(ab.count || 0)}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── COMPLAINTS TAB ──────────────────────────────── */}
-      {activeTab === 'complaints' && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Complaints & Feedback</h2>
-            <button
-              onClick={() => setShowComplaintForm(true)}
-              className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <AlertCircle className="h-3.5 w-3.5" /> Submit Complaint
-            </button>
-          </div>
-
-          {/* New Complaint Form */}
-          {showComplaintForm && (
-            <div className="mb-6 rounded-xl border border-primary/30 bg-card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold">New Complaint</h3>
-                <button onClick={() => setShowComplaintForm(false)}>
-                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                </button>
+                  </Card>
+                ))}
               </div>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Subject"
-                  value={complaintForm.subject}
-                  onChange={(e) => setComplaintForm(f => ({ ...f, subject: e.target.value }))}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={complaintForm.category}
-                    onChange={(e) => setComplaintForm(f => ({ ...f, category: e.target.value }))}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    <option value="general">General</option>
-                    <option value="teaching">Teaching</option>
-                    <option value="fee">Fee Related</option>
-                    <option value="facility">Facility</option>
-                    <option value="behaviour">Behaviour</option>
-                    <option value="academic">Academic</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <select
-                    value={complaintForm.priority}
-                    onChange={(e) => setComplaintForm(f => ({ ...f, priority: e.target.value }))}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    <option value="low">Low Priority</option>
-                    <option value="medium">Medium Priority</option>
-                    <option value="high">High Priority</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Describe your complaint or feedback in detail..."
-                  value={complaintForm.description}
-                  onChange={(e) => setComplaintForm(f => ({ ...f, description: e.target.value }))}
-                  rows={4}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none resize-none"
-                />
-                <button
-                  onClick={submitComplaint}
-                  disabled={submitting || !complaintForm.subject.trim() || !complaintForm.description.trim()}
-                  className="flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  {submitting ? 'Submitting...' : 'Submit Complaint'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Complaints List */}
-          {complaintsLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading...
-            </div>
-          ) : complaints.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border py-12 text-center">
-              <MessageSquare className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-              <p className="text-muted-foreground text-sm">No complaints submitted</p>
-              <p className="text-xs text-muted-foreground mt-1">Submit a complaint using the button above.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {complaints.map((complaint) => (
-                <div key={complaint.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-medium truncate">{complaint.subject}</h3>
-                        <span className={`text-[10px] font-semibold uppercase border rounded px-1.5 py-0.5 ${statusBadge[complaint.status] || 'text-muted-foreground border-border'}`}>
-                          {complaint.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{complaint.description}</p>
-                      <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground">
-                        <span className="capitalize">{complaint.category}</span>
-                        <span>Priority: <span className="capitalize">{complaint.priority}</span></span>
-                        <span>{new Date(complaint.created_at).toLocaleDateString('en-IN')}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {complaint.resolution && (
-                    <div className="mt-3 rounded-lg bg-green-950/30 border border-green-700/50 p-2">
-                      <p className="text-[10px] text-green-400 uppercase font-semibold mb-1">Resolution</p>
-                      <p className="text-xs text-green-300/80">{complaint.resolution}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── REQUESTS TAB ─────────────────────────────── */}
-      {activeTab === 'requests' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Session Requests</h2>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowRequestForm(!showRequestForm)}
-                className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition">
-                <Send className="h-3.5 w-3.5" />{showRequestForm ? 'Cancel' : 'New Request'}
-              </button>
-              <button onClick={fetchSessionRequests} className="p-1.5 rounded-lg hover:bg-muted/50 transition text-muted-foreground">
-                <RefreshCw className={`h-4 w-4 ${requestsLoading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
+            )}
           </div>
-
-          {showRequestForm && (
-            <div className="rounded-xl border border-primary/30 bg-card p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Submit Request on Behalf of Child</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Request Type</label>
-                  <select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={requestForm.requestType}
-                    onChange={e => setRequestForm(f => ({ ...f, requestType: e.target.value as 'reschedule' | 'cancel' }))}>
-                    <option value="reschedule">🔄 Reschedule</option>
-                    <option value="cancel">❌ Cancel</option>
-                  </select>
-                </div>
-                {requestForm.requestType === 'reschedule' && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Proposed Date</label>
-                      <input type="date" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={requestForm.proposedDate}
-                        onChange={e => setRequestForm(f => ({ ...f, proposedDate: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">Proposed Time</label>
-                      <input type="time" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={requestForm.proposedTime}
-                        onChange={e => setRequestForm(f => ({ ...f, proposedTime: e.target.value }))} />
-                    </div>
-                  </>
-                )}
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Reason</label>
-                  <textarea rows={3} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Explain why you need this change…"
-                    value={requestForm.reason} onChange={e => setRequestForm(f => ({ ...f, reason: e.target.value }))} />
-                </div>
-              </div>
-              <button disabled={requestSubmitting || !requestForm.reason} onClick={submitSessionRequest}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition">
-                {requestSubmitting ? 'Submitting…' : 'Submit Request'}
-              </button>
-            </div>
-          )}
-
-          {requestsLoading ? (
-            <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : sessionRequests.length === 0 ? (
-            <div className="text-center py-10">
-              <CalendarClock className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-              <p className="text-muted-foreground text-sm">No session requests yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sessionRequests.map(r => (
-                <div key={r.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${r.request_type === 'cancel' ? 'bg-red-950/30 border border-red-700/50' : 'bg-blue-950/30 border border-blue-700/50'}`}>
-                        {r.request_type === 'cancel' ? <Ban className="h-4 w-4 text-red-400" /> : <CalendarClock className="h-4 w-4 text-blue-400" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-medium">{r.request_type === 'cancel' ? 'Cancel' : 'Reschedule'} — {r.subject || 'Session'}</span>
-                          <span className={`text-[10px] font-semibold uppercase border rounded px-1.5 py-0.5 ${statusBadge[r.status] || 'text-muted-foreground border-border'}`}>
-                            {r.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {r.batch_name && `${r.batch_name} · `}
-                          {r.session_date && fmtDateBriefIST(r.session_date)}
-                          {r.proposed_date && ` → ${fmtDateBriefIST(r.proposed_date)}`}
-                          {r.proposed_time && ` at ${r.proposed_time}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground/70 mt-0.5">{r.reason}</p>
-                        {r.rejection_reason && <p className="text-xs text-red-400 mt-1">Reason: {r.rejection_reason}</p>}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                      <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString('en-IN')}</p>
-                      {r.status === 'pending' && (
-                        <button onClick={() => withdrawSessionRequest(r.id)} className="text-[10px] text-red-400 hover:text-red-300">Withdraw</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
+        )}
+      </div>
     </DashboardShell>
   );
 }

@@ -40,6 +40,7 @@ interface Room {
   livekit_room_id: string | null;
   created_at: string;
   student_count?: number;
+  go_live_at?: string | null;
 }
 
 interface Assignment {
@@ -652,6 +653,11 @@ function LiveSessionsTab({ rooms, loading, onRefresh, router }: {
                   <span>{r.subject}</span><span>&middot;</span><span>{r.grade}</span>
                   {r.student_count && <span>&middot; {r.student_count} students</span>}
                 </div>
+                {r.go_live_at && (
+                  <div className="text-[10px] text-green-400 mt-0.5">
+                    🟢 Live since {new Date(r.go_live_at as string).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
+                  </div>
+                )}
               </button>
             ))}
           </div>

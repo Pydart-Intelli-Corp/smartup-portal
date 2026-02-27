@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** `84318a3` — Major fix batch: token identity+metadata for all roles, attendance webhook email extraction, payment gate batch_session_id resolution, hand-raise icon update (Lucide-style + filled variant), batch ID format (smartup_date_time_shortid), new-tab classroom launch, duplicate rating prevention (sessionStorage), join route actualRoomId for payment/rejoin checks.
+**Latest Commit:** `561e49d` — Fix payment verification: completePayment() now updates session_payments.status to 'paid', room_assignments payment_status update widened, Razorpay checkout.js script strategy changed from lazyOnload to afterInteractive (fixes mobile).
 
 ---
 

@@ -16,6 +16,7 @@ import VideoTile from './VideoTile';
 import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import WhiteboardComposite from './WhiteboardComposite';
 import ChatPanel from './ChatPanel';
+import StudentSidePanel from './StudentSidePanel';
 import FeedbackDialog from './FeedbackDialog';
 import TimeWarningDialog from './TimeWarningDialog';
 import { cn } from '@/lib/utils';
@@ -875,6 +876,18 @@ export default function StudentView({
         />
       )}
 
+      {/* Other participants audio — only plays if their mic is enabled by teacher */}
+      {remotes.filter(p => p !== teacher && !isTeacherScreen(p) && p.identity !== localParticipant.identity).map(p => {
+        const micPub = p.getTrackPublication(Track.Source.Microphone);
+        if (!micPub?.track || micPub.isMuted) return null;
+        return (
+          <AudioTrack
+            key={p.identity}
+            trackRef={{ participant: p, publication: micPub, source: Track.Source.Microphone } as TrackReference}
+          />
+        );
+      })}
+
       {/* === TOAST — media toggle notification === */}
       {toast && (
         <div className="absolute top-12 inset-x-0 z-70 flex justify-center pointer-events-none">
@@ -1076,14 +1089,14 @@ export default function StudentView({
 
       {/* === LAYER 3 — Panels & dialogs === */}
 
-      {/* Chat panel — slides from right */}
+      {/* Chat/Attendance panel — slides from right */}
       <div
         className={cn(
           'fixed top-0 right-0 z-80 h-full w-80 max-w-[85vw] bg-[#202124] shadow-2xl ring-1 ring-white/8 transition-transform duration-300 ease-out',
           chatOpen ? 'translate-x-0' : 'translate-x-full',
         )}
       >
-        <ChatPanel
+        <StudentSidePanel
           roomId={roomId}
           participantName={participantName}
           participantRole="student"

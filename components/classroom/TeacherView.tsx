@@ -73,6 +73,21 @@ export default function TeacherView({
   const [isLive, setIsLive] = useState(roomStatus === 'live');
   const [goingLive, setGoingLive] = useState(false);
   const [goLiveError, setGoLiveError] = useState('');
+  const [goLiveAt, setGoLiveAt] = useState<string | null>(null); // actual go-live timestamp
+
+  // ── AI toast notifications ──
+  interface AIToast { id: string; message: string; severity: 'warning' | 'danger'; time: number; }
+  const [aiToasts, setAiToasts] = useState<AIToast[]>([]);
+  const lastAlertedRef = useRef<Map<string, number>>(new Map()); // throttle: email → last alert time
+
+  // Auto-dismiss toasts after 5s
+  useEffect(() => {
+    if (aiToasts.length === 0) return;
+    const timer = setTimeout(() => {
+      setAiToasts(prev => prev.filter(t => Date.now() - t.time < 5000));
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [aiToasts]);
 
   // ── 5-minute warning dialog ──
   const [showTimeWarning, setShowTimeWarning] = useState(false);
@@ -83,10 +98,12 @@ export default function TeacherView({
     return () => clearInterval(iv);
   }, []);
   const teacherEndTime = useMemo(() => {
-    if (!scheduledStart) return null;
-    const s = new Date(scheduledStart).getTime();
+    // Use actual go-live time if available, otherwise fall back to scheduled start
+    const startStr = goLiveAt || scheduledStart;
+    if (!startStr) return null;
+    const s = new Date(startStr).getTime();
     return isNaN(s) ? null : s + durationMinutes * 60_000;
-  }, [scheduledStart, durationMinutes]);
+  }, [goLiveAt, scheduledStart, durationMinutes]);
   const teacherRemaining = teacherEndTime ? Math.max(0, Math.floor((teacherEndTime - teacherNow) / 1000)) : null;
   useEffect(() => {
     if (teacherRemaining !== null && teacherRemaining <= 5 * 60 && teacherRemaining > 0 && !timeWarningShown.current) {
@@ -400,6 +417,36 @@ export default function TeacherView({
         });
         return next;
       });
+
+      // ── AI toast alerts for critical states ──
+      const now = Date.now();
+      const lastAlert = lastAlertedRef.current.get(data.studentEmail) ?? 0;
+      const THROTTLE_MS = 15_000; // don't spam: 15s cooldown per student
+      if (now - lastAlert > THROTTLE_MS) {
+        const state = data.monitorState?.toLowerCase() ?? '';
+        const score = data.attentionScore;
+        let toastMsg = '';
+        let severity: 'warning' | 'danger' = 'warning';
+
+        if (state === 'eyes_closed' || state === 'sleeping') {
+          toastMsg = `${data.studentName} appears to be sleeping`;
+          severity = 'danger';
+        } else if (!data.faceDetected) {
+          toastMsg = `${data.studentName} is not in frame`;
+          severity = 'danger';
+        } else if (score < 30) {
+          toastMsg = `${data.studentName} has low attention (${Math.round(score)}%)`;
+          severity = 'warning';
+        }
+
+        if (toastMsg) {
+          lastAlertedRef.current.set(data.studentEmail, now);
+          setAiToasts(prev => [
+            ...prev.slice(-4), // keep max 5 toasts
+            { id: `${data.studentEmail}-${now}`, message: toastMsg, severity, time: now },
+          ]);
+        }
+      }
     } catch {}
   }, []);
 
@@ -477,40 +524,38 @@ export default function TeacherView({
     });
   }, [remoteParticipants]);
 
-  // ── Local mute tracking (teacher-side only, does NOT affect student devices) ──
-  // All students start muted — teacher unmutes individually as needed
+  // ── Remote mute tracking — sends data channel commands to student devices ──
+  // Teacher can mute/unmute individual students (affects their actual mic)
   const [mutedStudents, setMutedStudents] = useState<Set<string>>(new Set());
 
-  // Auto-mute new joiners + clean up departed students
+  // Track which students are actually mic-enabled (from their track publications)
   useEffect(() => {
     setMutedStudents((prev) => {
-      const activeIds = new Set(students.map((s) => s.identity));
-      const next = new Set(prev);
-      let changed = false;
-      // Add any new students as muted by default
-      for (const id of activeIds) {
-        if (!next.has(id)) { next.add(id); changed = true; }
+      const next = new Set<string>();
+      for (const s of students) {
+        const micPub = s.getTrackPublication(Track.Source.Microphone);
+        if (!micPub || micPub.isMuted || !micPub.track) {
+          next.add(s.identity);
+        }
       }
-      // Remove departed students
-      for (const id of next) {
-        if (!activeIds.has(id)) { next.delete(id); changed = true; }
-      }
-      return changed ? next : prev;
+      // Only update if changed
+      if (next.size !== prev.size || [...next].some(id => !prev.has(id))) return next;
+      return prev;
     });
   }, [students]);
 
   const toggleStudentMute = useCallback((studentId: string) => {
     hapticTap();
+    const isMuted = mutedStudents.has(studentId);
+    // Send remote control command to the student's device
+    sendMediaControl(studentId, 'mic', isMuted); // if muted → enable; if unmuted → disable
+    // Optimistic UI update
     setMutedStudents((prev) => {
       const next = new Set(prev);
       if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
       return next;
     });
-  }, []);
-
-
-
-  // (Local mute is handled by default in mutedStudents state — no data channel needed)
+  }, [mutedStudents, sendMediaControl]);
 
   // ── Screen share detection ──
   const isLocalScreenShare = localParticipant.isScreenShareEnabled;
@@ -532,6 +577,12 @@ export default function TeacherView({
         return;
       }
       setIsLive(true);
+      // Capture actual go-live timestamp for accurate timer
+      if (data.data?.go_live_at) {
+        setGoLiveAt(data.data.go_live_at);
+      } else {
+        setGoLiveAt(new Date().toISOString());
+      }
     } catch {
       setGoLiveError('Network error — please try again');
     } finally {
@@ -576,11 +627,36 @@ export default function TeacherView({
         />
       )}
 
+      {/* ── AI attention toast alerts ─── */}
+      {aiToasts.length > 0 && (
+        <div className="fixed top-3 right-3 z-[100] flex flex-col gap-2 pointer-events-none" style={{ maxWidth: 340 }}>
+          {aiToasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto rounded-lg px-4 py-2.5 shadow-lg text-sm font-medium flex items-center gap-2 animate-in slide-in-from-right-5 fade-in duration-300 ${
+                toast.severity === 'danger'
+                  ? 'bg-red-600/90 text-white border border-red-500/50'
+                  : 'bg-amber-600/90 text-white border border-amber-500/50'
+              }`}
+            >
+              <span className="text-base">{toast.severity === 'danger' ? '🚨' : '⚠️'}</span>
+              <span className="flex-1">{toast.message}</span>
+              <button
+                onClick={() => setAiToasts(prev => prev.filter(t => t.id !== toast.id))}
+                className="ml-2 text-white/70 hover:text-white text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Header ──────────────────────────────────────── */}
       <HeaderBar
         roomName={roomName}
         role="teacher"
-        scheduledStart={scheduledStart}
+        scheduledStart={goLiveAt || scheduledStart}
         durationMinutes={durationMinutes}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}

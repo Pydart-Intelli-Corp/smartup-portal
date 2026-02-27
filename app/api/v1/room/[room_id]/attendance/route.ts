@@ -36,7 +36,7 @@ export async function GET(
     }
 
     // Only authorized roles
-    const allowedRoles = ['teacher', 'batch_coordinator', 'academic_operator', 'academic', 'owner', 'ghost', 'hr'];
+    const allowedRoles = ['teacher', 'student', 'batch_coordinator', 'academic_operator', 'academic', 'owner', 'ghost', 'hr'];
     if (!allowedRoles.includes(user.role)) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: 'Insufficient permissions' },
@@ -49,8 +49,17 @@ export async function GET(
       getJoinLogs(room_id),
     ]);
 
+    // Students only see their own record + limited logs
+    const isStudent = user.role === 'student';
+    const filteredAttendance = isStudent
+      ? attendance.filter((a) => a.participant_email === user.id)
+      : attendance;
+    const filteredLogs = isStudent
+      ? logs.filter((l) => l.participant_email === user.id)
+      : logs;
+
     // Compute summary
-    const students = attendance.filter((a) => a.participant_role === 'student');
+    const students = filteredAttendance.filter((a) => a.participant_role === 'student');
     const present = students.filter((a) => a.status === 'present').length;
     const late = students.filter((a) => a.status === 'late').length;
     const absent = students.filter((a) => a.status === 'absent').length;
@@ -72,8 +81,8 @@ export async function GET(
     }>>({
       success: true,
       data: {
-        attendance,
-        logs,
+        attendance: filteredAttendance,
+        logs: filteredLogs,
         summary: {
           total_students: students.length,
           present,
