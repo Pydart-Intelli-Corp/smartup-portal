@@ -42,12 +42,12 @@ export async function GET(req: NextRequest) {
         (SELECT COUNT(*) FROM exam_attempts ea
           JOIN exams e ON e.id = ea.exam_id
           WHERE ea.student_email = bs.student_email AND ea.status = 'graded'
-          AND (e.grade = b.grade OR e.batch_id = bs.batch_id)
+          AND e.grade = b.grade
         ) AS exams_taken,
         (SELECT ROUND(AVG(ea.percentage)::numeric, 1) FROM exam_attempts ea
           JOIN exams e ON e.id = ea.exam_id
           WHERE ea.student_email = bs.student_email AND ea.status = 'graded'
-          AND (e.grade = b.grade OR e.batch_id = bs.batch_id)
+          AND e.grade = b.grade
         ) AS avg_exam_score
       FROM batch_students bs
       JOIN batches b ON b.batch_id = bs.batch_id
