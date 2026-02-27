@@ -473,9 +473,9 @@ async function generatePayrollSummaryReport(start: string, end: string) {
        COALESCE(SUM(ps.classes_missed), 0) AS total_classes_missed
      FROM payroll_periods pp
      LEFT JOIN payslips ps ON ps.payroll_period_id = pp.id
-     WHERE pp.start_date >= $1 AND pp.end_date <= $2
+     WHERE pp.period_start >= $1 AND pp.period_end <= $2
      GROUP BY pp.id, pp.period_label, pp.status
-     ORDER BY pp.start_date DESC`,
+     ORDER BY pp.period_start DESC`,
     [start, end]
   );
 

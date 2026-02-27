@@ -78,7 +78,7 @@ export async function getPayrollPeriods() {
             (SELECT COUNT(*) FROM payslips WHERE payroll_period_id = pp.id) AS payslip_count,
             (SELECT COALESCE(SUM(total_paise), 0) FROM payslips WHERE payroll_period_id = pp.id) AS total_paise
      FROM payroll_periods pp
-     ORDER BY pp.start_date DESC`
+     ORDER BY pp.period_start DESC`
   );
   return result.rows;
 }
@@ -128,7 +128,7 @@ export async function generatePayslips(periodId: string) {
          WHERE r.teacher_email = $1
            AND r.scheduled_start >= $2
            AND r.scheduled_start <= $3`,
-        [teacherEmail, period.start_date, period.end_date]
+        [teacherEmail, period.period_start, period.period_end]
       );
 
       const stats = classesResult.rows[0] as Record<string, string>;
@@ -198,11 +198,11 @@ export async function getPayslipsForPeriod(periodId: string) {
 
 export async function getTeacherPayslips(teacherEmail: string) {
   const result = await db.query(
-    `SELECT ps.*, pp.period_label, pp.start_date, pp.end_date
+    `SELECT ps.*, pp.period_label, pp.period_start AS start_date, pp.period_end AS end_date
      FROM payslips ps
      JOIN payroll_periods pp ON pp.id = ps.payroll_period_id
      WHERE ps.teacher_email = $1
-     ORDER BY pp.start_date DESC`,
+     ORDER BY pp.period_start DESC`,
     [teacherEmail]
   );
   return result.rows;

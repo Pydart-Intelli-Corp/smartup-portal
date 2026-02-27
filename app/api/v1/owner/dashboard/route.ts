@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
 
       // 7. Recently added users (last 10)
       db.query(`
-        SELECT email, display_name, portal_role, created_at
+        SELECT email, full_name AS display_name, portal_role, created_at
         FROM portal_users
         WHERE is_active = true
         ORDER BY created_at DESC
@@ -183,7 +183,7 @@ export async function GET(req: NextRequest) {
       // 15. Recent paid invoices (last 10)
       db.query(`
         SELECT i.id, i.student_email, i.amount_paise, i.paid_at,
-               u.display_name AS student_name
+               u.full_name AS student_name
         FROM invoices i
         LEFT JOIN portal_users u ON u.email = i.student_email
         WHERE i.status = 'paid'
