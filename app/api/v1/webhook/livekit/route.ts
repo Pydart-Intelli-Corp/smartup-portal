@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
 
       // Record attendance join (get scheduled_start for late detection)
       if (role === 'student' || role === 'teacher') {
+        const email = extractEmail(participant.identity, metadata);
         try {
           const roomRow = await db.query(
             `SELECT scheduled_start FROM rooms WHERE room_id = $1`,
@@ -109,8 +110,8 @@ export async function POST(request: NextRequest) {
             : null;
           await recordJoin(
             room.name,
-            participant.identity,
-            participant.name || participant.identity,
+            email,
+            participant.name || email,
             role,
             scheduledStart,
           );
@@ -142,11 +143,12 @@ export async function POST(request: NextRequest) {
 
       // Record attendance leave
       if (role === 'student' || role === 'teacher') {
+        const email = extractEmail(participant.identity, metadata);
         try {
           await recordLeave(
             room.name,
-            participant.identity,
-            participant.name || participant.identity,
+            email,
+            participant.name || email,
             role,
           );
         } catch (e) {
@@ -174,4 +176,31 @@ function safeParseJson(str?: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Extract the real email from a LiveKit identity string.
+ * Identity format: {role}_{email} (e.g., student_john@example.com)
+ * Also handles: teacher_email@x.com_screen
+ * Falls back to metadata.portal_user_id or raw identity.
+ */
+function extractEmail(identity: string, metadata: Record<string, unknown> | null): string {
+  // 1. Prefer metadata.portal_user_id (set on all new tokens)
+  if (metadata?.portal_user_id && typeof metadata.portal_user_id === 'string') {
+    return metadata.portal_user_id;
+  }
+
+  // 2. Parse from identity by stripping role prefix and _screen suffix
+  let id = identity;
+  if (id.endsWith('_screen')) id = id.slice(0, -7);
+
+  const knownPrefixes = ['academic_operator_', 'batch_coordinator_', 'teacher_', 'student_', 'parent_', 'owner_', 'ghost_', 'hr_'];
+  for (const prefix of knownPrefixes) {
+    if (id.startsWith(prefix)) {
+      return id.slice(prefix.length);
+    }
+  }
+
+  // 3. Fallback: return identity as-is (legacy tokens without role prefix)
+  return identity;
 }

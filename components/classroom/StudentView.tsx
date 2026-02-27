@@ -23,6 +23,7 @@ import {
   MicOnIcon, MicOffIcon,
   CameraOnIcon, CameraOffIcon,
   HandRaiseIcon,
+  HandRaisedIcon,
   ChatIcon,
   LeaveIcon,
 } from './icons';
@@ -1043,7 +1044,7 @@ export default function StudentView({
 
           {/* Hand raise */}
           <OvBtn on={handRaised} onClick={toggleHand} title={handRaised ? 'Lower hand' : 'Raise hand'}
-            onIcon={<HandRaiseIcon className="w-5 h-5" />} offIcon={<HandRaiseIcon className="w-5 h-5" />}
+            onIcon={<HandRaisedIcon className="w-5 h-5" />} offIcon={<HandRaiseIcon className="w-5 h-5" />}
             onWarn compact={compact} />
           {/* Chat */}
           <OvBtn on={chatOpen} onClick={() => setChatOpen(!chatOpen)} title={chatOpen ? 'Close chat' : 'Chat'}

@@ -52,6 +52,10 @@ export default function ClassEndedPage() {
     if (role) setParticipantRole(role);
     if (pName) setParticipantName(pName);
 
+    // Check if feedback was already submitted (survives refresh)
+    const alreadySubmitted = sessionStorage.getItem(`feedback_submitted_${roomId}`);
+    if (alreadySubmitted === 'true') setSubmitted(true);
+
     // Clear classroom session data (but keep role info for the form)
     sessionStorage.removeItem('lk_token');
     sessionStorage.removeItem('lk_url');
@@ -104,9 +108,11 @@ export default function ClassEndedPage() {
         }),
       });
       setSubmitted(true);
+      sessionStorage.setItem(`feedback_submitted_${roomId}`, 'true');
     } catch {
       // Best effort — still allow dashboard
       setSubmitted(true);
+      sessionStorage.setItem(`feedback_submitted_${roomId}`, 'true');
     } finally {
       setSubmitting(false);
     }

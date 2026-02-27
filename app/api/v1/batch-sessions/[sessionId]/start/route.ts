@@ -92,15 +92,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
   }
 
   // 3. Generate tokens for ALL participants
+  // IMPORTANT: identity format MUST be "{role}_{email}" to match /room/join route.
+  // metadata MUST include portal_role, effective_role, device for ParticipantList role badges.
+  const roomDisplayName = `${session.batch_name} — ${session.subject || 'General'}`;
   const tokens: { email: string; name: string; role: string; token: string }[] = [];
 
   // Teacher token
   if (session.teacher_email) {
     const teacherToken = await createLiveKitToken({
       roomName,
-      participantIdentity: session.teacher_email as string,
+      participantIdentity: `teacher_${session.teacher_email}`,
       participantName: (session.teacher_name as string) || 'Teacher',
       role: 'teacher' as PortalRole,
+      metadata: JSON.stringify({
+        portal_user_id: session.teacher_email,
+        portal_role: 'teacher',
+        effective_role: 'teacher',
+        room_name: roomDisplayName,
+        device: 'primary',
+      }),
     });
     tokens.push({
       email: session.teacher_email as string,
@@ -127,9 +137,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
     // Student token
     const studentToken = await createLiveKitToken({
       roomName,
-      participantIdentity: student.student_email,
+      participantIdentity: `student_${student.student_email}`,
       participantName: student.student_name || student.student_email,
       role: 'student' as PortalRole,
+      metadata: JSON.stringify({
+        portal_user_id: student.student_email,
+        portal_role: 'student',
+        effective_role: 'student',
+        room_name: roomDisplayName,
+        device: 'primary',
+      }),
     });
     tokens.push({
       email: student.student_email,
@@ -142,9 +159,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
     if (student.parent_email) {
       const parentToken = await createLiveKitToken({
         roomName,
-        participantIdentity: student.parent_email,
+        participantIdentity: `parent_${student.parent_email}`,
         participantName: student.parent_name || student.parent_email,
         role: 'parent' as PortalRole,
+        metadata: JSON.stringify({
+          portal_user_id: student.parent_email,
+          portal_role: 'parent',
+          effective_role: 'parent',
+          room_name: roomDisplayName,
+          device: 'primary',
+        }),
       });
       tokens.push({
         email: student.parent_email,
@@ -164,9 +188,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
     const coordName = coordRes.rows.length > 0 ? (coordRes.rows[0] as { full_name: string }).full_name : 'Coordinator';
     const coordToken = await createLiveKitToken({
       roomName,
-      participantIdentity: session.coordinator_email as string,
+      participantIdentity: `batch_coordinator_${session.coordinator_email}`,
       participantName: coordName,
       role: 'batch_coordinator' as PortalRole,
+      metadata: JSON.stringify({
+        portal_user_id: session.coordinator_email,
+        portal_role: 'batch_coordinator',
+        effective_role: 'batch_coordinator',
+        room_name: roomDisplayName,
+        device: 'primary',
+      }),
     });
     tokens.push({
       email: session.coordinator_email as string,
@@ -185,9 +216,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
     const aoName = aoRes.rows.length > 0 ? (aoRes.rows[0] as { full_name: string }).full_name : 'Academic Operator';
     const aoToken = await createLiveKitToken({
       roomName,
-      participantIdentity: session.academic_operator_email as string,
+      participantIdentity: `academic_operator_${session.academic_operator_email}`,
       participantName: aoName,
       role: 'academic_operator' as PortalRole,
+      metadata: JSON.stringify({
+        portal_user_id: session.academic_operator_email,
+        portal_role: 'academic_operator',
+        effective_role: 'academic_operator',
+        room_name: roomDisplayName,
+        device: 'primary',
+      }),
     });
     tokens.push({
       email: session.academic_operator_email as string,

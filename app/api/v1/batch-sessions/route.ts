@@ -155,8 +155,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Generate LiveKit room name
-  const livekitRoomName = `batch_${batch_id}_${(scheduled_date as string).replace(/-/g, '')}_${(start_time as string).replace(/:/g, '')}`;
+  // Generate LiveKit room name: smartup_{date}_{time}_{short_unique}
+  const shortId = Math.random().toString(36).substring(2, 8);
+  const livekitRoomName = `smartup_${(scheduled_date as string).replace(/-/g, '')}_${(start_time as string).replace(/:/g, '').substring(0, 4)}_${shortId}`;
 
   const insertRes = await db.query(
     `INSERT INTO batch_sessions (

@@ -445,7 +445,8 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole, 
       const isoStart = `${session.scheduled_date}T${session.start_time}+05:30`;
       sessionStorage.setItem('scheduled_start', isoStart);
       sessionStorage.setItem('duration_minutes', String(session.duration_minutes));
-      window.location.href = `/classroom/${sessionId}`;
+      // Open classroom in a new tab so teacher can keep the dashboard open
+      window.open(`/classroom/${sessionId}`, '_blank');
     } catch {
       alert('Network error starting session');
     } finally {

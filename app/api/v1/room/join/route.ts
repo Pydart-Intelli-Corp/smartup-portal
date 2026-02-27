@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
           `SELECT payment_status FROM room_assignments
            WHERE room_id = $1 AND participant_email = $2
            LIMIT 1`,
-          [room_id, user.id]
+          [actualRoomId, user.id]
         );
         if (payResult.rows.length > 0) {
           const paymentStatus = String(payResult.rows[0].payment_status || 'not_required');
@@ -146,9 +146,9 @@ export async function POST(request: NextRequest) {
     // check if fee is configured for this session; if so, require payment
     if (user.role === 'student') {
       try {
-        const fee = await calculateSessionFee(room_id);
+        const fee = await calculateSessionFee(actualRoomId);
         if (fee && fee.amountPaise > 0) {
-          const paid = await checkSessionPayment(room_id, user.id);
+          const paid = await checkSessionPayment(actualRoomId, user.id);
           if (!paid.paid) {
             return NextResponse.json<ApiResponse>(
               { success: false, error: 'PAYMENT_REQUIRED', message: 'Please complete the session fee payment before joining. Use the payment option on the join page.' },
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
           `SELECT join_count FROM attendance_sessions
            WHERE room_id = $1 AND participant_email = $2
            LIMIT 1`,
-          [room_id, user.id],
+          [actualRoomId, user.id],
         );
         if (attRes.rows.length > 0 && Number(attRes.rows[0].join_count) > 0) {
           is_rejoin = true;

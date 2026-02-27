@@ -145,7 +145,7 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
 
   return (
     <JoinRoomClient
-      roomId={room_id}
+      roomId={String(room.room_id)}
       roomName={room.room_name as string}
       subject={room.subject as string}
       grade={room.grade as string}

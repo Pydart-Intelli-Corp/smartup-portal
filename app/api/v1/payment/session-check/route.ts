@@ -21,9 +21,23 @@ export async function POST(req: NextRequest) {
     const user = await verifySession(token);
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { room_id } = await req.json();
-    if (!room_id) {
+    const { room_id: rawRoomId } = await req.json();
+    if (!rawRoomId) {
       return NextResponse.json({ success: false, error: 'room_id required' }, { status: 400 });
+    }
+
+    // Resolve batch_session_id to actual room_id
+    let room_id = rawRoomId;
+    try {
+      const resolved = await db.query(
+        `SELECT room_id FROM rooms WHERE room_id = $1 OR batch_session_id = $1 LIMIT 1`,
+        [rawRoomId]
+      );
+      if (resolved.rows.length > 0) {
+        room_id = String((resolved.rows[0] as Record<string, unknown>).room_id);
+      }
+    } catch {
+      // Table may not exist yet – use raw value
     }
 
     // Only students and parents need to pay
