@@ -48,10 +48,10 @@ export async function GET(req: NextRequest) {
       }>(
         `SELECT
            COUNT(*) AS total_sessions,
-           COUNT(*) FILTER (WHERE status = 'present') AS present_count,
-           COUNT(*) FILTER (WHERE status = 'late') AS late_count,
-           COUNT(*) FILTER (WHERE status = 'absent') AS absent_count,
-           COALESCE(AVG(total_duration_sec) FILTER (WHERE total_duration_sec > 0), 0) AS avg_duration_sec
+           COUNT(*) FILTER (WHERE a.status = 'present') AS present_count,
+           COUNT(*) FILTER (WHERE a.status = 'late') AS late_count,
+           COUNT(*) FILTER (WHERE a.status = 'absent') AS absent_count,
+           COALESCE(AVG(a.total_duration_sec) FILTER (WHERE a.total_duration_sec > 0), 0) AS avg_duration_sec
          FROM attendance_sessions a
          JOIN rooms r ON r.room_id = a.room_id
          WHERE r.created_at >= NOW() - INTERVAL '1 day' * $1
@@ -67,8 +67,8 @@ export async function GET(req: NextRequest) {
       }>(
         `SELECT
            COUNT(*) AS total_sessions,
-           COUNT(*) FILTER (WHERE status IN ('present', 'late')) AS present_count,
-           COALESCE(AVG(total_duration_sec) FILTER (WHERE total_duration_sec > 0), 0) AS avg_duration_sec
+           COUNT(*) FILTER (WHERE a.status IN ('present', 'late')) AS present_count,
+           COALESCE(AVG(a.total_duration_sec) FILTER (WHERE a.total_duration_sec > 0), 0) AS avg_duration_sec
          FROM attendance_sessions a
          JOIN rooms r ON r.room_id = a.room_id
          WHERE r.created_at >= NOW() - INTERVAL '1 day' * $1
