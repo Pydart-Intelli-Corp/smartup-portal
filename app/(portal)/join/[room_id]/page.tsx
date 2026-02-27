@@ -13,7 +13,13 @@ import JoinRoomClient from './JoinRoomClient';
 
 interface Props {
   params: Promise<{ room_id: string }>;
-  searchParams: Promise<{ token?: string; device?: string }>;
+  searchParams: Promise<{
+    token?: string;
+    device?: string;
+    razorpay_payment_id?: string;
+    razorpay_order_id?: string;
+    razorpay_signature?: string;
+  }>;
 }
 
 /**
@@ -35,7 +41,7 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
 
 export default async function JoinRoomPage({ params, searchParams }: Props) {
   const { room_id } = await params;
-  const { token: emailToken, device } = await searchParams;
+  const { token: emailToken, device, razorpay_payment_id, razorpay_order_id, razorpay_signature } = await searchParams;
 
   // Get room info — support both livekit_room_name and batch session_id
   const roomResult = await db.query(
@@ -158,6 +164,9 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
       userRole={displayRole}
       emailToken={emailToken || null}
       device={device || 'desktop'}
+      razorpayPaymentId={razorpay_payment_id || null}
+      razorpayOrderId={razorpay_order_id || null}
+      razorpaySignature={razorpay_signature || null}
     />
   );
 }

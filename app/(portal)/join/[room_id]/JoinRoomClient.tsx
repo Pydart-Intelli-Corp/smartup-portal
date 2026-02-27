@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { fmtDateShortIST, fmtTimeIST, cn } from '@/lib/utils';
 import Script from 'next/script';
@@ -23,6 +23,9 @@ interface Props {
   userRole: string;
   emailToken: string | null;
   device: string;
+  razorpayPaymentId?: string | null;
+  razorpayOrderId?: string | null;
+  razorpaySignature?: string | null;
 }
 
 interface PaymentInfo {
@@ -67,6 +70,7 @@ export default function JoinRoomClient({
   roomId, roomName, subject, grade, status,
   scheduledStart, durationMinutes, teacherEmail,
   userName, userEmail, userRole, emailToken, device,
+  razorpayPaymentId, razorpayOrderId, razorpaySignature,
 }: Props) {
   const router = useRouter();
   const [joining, setJoining] = useState(false);
@@ -83,7 +87,17 @@ export default function JoinRoomClient({
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
+  // Ref to track the Razorpay retry interval so it can be cleaned up on unmount
+  const razorpayRetryRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => setMounted(true), []);
+
+  // Cleanup Razorpay retry interval on unmount
+  useEffect(() => {
+    return () => {
+      if (razorpayRetryRef.current) clearInterval(razorpayRetryRef.current);
+    };
+  }, []);
 
   const startDate = new Date(scheduledStart);
   const lobbyOpenTime = new Date(startDate.getTime() - 15 * 60 * 1000);
@@ -114,6 +128,40 @@ export default function JoinRoomClient({
   // Check payment on mount for students/parents
   useEffect(() => {
     if (!needsPaymentCheck || !mounted) return;
+
+    // If Razorpay redirect params are present in the URL (mobile redirect flow),
+    // process them as a payment callback before the normal payment check
+    if (razorpayPaymentId && razorpayOrderId) {
+      (async () => {
+        setCheckingPayment(true);
+        try {
+          const res = await fetch('/api/v1/payment/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_payment_id: razorpayPaymentId,
+              razorpay_order_id: razorpayOrderId,
+              razorpay_signature: razorpaySignature || '',
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            // Clear Razorpay params from the URL so a page refresh doesn't re-process them
+            router.replace(`/join/${roomId}`, { scroll: false });
+            setPaymentComplete(true);
+            return;
+          }
+        } catch (err) {
+          console.error('Razorpay redirect callback failed:', err);
+        } finally {
+          setCheckingPayment(false);
+        }
+        // Fall back to normal payment check
+        checkPayment();
+      })();
+      return;
+    }
+
     checkPayment();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, needsPaymentCheck]);
@@ -164,10 +212,30 @@ export default function JoinRoomClient({
 
     // Live Razorpay checkout
     if (!window.Razorpay) {
-      setError('Payment gateway is loading. Please wait...');
-      setPaying(false);
+      // Razorpay hasn't loaded yet — retry for up to 5 seconds
+      let retries = 0;
+      razorpayRetryRef.current = setInterval(() => {
+        retries++;
+        if (window.Razorpay) {
+          if (razorpayRetryRef.current) clearInterval(razorpayRetryRef.current);
+          openRazorpayCheckout();
+        } else if (retries >= 10) {
+          if (razorpayRetryRef.current) clearInterval(razorpayRetryRef.current);
+          setError('Payment gateway failed to load. Please refresh the page and try again.');
+          setPaying(false);
+        }
+      }, 500);
       return;
     }
+
+    openRazorpayCheckout();
+  }
+
+  function openRazorpayCheckout() {
+    if (!paymentInfo?.order) return;
+    const order = paymentInfo.order;
+    // Build the redirect URL for mobile browsers (Razorpay redirect flow)
+    const redirectCallbackUrl = `${window.location.origin}/join/${roomId}`;
 
     const options = {
       key: order.gatewayKeyId,
@@ -178,6 +246,11 @@ export default function JoinRoomClient({
       order_id: order.orderId,
       prefill: order.prefill,
       theme: { color: '#2563eb' },
+      // callback_url is used by Razorpay when the modal cannot be rendered
+      // (e.g. certain mobile browsers). Razorpay will redirect here with
+      // razorpay_payment_id / razorpay_order_id / razorpay_signature query params.
+      callback_url: redirectCallbackUrl,
+      redirect: true,
       handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         try {
           const res = await fetch('/api/v1/payment/callback', {
@@ -271,11 +344,11 @@ export default function JoinRoomClient({
   }, [paymentComplete, canJoin]);
   return (
     <>
-      {/* Razorpay checkout script (only loads in live mode) */}
+      {/* Razorpay checkout script — loaded as soon as page is interactive */}
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => setRazorpayLoaded(true)}
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
 
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
