@@ -77,10 +77,11 @@ export async function POST(request: NextRequest) {
     const device = (deviceParam === 'screen' && user.role === 'teacher') ? 'screen' : 'primary';
 
     // ── Verify room exists in DB ─────────────────────────────
+    // Support both livekit_room_name (room_id) and batch session_id as room identifier
     const roomResult = await db.query(
       `SELECT room_id, status, room_name, scheduled_start, duration_minutes,
               open_at, expires_at
-       FROM rooms WHERE room_id = $1`,
+       FROM rooms WHERE room_id = $1 OR batch_session_id = $1 LIMIT 1`,
       [room_id]
     );
 
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     const room = roomResult.rows[0];
+    const actualRoomId = String(room.room_id);
 
     // Prevent joining cancelled rooms
     if (room.status === 'cancelled') {
@@ -244,7 +246,7 @@ export async function POST(request: NextRequest) {
     if (user.role === 'teacher' && resolvedDevice === 'primary') {
       try {
         const primaryIdentity = `${user.role}_${user.id}`;
-        const participants = await listParticipants(room_id);
+        const participants = await listParticipants(actualRoomId);
         const alreadyConnected = participants.some(
           (p) => p.identity === primaryIdentity
         );
@@ -281,7 +283,7 @@ export async function POST(request: NextRequest) {
     });
 
     // ── Ensure LiveKit room exists ───────────────────────────
-    await ensureRoom(room_id, JSON.stringify({
+    await ensureRoom(actualRoomId, JSON.stringify({
       room_name: room.room_name,
       portal_room_id: room.room_id,
     }));
@@ -292,7 +294,7 @@ export async function POST(request: NextRequest) {
 
     // ── Generate LiveKit token ───────────────────────────────
     const livekit_token = await createLiveKitToken({
-      roomName: room_id,
+      roomName: actualRoomId,
       participantIdentity,
       participantName: resolvedDevice === 'screen' ? `${user.name} (Screen)` : user.name,
       role: tokenRole,
@@ -320,8 +322,8 @@ export async function POST(request: NextRequest) {
         data: {
           livekit_token,
           livekit_url,
-          room_id,
-          room_name: String(room.room_name || room_id),
+          room_id: actualRoomId,
+          room_name: String(room.room_name || actualRoomId),
           role: effectiveRole,
           participant_name: user.name,
           participant_identity: participantIdentity,

@@ -37,11 +37,11 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
   const { room_id } = await params;
   const { token: emailToken, device } = await searchParams;
 
-  // Get room info
+  // Get room info — support both livekit_room_name and batch session_id
   const roomResult = await db.query(
     `SELECT room_id, room_name, subject, grade, status, scheduled_start,
             duration_minutes, teacher_email, open_at, expires_at
-     FROM rooms WHERE room_id = $1`,
+     FROM rooms WHERE room_id = $1 OR batch_session_id = $1 LIMIT 1`,
     [room_id]
   );
 

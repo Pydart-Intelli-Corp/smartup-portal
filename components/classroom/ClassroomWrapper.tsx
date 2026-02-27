@@ -115,6 +115,49 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       }
 
       if (!lkToken || !lkUrl) {
+        // ── Email link fallback ─────────────────────────────────────
+        // Session-reminder emails embed a LiveKit JWT in the URL:
+        //   /classroom/[sessionId]?token=<LK_JWT>&ws=<ws_url>
+        // When clicked, sessionStorage is empty — read from URL params and
+        // decode the JWT payload to get participant name + role.
+        try {
+          const sp = new URLSearchParams(window.location.search);
+          const urlToken = sp.get('token');
+          const urlWs = sp.get('ws');
+          if (urlToken && urlWs) {
+            const parts = urlToken.split('.');
+            if (parts.length === 3) {
+              // base64url decode the JWT payload
+              const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+              const payload = JSON.parse(atob(b64)) as Record<string, unknown>;
+              const meta = payload.metadata
+                ? (typeof payload.metadata === 'string'
+                    ? (JSON.parse(payload.metadata) as Record<string, unknown>)
+                    : (payload.metadata as Record<string, unknown>))
+                : {};
+              lkToken = urlToken;
+              lkUrl = decodeURIComponent(urlWs);
+              storedName = (payload.name as string) || (payload.sub as string) || 'Participant';
+              storedRole = (meta.portal_role as string) || 'student';
+              storedScheduledStart = new Date().toISOString();
+              storedDuration = '90';
+              // Store in sessionStorage so page refreshes still work
+              sessionStorage.setItem('lk_token', lkToken);
+              sessionStorage.setItem('lk_url', lkUrl);
+              sessionStorage.setItem('room_name', roomId);
+              sessionStorage.setItem('participant_name', storedName);
+              sessionStorage.setItem('participant_role', storedRole);
+              sessionStorage.setItem('scheduled_start', storedScheduledStart);
+              sessionStorage.setItem('duration_minutes', storedDuration);
+              sessionStorage.setItem('room_status', 'live');
+            }
+          }
+        } catch {
+          // JWT decode failed — fall through to error state
+        }
+      }
+
+      if (!lkToken || !lkUrl) {
         setError('Missing session data. Please rejoin the batch.');
         return;
       }

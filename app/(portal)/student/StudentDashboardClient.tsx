@@ -1165,8 +1165,8 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
   }, [activeTab, fetchMaterials]);
 
   useEffect(() => {
-    if (activeTab === 'sessions' && sessions.length === 0) fetchSessions();
-  }, [activeTab, sessions.length, fetchSessions]);
+    if (activeTab === 'sessions') fetchSessions();
+  }, [activeTab, fetchSessions]);
 
   useEffect(() => {
     if (activeTab === 'fees' && !feesSummary) fetchFees();
@@ -1187,6 +1187,12 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
   useEffect(() => {
     if (activeTab === 'overview' && sessions.length === 0) fetchSessions();
   }, [activeTab, sessions.length, fetchSessions]);
+
+  // Poll sessions every 20 seconds to pick up live-status changes
+  useEffect(() => {
+    const id = setInterval(fetchSessions, 20_000);
+    return () => clearInterval(id);
+  }, [fetchSessions]);
 
   useEffect(() => {
     const id = setInterval(fetchAssignments, 60_000);

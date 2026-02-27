@@ -38,19 +38,24 @@ export async function POST(
     }
 
     // Verify room exists
+    // Support both livekit_room_name (room_id) and batch session_id as identifiers
     const roomResult = await db.query(
-      'SELECT room_id, status, room_name, teacher_email, subject, grade, scheduled_start, duration_minutes FROM rooms WHERE room_id = $1',
+      `SELECT room_id, status, room_name, teacher_email, subject, grade, scheduled_start, duration_minutes,
+              batch_session_id
+       FROM rooms WHERE room_id = $1 OR batch_session_id = $1 LIMIT 1`,
       [room_id]
     );
 
     if (roomResult.rows.length === 0) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: 'Room not found' },
+        { success: false, error: 'Room not found. Session may not have started yet — please wait for the prep window to open.' },
         { status: 404 }
       );
     }
 
-    const room = roomResult.rows[0];
+    const room = roomResult.rows[0] as Record<string, unknown>;
+    const actualRoomId = room.room_id as string;
+    const batchSessionId = room.batch_session_id as string | null;
 
     // Authorization: teacher of this room, or admin roles
     const adminRoles = ['batch_coordinator', 'academic_operator', 'academic', 'owner'];
@@ -79,15 +84,13 @@ export async function POST(
       );
     }
 
-    // Update DB: scheduled → live
-    // Atomic update — only succeeds if status is still 'scheduled'
+    // Update DB: scheduled → live using resolved room_id
     const updateResult = await db.query(
       `UPDATE rooms SET status = 'live', updated_at = NOW()
        WHERE room_id = $1 AND status = 'scheduled'`,
-      [room_id]
+      [actualRoomId]
     );
 
-    // If no rows updated, another request already changed the status
     if (updateResult.rowCount === 0) {
       return NextResponse.json<ApiResponse>(
         { success: true, message: 'Room is already live' },
@@ -95,16 +98,25 @@ export async function POST(
       );
     }
 
-    // Log event (only if we actually changed the status)
+    // Sync batch_session status to 'live' when teacher goes live
+    if (batchSessionId) {
+      await db.query(
+        `UPDATE batch_sessions SET status = 'live', started_at = COALESCE(started_at, NOW())
+         WHERE session_id = $1 AND status = 'scheduled'`,
+        [batchSessionId]
+      ).catch(e => console.warn('[go-live] batch_session sync warning:', e));
+    }
+
+    // Log event
     await db.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
        VALUES ($1, 'room_started', $2, $3)`,
-      [room_id, user.id, JSON.stringify({ started_by: user.name, role: user.role })]
+      [actualRoomId, user.id, JSON.stringify({ started_by: user.name, role: user.role })]
     );
 
     // Fire-and-forget: notify students that class has started
     sendGoLiveNotifications({
-      room_id,
+      room_id: actualRoomId,
       room_name: room.room_name as string,
       subject: room.subject as string || '',
       grade: room.grade as string || '',

@@ -138,9 +138,10 @@ export async function DELETE(
       );
     }
 
-    // Verify room exists
+    // Verify room exists — support both livekit_room_name and batch session_id
     const roomResult = await db.query(
-      'SELECT room_id, status, room_name, teacher_email FROM rooms WHERE room_id = $1',
+      `SELECT room_id, status, room_name, teacher_email, batch_session_id
+       FROM rooms WHERE room_id = $1 OR batch_session_id = $1 LIMIT 1`,
       [room_id]
     );
 
@@ -151,7 +152,9 @@ export async function DELETE(
       );
     }
 
-    const room = roomResult.rows[0];
+    const room = roomResult.rows[0] as Record<string, string | null>;
+    const actualRoomId = room.room_id as string;
+    const batchSessionId = room.batch_session_id;
 
     // Authorization: teacher of this room, or admin roles
     const adminRoles = ['batch_coordinator', 'academic_operator', 'academic', 'owner'];
@@ -167,24 +170,33 @@ export async function DELETE(
 
     // Delete the LiveKit room (disconnects all participants instantly)
     try {
-      await deleteLiveKitRoom(room_id);
+      await deleteLiveKitRoom(actualRoomId);
     } catch (e) {
       // Room may already be gone from LiveKit — that's okay
-      console.warn(`[room/delete] LiveKit room delete warning for ${room_id}:`, e);
+      console.warn(`[room/delete] LiveKit room delete warning for ${actualRoomId}:`, e);
     }
 
     // Update DB status to ended
     await db.query(
       `UPDATE rooms SET status = 'ended', ended_at = NOW(), updated_at = NOW()
        WHERE room_id = $1`,
-      [room_id]
+      [actualRoomId]
     );
+
+    // Sync batch_session status to 'ended'
+    if (batchSessionId) {
+      await db.query(
+        `UPDATE batch_sessions SET status = 'ended', ended_at = COALESCE(ended_at, NOW())
+         WHERE session_id = $1 AND status IN ('live', 'scheduled')`,
+        [batchSessionId]
+      ).catch(e => console.warn('[room/delete] batch_session sync warning:', e));
+    }
 
     // Log event
     await db.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
        VALUES ($1, 'room_ended_by_teacher', $2, $3)`,
-      [room_id, user.id, JSON.stringify({ ended_by: user.name, role: user.role })]
+      [actualRoomId, user.id, JSON.stringify({ ended_by: user.name, role: user.role })]
     );
 
     return NextResponse.json<ApiResponse>(

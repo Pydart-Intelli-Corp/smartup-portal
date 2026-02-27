@@ -71,13 +71,11 @@ export async function POST(req: NextRequest) {
           batch_name: session.batch_name,
         }));
 
-        // 2. Update status to 'live'
-        await db.query(
-          `UPDATE batch_sessions SET status = 'live', started_at = NOW() WHERE session_id = $1 AND status = 'scheduled'`,
-          [sessionId]
-        );
+        // 2. Room enters prep mode — teacher joins lobby, students wait.
+        // batch_session stays 'scheduled' until teacher explicitly clicks Go Live.
+        // (go-live route changes room + batch_session to 'live' when teacher starts class)
 
-        // 2b. Bridge to rooms table so ghost/coordinator systems see this session
+        // 2b. Bridge to rooms table so ghost/coordinator systems see this session.
         // Use +05:30 so the timestamp is stored as IST in UTC-normalised form
         // scheduled_date is a plain "YYYY-MM-DD" string (type parser set in db.ts)
         // start_time is a plain "HH:MM:SS" string — slice to HH:MM for safety
@@ -87,12 +85,13 @@ export async function POST(req: NextRequest) {
         const rawTime = (session.start_time as string).slice(0, 5);
         const scheduledStart = new Date(`${rawDate}T${rawTime}+05:30`);
         const durationMins = Number(session.duration_minutes) || 90;
+        // Insert as 'scheduled' — teacher must click Go Live to change to 'live'
         await db.query(
           `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, status,
                               scheduled_start, duration_minutes, batch_id, batch_session_id, created_by, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'live', $8, $9, $10, $11, 'system', NOW(), NOW())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled', $8, $9, $10, $11, 'system', NOW(), NOW())
            ON CONFLICT (room_id) DO UPDATE SET
-             status = 'live', batch_id = EXCLUDED.batch_id, batch_session_id = EXCLUDED.batch_session_id, updated_at = NOW()`,
+             batch_id = EXCLUDED.batch_id, batch_session_id = EXCLUDED.batch_session_id, updated_at = NOW()`,
           [roomName, `${session.batch_name} — ${session.subject}`, session.teacher_email || null,
            session.subject || null, session.grade || null, session.section || null,
            session.batch_type || 'one_to_many', scheduledStart.toISOString(), durationMins,

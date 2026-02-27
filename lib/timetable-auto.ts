@@ -2,8 +2,9 @@
 // Timetable Auto-Send Helper  (Mon–Sat weekly pattern)
 // Fires an async (non-blocking) timetable email update after
 // session changes (create, edit, cancel). Throttled to avoid
-// spamming when doing bulk operations — waits 5 seconds and
-// deduplicates by batch_id.
+// spamming when doing bulk operations — waits 30 seconds and
+// deduplicates by batch_id. Also skips if a timetable email
+// was already sent for this batch within the last 2 hours.
 // ═══════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
@@ -15,9 +16,10 @@ import { weeklyTimetableTemplate, type WeeklyTimetableSlot } from '@/lib/email-t
 const pendingUpdates = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
- * Schedule a timetable update email for a batch. Debounced by 5 seconds
+ * Schedule a timetable update email for a batch. Debounced by 30 seconds
  * per batch so bulk operations (e.g. recurring session creation) only
- * send one email. Fire-and-forget — does not throw.
+ * send one email. Also skips if sent within the last 2 hours.
+ * Fire-and-forget — does not throw.
  */
 export function scheduleTimetableUpdate(batchId: string) {
   const existing = pendingUpdates.get(batchId);
@@ -28,7 +30,7 @@ export function scheduleTimetableUpdate(batchId: string) {
     sendTimetableUpdate(batchId).catch(err => {
       console.error(`[timetable-auto] Failed for batch ${batchId}:`, err);
     });
-  }, 5000);
+  }, 30_000); // 30-second debounce prevents spam during bulk session creates
 
   pendingUpdates.set(batchId, timer);
 }
@@ -105,6 +107,20 @@ async function sendTimetableUpdate(batchId: string) {
   const batchName = batch.batch_name as string;
   const batchGrade = batch.grade as string;
 
+  // ── 2-hour dedup: skip if we already sent a timetable email for this batch recently ──
+  const dedupRes = await db.query(
+    `SELECT id FROM email_log
+     WHERE template_type = 'weekly_timetable_auto'
+       AND subject LIKE $1
+       AND created_at > NOW() - INTERVAL '2 hours'
+     LIMIT 1`,
+    [`%[BID:${batchId}]%`]
+  );
+  if (dedupRes.rows.length > 0) {
+    console.log(`[timetable-auto] Batch ${batchId}: skipping — timetable email sent within last 2 hours`);
+    return;
+  }
+
   // Get all scheduled sessions & derive weekly pattern
   const sessionsRes = await db.query(`
     SELECT subject, teacher_name, scheduled_date, start_time, duration_minutes
@@ -119,6 +135,12 @@ async function sendTimetableUpdate(batchId: string) {
   }>;
 
   const slots = deriveWeeklySlots(sessions);
+
+  // Don't send if there are no upcoming sessions (all cancelled/deleted)
+  if (slots.length === 0) {
+    console.log(`[timetable-auto] Batch ${batchId}: skipping — no active sessions to show`);
+    return;
+  }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://portal.smartuplearning.online';
   const loginUrl = `${baseUrl}/login`;
@@ -195,10 +217,13 @@ async function sendTimetableUpdate(batchId: string) {
         isUpdate: true,
       });
 
+      // Append batch ID tag for dedup tracking in email_log
+      const subjectWithTag = `${subject} [BID:${batchId}]`;
+
       const logRes = await db.query<{ id: string }>(
         `INSERT INTO email_log (room_id, recipient_email, template_type, subject, status)
          VALUES (NULL, $1, 'weekly_timetable_auto', $2, 'queued') RETURNING id`,
-        [recipient.email, subject],
+        [recipient.email, subjectWithTag],
       );
       const logId = logRes.rows[0].id;
 
