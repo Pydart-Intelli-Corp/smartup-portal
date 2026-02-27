@@ -939,7 +939,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
 
   // Sync tab with URL hash (sidebar nav clicks)
   useEffect(() => {
-    const validTabs = ['overview', 'batches', 'sessions', 'sessions', 'attendance', 'exams', 'fees', 'materials', 'requests', 'profile'];
+    const validTabs = ['overview', 'batches', 'sessions', 'attendance', 'exams', 'fees', 'materials', 'requests', 'profile'];
     const syncHash = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash && validTabs.includes(hash)) setActiveTab(hash);
@@ -1035,7 +1035,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
       const data = await res.json();
       if (data.success) {
         setSessions(data.data?.sessions ?? []);
-        setSessionTodayStats(data.data?.today_stats ?? null);
+        setSessionTodayStats(data.data?.today ?? null);
       }
     } catch (err) {
       console.error('[Student] sessions fetch failed:', err);
@@ -1169,6 +1169,10 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
   }, [activeTab, fetchSessions]);
 
   useEffect(() => {
+    if (activeTab === 'batches') fetchBatches();
+  }, [activeTab, fetchBatches]);
+
+  useEffect(() => {
     if (activeTab === 'fees' && !feesSummary) fetchFees();
   }, [activeTab, feesSummary, fetchFees]);
 
@@ -1199,7 +1203,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
     return () => clearInterval(id);
   }, [fetchAssignments]);
 
-  const liveCount = assignments.filter((a) => a.status === 'live').length;
+  const sessionLiveCount = sessions.filter(s => s.status === 'live').length;
   const completedExams = exams.filter(e => e.attempt_status === 'graded' || e.attempt_status === 'submitted');
   const refreshAll = useCallback(() => {
     fetchAssignments(); fetchBatches(); fetchAttendance(); fetchSessions();
@@ -1208,8 +1212,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
   const tabs = [
     { key: 'overview',   label: 'Overview',   icon: LayoutDashboard },
     { key: 'batches',    label: `Batches${batches.length > 0 ? ` · ${batches.length}` : ''}`, icon: BookOpen },
-    { key: 'sessions',   label: liveCount > 0 ? `Sessions · ${liveCount} Live` : 'Sessions', icon: Calendar },
-    { key: 'sessions',   label: sessionTodayStats ? `Sessions · ${sessionTodayStats.total} Today` : 'Sessions', icon: ListChecks },
+    { key: 'sessions',   label: sessionLiveCount > 0 ? `Sessions · ${sessionLiveCount} Live` : sessionTodayStats ? `Sessions · ${sessionTodayStats.total} Today` : 'Sessions', icon: Calendar },
     { key: 'attendance', label: attendanceSummary ? `Attendance · ${attendanceSummary.attendance_rate}%` : 'Attendance', icon: CheckCircle2 },
     { key: 'exams',      label: `Exams${completedExams.length > 0 ? ` · ${completedExams.length} Done` : ''}`, icon: Trophy },
     { key: 'fees',       label: feesSummary && feesSummary.overdue_count > 0 ? `Fees · ${feesSummary.overdue_count} Due` : 'Fees', icon: CreditCard },
@@ -1252,7 +1255,6 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
             {activeTab === 'batches' && (
               <BatchesTab batches={batches} loading={loadingBatches} onRefresh={fetchBatches} />
             )}
-            {activeTab === 'sessions' && <MyClassesTab assignments={assignments} />}
             {activeTab === 'sessions' && (
               <SessionsTab
                 sessions={sessions}
@@ -1982,6 +1984,15 @@ function SessionsTab({
                         {s.attendance_status === 'present' ? '✓ Present' : '✗ Absent'}
                       </span>
                     )}
+                    {s.status === 'live' && (
+                      <a
+                        href={`/join/${s.session_id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 shrink-0 animate-pulse"
+                      >
+                        Join Now
+                      </a>
+                    )}
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                   </div>
                 </button>
@@ -2063,6 +2074,39 @@ function SessionsTab({
                     {s.status === 'cancelled' && s.cancel_reason && (
                       <Alert variant="error" message={`Cancelled: ${s.cancel_reason}`} />
                     )}
+                    {s.status === 'live' && (
+                      <a
+                        href={`/join/${s.session_id}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-700"
+                      >
+                        <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                        Join Live Session
+                      </a>
+                    )}
+                    {s.status === 'scheduled' && (() => {
+                      const sessionStart = new Date(`${s.scheduled_date.slice(0, 10)}T${s.start_time.slice(0, 5)}+05:30`);
+                      const hasStarted = Date.now() >= sessionStart.getTime();
+                      return hasStarted ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                            <Clock className="h-4 w-4 shrink-0" />
+                            <span>Class was scheduled at <strong>{s.start_time.slice(0, 5)}</strong> — waiting for teacher to go live</span>
+                          </div>
+                          <a
+                            href={`/join/${s.session_id}`}
+                            className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-amber-700"
+                          >
+                            <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                            Try to Join
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
+                          <Clock className="h-4 w-4 shrink-0" />
+                          <span>Class starts at <strong>{s.start_time.slice(0, 5)}</strong> — join link will activate when teacher goes live</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </Card>

@@ -80,7 +80,10 @@ export async function GET(req: NextRequest) {
     `SELECT
        COUNT(*)::int AS total,
        COUNT(*) FILTER (WHERE s.status = 'live')::int AS live,
-       COUNT(*) FILTER (WHERE s.status = 'scheduled')::int AS upcoming,
+       COUNT(*) FILTER (
+         WHERE s.status = 'scheduled'
+           AND (s.scheduled_date + s.start_time)::timestamp AT TIME ZONE 'Asia/Kolkata' > NOW()
+       )::int AS upcoming,
        COUNT(*) FILTER (WHERE s.status = 'ended')::int AS completed,
        COUNT(*) FILTER (WHERE s.status = 'cancelled')::int AS cancelled
      FROM batch_sessions s
