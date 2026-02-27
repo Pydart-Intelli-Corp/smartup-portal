@@ -15,39 +15,62 @@ function masterLayout(body: string, recipientEmail: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmartUp Classes</title>
 </head>
-<body style="margin:0; padding:0; background-color:#f4f4f7; font-family:Arial, Helvetica, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7; padding:24px 0;">
+<body style="margin:0; padding:0; background-color:#f0fdf4; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4; padding:32px 0;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 24px rgba(5,150,105,0.08); border:1px solid #d1fae5;">
+
           <!-- Header -->
           <tr>
-            <td style="background-color:#1a1a2e; padding:24px 32px;">
-              <table cellpadding="0" cellspacing="0" border="0"><tr>
-                <td style="vertical-align:middle; padding-right:14px;">
-                  <img src="https://portal.smartuplearning.online/logo/full.png" alt="SmartUp" width="44" height="44" style="display:block; border-radius:8px;" />
-                </td>
+            <td style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding:28px 32px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
                 <td style="vertical-align:middle;">
-                  <h1 style="margin:0; color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;">SmartUp</h1>
-                  <p style="margin:2px 0 0; color:#a0a0c0; font-size:11px;">Online Classes</p>
+                  <table cellpadding="0" cellspacing="0" border="0"><tr>
+                    <td style="vertical-align:middle; padding-right:12px;">
+                      <div style="width:44px; height:44px; background-color:rgba(255,255,255,0.2); border-radius:10px; display:table-cell; vertical-align:middle; text-align:center;">
+                        <img src="https://smartuplearning.online/logo/full.png" alt="S" width="44" height="44" style="display:block; border-radius:10px;" />
+                      </div>
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <h1 style="margin:0; color:#ffffff; font-size:20px; font-weight:700; letter-spacing:0.3px;">SmartUp</h1>
+                      <p style="margin:2px 0 0; color:rgba(255,255,255,0.75); font-size:11px; letter-spacing:0.5px; text-transform:uppercase;">Online Classes</p>
+                    </td>
+                  </tr></table>
+                </td>
+                <td align="right" style="vertical-align:middle;">
+                  <span style="font-size:11px; color:rgba(255,255,255,0.6); letter-spacing:0.5px;">smartuplearning.online</span>
                 </td>
               </tr></table>
             </td>
           </tr>
+
+          <!-- Accent bar -->
+          <tr><td style="height:3px; background: linear-gradient(90deg, #10b981, #06b6d4, #059669);"></td></tr>
+
           <!-- Body -->
           <tr>
-            <td style="padding:32px;">
+            <td style="padding:36px 32px;">
               ${body}
             </td>
           </tr>
+
           <!-- Footer -->
           <tr>
-            <td style="background-color:#f8f9fa; padding:20px 32px; border-top:1px solid #e9ecef;">
-              <p style="margin:0 0 4px; font-size:13px; color:#6c757d;">SmartUp Online Classes &nbsp;|&nbsp; smartuplearning.online</p>
-              <p style="margin:0 0 4px; font-size:13px; color:#6c757d;">Need help? <a href="mailto:support@smartuplearning.online" style="color:#4a6cf7;">support@smartuplearning.online</a></p>
-              <p style="margin:0; font-size:12px; color:#adb5bd;">This email was sent to ${recipientEmail}</p>
+            <td style="background-color:#f0fdf4; padding:20px 32px; border-top:1px solid #d1fae5;">
+              <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td>
+                  <p style="margin:0 0 3px; font-size:13px; color:#059669; font-weight:600;">SmartUp Online Classes</p>
+                  <p style="margin:0 0 3px; font-size:12px; color:#6b7280;">Need help? <a href="mailto:support@smartuplearning.online" style="color:#059669; text-decoration:none;">support@smartuplearning.online</a></p>
+                  <p style="margin:0; font-size:11px; color:#9ca3af;">This email was sent to ${recipientEmail}</p>
+                </td>
+                <td align="right" style="vertical-align:bottom;">
+                  <p style="margin:0; font-size:11px; color:#d1fae5;">© 2026 SmartUp</p>
+                </td>
+              </tr></table>
             </td>
           </tr>
+
         </table>
       </td>
     </tr>
@@ -58,25 +81,25 @@ function masterLayout(body: string, recipientEmail: string): string {
 
 // ── Shared Helpers ──────────────────────────────────────────
 
-function button(text: string, href: string, color: string = '#4a6cf7'): string {
-  return `<a href="${href}" style="display:inline-block; padding:14px 28px; background-color:${color}; color:#ffffff; text-decoration:none; border-radius:6px; font-size:15px; font-weight:600; margin:8px 4px 8px 0;">${text}</a>`;
+function button(text: string, href: string, color: string = '#059669'): string {
+  return `<a href="${href}" style="display:inline-block; padding:13px 28px; background-color:${color}; color:#ffffff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:600; margin:8px 4px 8px 0; letter-spacing:0.2px; box-shadow:0 2px 8px rgba(5,150,105,0.25);">${text}</a>`;
 }
 
 function infoRow(label: string, value: string): string {
   return `<tr>
-    <td style="padding:6px 12px; font-size:14px; color:#6c757d; border-bottom:1px solid #f1f3f5;">${label}</td>
-    <td style="padding:6px 12px; font-size:14px; color:#1a1a2e; font-weight:600; border-bottom:1px solid #f1f3f5;">${value}</td>
+    <td style="padding:9px 14px; font-size:13px; color:#6b7280; font-weight:500; border-bottom:1px solid #f0fdf4; background-color:#f9fafb; width:38%;">${label}</td>
+    <td style="padding:9px 14px; font-size:13px; color:#111827; font-weight:600; border-bottom:1px solid #f0fdf4;">${value}</td>
   </tr>`;
 }
 
 function infoTable(rows: [string, string][]): string {
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0; border:1px solid #e9ecef; border-radius:6px; overflow:hidden;">
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0; border:1px solid #d1fae5; border-radius:8px; overflow:hidden;">
     ${rows.map(([l, v]) => infoRow(l, v)).join('\n')}
   </table>`;
 }
 
 function alertBox(text: string, color: string, bgColor: string): string {
-  return `<div style="padding:12px 16px; background-color:${bgColor}; border-left:4px solid ${color}; border-radius:4px; margin:16px 0; font-size:14px; color:${color};">${text}</div>`;
+  return `<div style="padding:12px 16px; background-color:${bgColor}; border-left:4px solid ${color}; border-radius:0 8px 8px 0; margin:16px 0; font-size:13px; color:${color}; font-weight:500; line-height:1.5;">${text}</div>`;
 }
 
 // ── Type Definitions ────────────────────────────────────────

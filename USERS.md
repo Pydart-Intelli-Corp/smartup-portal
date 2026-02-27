@@ -11,9 +11,9 @@
 | # | Name | Email | Password | Portal Role | Dashboard |
 |---|------|-------|----------|-------------|-----------|
 | 1 | Admin Owner | `smartuplearningventures@gmail.com` | `Test@1234` | `owner` | `/owner` |
-| 2 | Seema Verma | `official4tishnu@gmail.com` | `Test@1234` | `coordinator` | `/coordinator` |
+| 2 | Seema Verma | `tech.poornasree@gmail.com` | `Test@1234` | `coordinator` | `/coordinator` |
 | 3 | Dr. Mehta | `dev.poornasree@gmail.com` | `Test@1234` | `academic_operator` | `/academic-operator` |
-| 4 | Ayesha Khan | `tech.poornasree@gmail.com` | `Test@1234` | `hr` | `/hr` |
+| 4 | Ayesha Khan | `info.pydart@gmail.com` | `Test@1234` | `hr` | `/hr` |
 | 5 | Priya Sharma | `abcdqrst404@gmail.com` | `Test@1234` | `teacher` | `/teacher` |
 | 6 | Rahul Nair | `official.tishnu@gmail.com` | `Test@1234` | `student` | `/student` |
 | 7 | Nair P. | `idukki.karan404@gmail.com` | `Test@1234` | `parent` | `/parent` |

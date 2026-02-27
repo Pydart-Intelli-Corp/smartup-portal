@@ -56,7 +56,6 @@ const OWNER_NAV: NavItemConfig[] = [
   { label: 'Academic Ops',    href: '/owner/academic-operator', icon: Calendar },
   { label: 'Teachers',        href: '/owner/teachers',          icon: GraduationCap },
   { label: 'HR',              href: '/owner/hr',                icon: Briefcase },
-  { label: 'User List',       href: '/owner/users',             icon: Users },
   { label: 'Roles',           href: '/owner/roles',             icon: UserCog },
   { label: 'Fees & Payments', href: '/owner/fees',              icon: CreditCard },
   { label: 'Exams',           href: '/owner/exams',             icon: Award },

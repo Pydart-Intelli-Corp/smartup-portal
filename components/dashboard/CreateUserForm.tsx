@@ -262,7 +262,7 @@ export function CreateUserModal({
     phone: '', whatsapp: '', address: '', qualification: '', notes: '', experience_years: '',
     per_hour_rate: '',
     subjects: [] as string[],
-    grade: 'Class 10', section: '', board: 'CBSE', parent_email: '', parent_name: '', parent_password: '', admission_date: '',
+    grade: 'Class 10', section: '', board: 'CBSE', parent_email: '', parent_name: '', parent_password: '', admission_date: new Date().toISOString().slice(0, 10),
     assigned_region: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -318,7 +318,7 @@ export function CreateUserModal({
       phone: '', whatsapp: '', address: '', qualification: '', notes: '', experience_years: '',
       per_hour_rate: '',
       subjects: [], grade: 'Class 10', section: '', board: 'CBSE',
-      parent_email: '', parent_name: '', parent_password: '', admission_date: '', assigned_region: '',
+      parent_email: '', parent_name: '', parent_password: '', admission_date: new Date().toISOString().slice(0, 10), assigned_region: '',
     });
     setEmailStatus('idle');
     setError('');
