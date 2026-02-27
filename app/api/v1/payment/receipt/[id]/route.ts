@@ -73,7 +73,7 @@ export async function GET(
     }
     if (user.role === 'parent') {
       const childCheck = await db.query(
-        `SELECT 1 FROM user_profiles WHERE user_email = $1 AND parent_email = $2`,
+        `SELECT 1 FROM user_profiles WHERE email = $1 AND parent_email = $2`,
         [invoice.student_email, user.id]
       );
       if (childCheck.rows.length === 0) {

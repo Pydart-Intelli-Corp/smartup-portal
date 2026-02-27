@@ -15,7 +15,7 @@ async function sendReceiptEmail(invoiceId: string, receiptNumber: string) {
       `SELECT i.*, pu.full_name AS student_name, up.parent_email
        FROM invoices i
        LEFT JOIN portal_users pu ON pu.email = i.student_email
-       LEFT JOIN user_profiles up ON up.user_email = i.student_email
+       LEFT JOIN user_profiles up ON up.email = i.student_email
        WHERE i.id = $1`,
       [invoiceId]
     );

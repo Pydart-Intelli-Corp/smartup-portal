@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
        FROM room_assignments ra
        JOIN rooms r ON r.room_id = ra.room_id
        JOIN portal_users pu ON pu.email = ra.participant_email
-       LEFT JOIN user_profiles up ON up.user_email = ra.participant_email
+       LEFT JOIN user_profiles up ON up.email = ra.participant_email
        WHERE ra.participant_type = 'student'
          AND r.status IN ('scheduled', 'live', 'ended')
          AND pu.is_active = true`

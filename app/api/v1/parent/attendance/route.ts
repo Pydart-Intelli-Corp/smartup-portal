@@ -21,16 +21,16 @@ export async function GET(req: NextRequest) {
 
     // Find children linked to this parent
     const childrenResult = await db.query(
-      `SELECT up.user_email, pu.full_name
+      `SELECT up.email, pu.full_name
        FROM user_profiles up
-       JOIN portal_users pu ON pu.email = up.user_email
+       JOIN portal_users pu ON pu.email = up.email
        WHERE up.parent_email = $1`,
       [user.id]
     );
 
     // If no profiles linked, try admission_requests
     let childEmails: string[] = childrenResult.rows.map(
-      (r: Record<string, unknown>) => String(r.user_email)
+      (r: Record<string, unknown>) => String(r.email)
     );
 
     if (childEmails.length === 0) {

@@ -27,17 +27,17 @@ export async function GET(req: NextRequest) {
       if (!studentEmail) {
         // Get first child
         const childResult = await db.query(
-          `SELECT user_email FROM user_profiles WHERE parent_email = $1 LIMIT 1`,
+          `SELECT email FROM user_profiles WHERE parent_email = $1 LIMIT 1`,
           [user.id]
         );
         studentEmail = childResult.rows[0]
-          ? String((childResult.rows[0] as Record<string, unknown>).user_email)
+          ? String((childResult.rows[0] as Record<string, unknown>).email)
           : null;
       }
       // Verify this is actually their child
       if (studentEmail) {
         const verifyResult = await db.query(
-          `SELECT 1 FROM user_profiles WHERE user_email = $1 AND parent_email = $2`,
+          `SELECT 1 FROM user_profiles WHERE email = $1 AND parent_email = $2`,
           [studentEmail, user.id]
         );
         if (verifyResult.rows.length === 0) {
