@@ -140,33 +140,33 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <a href="/ghost" className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted">
+            <a href="/ghost" className="rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
               <ArrowLeft className="h-4 w-4" />
             </a>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Monitor className="h-6 w-6 text-muted-foreground" /> Oversight Console
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Monitor className="h-6 w-6 text-emerald-600" /> Oversight Console
             </h1>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground ml-10">
+          <p className="mt-1 text-sm text-gray-500 ml-10">
             Monitor all live sessions — auto-refreshes every 30 seconds
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setViewMode('grid')}
-            className={`rounded-lg p-2 ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`rounded-lg p-2 transition ${viewMode === 'grid' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
           >
             <Grid3X3 className="h-4 w-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`rounded-lg p-2 ${viewMode === 'list' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`rounded-lg p-2 transition ${viewMode === 'list' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
           >
             <List className="h-4 w-4" />
           </button>
           <button
             onClick={fetchRooms}
-            className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -175,16 +175,18 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
       </div>
 
       {/* Live count banner */}
-      <div className="mb-4 rounded-xl border border-green-800 bg-green-950/30 p-4 flex items-center gap-3">
-        <Radio className="h-5 w-5 text-green-400 animate-pulse" />
-        <span className="text-sm">
-          <span className="font-bold text-green-400">{live.length}</span>{' '}
+      <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 shrink-0">
+          <Radio className="h-4 w-4 text-green-600 animate-pulse" />
+        </div>
+        <span className="text-sm text-green-800">
+          <span className="font-bold">{live.length}</span>{' '}
           {live.length === 1 ? 'session' : 'sessions'} live right now
         </span>
         {selectedFilter && (
           <button
             onClick={() => setSelectedFilter(null)}
-            className="ml-auto flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs text-foreground/80 hover:bg-accent/80"
+            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 transition"
           >
             Clear filter · Showing {displayRooms.length}/{live.length}
           </button>
@@ -197,8 +199,8 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
           <button
             key={mode}
             onClick={() => { setGroupMode(mode); setSelectedFilter(null); }}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-              groupMode === mode ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              groupMode === mode ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
             <Icon className="h-3.5 w-3.5" /> {label}
@@ -207,12 +209,12 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
 
         {/* Quick filter chips */}
         {groupMode === 'batch' && !selectedFilter && batchGroups.length > 0 && (
-          <div className="flex items-center gap-1.5 ml-2 border-l border-border pl-2">
+          <div className="flex items-center gap-1.5 ml-2 border-l border-gray-200 pl-2">
             {batchGroups.map(bg => (
               <button
                 key={bg.batch_id}
                 onClick={() => setSelectedFilter(bg.batch_id)}
-                className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent"
+                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition"
               >
                 {bg.batch_name} ({bg.rooms.length})
               </button>
@@ -220,12 +222,12 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
           </div>
         )}
         {groupMode === 'teacher' && !selectedFilter && teacherGroups.length > 0 && (
-          <div className="flex items-center gap-1.5 ml-2 border-l border-border pl-2">
+          <div className="flex items-center gap-1.5 ml-2 border-l border-gray-200 pl-2">
             {teacherGroups.map(tg => (
               <button
                 key={tg.email}
                 onClick={() => setSelectedFilter(tg.email)}
-                className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent"
+                className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition"
               >
                 {tg.name} ({tg.rooms.length})
               </button>
@@ -235,14 +237,14 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
       </div>
 
       {loading && rooms.length === 0 ? (
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <div className="flex items-center justify-center py-20 text-gray-400">
           <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> Loading rooms...
         </div>
       ) : displayRooms.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
-          <Monitor className="mb-3 h-10 w-10 text-muted-foreground/60" />
-          <p className="text-muted-foreground">No live sessions{selectedFilter ? ' matching filter' : ' at the moment'}</p>
-          <p className="mt-1 text-sm text-muted-foreground/80">
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <Monitor className="mb-3 h-12 w-12 opacity-40" />
+          <p className="text-sm">No live sessions{selectedFilter ? ' matching filter' : ' at the moment'}</p>
+          <p className="mt-1 text-xs text-gray-400">
             Live sessions will appear here automatically
           </p>
         </div>
@@ -254,24 +256,24 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
             const key = g.batch_id || g.email || 'unknown';
             const label = g.batch_name || g.name || key;
             return (
-              <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-muted/30">
+              <div key={key} className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-gray-50/80">
                   <div className="flex items-center gap-2">
                     {groupMode === 'batch' ? (
-                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      <BookOpen className="h-4 w-4 text-emerald-600" />
                     ) : (
-                      <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center text-xs font-bold">
+                      <div className="h-6 w-6 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-bold">
                         {label.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <span className="font-medium text-sm">{label}</span>
-                    <span className="flex items-center gap-1 rounded bg-green-900 px-1.5 py-0.5 text-[10px] text-green-300">
+                    <span className="font-medium text-sm text-gray-800">{label}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
                       <Radio className="h-2.5 w-2.5 animate-pulse" /> {g.rooms.length} live
                     </span>
                   </div>
                   <button
                     onClick={() => setSelectedFilter(key)}
-                    className="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-accent/80"
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-700 shadow-sm transition"
                   >
                     <Layers className="h-3 w-3" /> Focus
                   </button>
@@ -281,7 +283,7 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
                     {g.rooms.map((room) => <RoomCard key={room.room_id} room={room} />)}
                   </div>
                 ) : (
-                  <div className="divide-y divide-border">
+                  <div className="divide-y divide-gray-50">
                     {g.rooms.map((room) => <RoomListItem key={room.room_id} room={room} />)}
                   </div>
                 )}
@@ -308,32 +310,32 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
 function RoomCard({ room }: { room: Room }) {
   const elapsed = Math.round((Date.now() - new Date(room.scheduled_start).getTime()) / 60000);
   return (
-    <div className="rounded-xl border border-green-800/50 bg-card overflow-hidden">
-      <div className="relative bg-muted h-36 flex items-center justify-center">
+    <div className="rounded-xl border border-green-200 bg-white shadow-sm overflow-hidden">
+      <div className="relative bg-green-50 h-36 flex items-center justify-center">
         <Radio className="h-8 w-8 text-green-500 animate-pulse" />
-        <div className="absolute top-2 left-2 flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+        <div className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
           <Radio className="h-2.5 w-2.5" /> LIVE
         </div>
-        <div className="absolute top-2 right-2 text-[10px] text-muted-foreground bg-black/50 rounded px-1.5 py-0.5">
+        <div className="absolute top-2 right-2 text-[10px] text-gray-500 bg-white/80 border border-gray-200 rounded px-1.5 py-0.5">
           {elapsed}m elapsed
         </div>
         {room.batch_name && (
-          <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground bg-black/50 rounded px-1.5 py-0.5">
+          <div className="absolute bottom-2 left-2 text-[10px] text-gray-600 bg-white/80 border border-gray-200 rounded px-1.5 py-0.5">
             {room.batch_name}
           </div>
         )}
       </div>
       <div className="p-3">
-        <h3 className="font-medium text-sm truncate">{room.room_name}</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <h3 className="font-medium text-sm text-gray-800 truncate">{room.room_name}</h3>
+        <p className="text-xs text-gray-500 mt-0.5">
           {room.subject} · {room.grade}
         </p>
-        <p className="text-xs text-muted-foreground/80 mt-0.5">
+        <p className="text-xs text-gray-400 mt-0.5">
           {room.teacher_name || room.teacher_email || '—'}
         </p>
         <a
           href={`/classroom/${room.room_id}?mode=ghost`}
-          className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-accent py-2 text-xs font-medium text-foreground/80 hover:bg-accent/80"
+          className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-600 py-2 text-xs font-medium text-white hover:bg-emerald-700 shadow-sm transition"
         >
           <Eye className="h-3.5 w-3.5" /> Enter Ghost Mode
         </a>
@@ -346,19 +348,21 @@ function RoomCard({ room }: { room: Room }) {
 function RoomListItem({ room }: { room: Room }) {
   const elapsed = Math.round((Date.now() - new Date(room.scheduled_start).getTime()) / 60000);
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-green-800/50 bg-card p-4">
-      <Radio className="h-6 w-6 text-green-400 animate-pulse shrink-0" />
+    <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-white shadow-sm p-4">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 shrink-0">
+        <Radio className="h-4 w-4 text-green-600 animate-pulse" />
+      </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-medium truncate">{room.room_name}</h3>
-        <p className="text-xs text-muted-foreground">
+        <h3 className="font-medium text-gray-800 truncate">{room.room_name}</h3>
+        <p className="text-xs text-gray-500">
           {room.subject} · {room.grade} · {room.teacher_name || room.teacher_email || '—'}
-          {room.batch_name && <span className="text-muted-foreground/60"> · {room.batch_name}</span>}
+          {room.batch_name && <span className="text-gray-400"> · {room.batch_name}</span>}
         </p>
       </div>
-      <span className="text-xs text-muted-foreground shrink-0">{elapsed}m</span>
+      <span className="text-xs text-gray-500 shrink-0">{elapsed}m</span>
       <a
         href={`/classroom/${room.room_id}?mode=ghost`}
-        className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-accent/80 shrink-0"
+        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 shadow-sm shrink-0 transition"
       >
         <Eye className="h-3.5 w-3.5" /> Enter Ghost
       </a>
