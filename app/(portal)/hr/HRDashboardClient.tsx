@@ -115,17 +115,71 @@ export default function HRDashboardClient({ userName, userEmail, userRole, permi
     { key: 'leave_requests', label: 'Leave Requests', icon: CalendarClock },
   ];
 
+  // ── Grouped tabs for owner view ───────────────────────────
+  const peopleTabKeys = ['teachers','students','parents','coordinators','academic_operators','hr_associates','ghost_observers'];
+  const operationsTabKeys = ['cancellations','attendance','leave_requests'];
+  const financeTabKeys = ['payroll','fee_rates'];
+
+  const peopleTabs     = tabs.filter(t => peopleTabKeys.includes(t.key));
+  const operationsTabs = tabs.filter(t => operationsTabKeys.includes(t.key));
+  const financeTabs    = tabs.filter(t => financeTabKeys.includes(t.key));
+  const overviewTab    = tabs.find(t => t.key === 'overview');
+
+  const tabBtn = (t: typeof tabs[number]) => {
+    const isActive = tab === t.key;
+    const Icon = t.icon;
+    return (
+      <button
+        key={t.key}
+        onClick={() => setTab(t.key as HRTab)}
+        className={`whitespace-nowrap inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+          isActive
+            ? 'bg-emerald-600 text-white shadow-sm'
+            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+        }`}
+      >
+        {Icon && <Icon className="h-3.5 w-3.5" />}
+        {t.label}
+      </button>
+    );
+  };
+
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       <div className="space-y-6">
         <PageHeader icon={Briefcase} title="HR Associate" subtitle="Create accounts, assign roles, issue login credentials" />
 
         {userRole === 'owner' && (
-          <TabBar
-            tabs={tabs}
-            active={tab}
-            onChange={(k) => setTab(k as HRTab)}
-          />
+          <div className="space-y-3">
+            {/* Overview */}
+            <div className="flex flex-wrap gap-2">
+              {overviewTab && tabBtn(overviewTab)}
+            </div>
+
+            {/* People Management */}
+            {peopleTabs.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">People</p>
+                <div className="flex flex-wrap gap-2">{peopleTabs.map(tabBtn)}</div>
+              </div>
+            )}
+
+            {/* Operations */}
+            {operationsTabs.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Operations</p>
+                <div className="flex flex-wrap gap-2">{operationsTabs.map(tabBtn)}</div>
+              </div>
+            )}
+
+            {/* Finance */}
+            {financeTabs.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Finance</p>
+                <div className="flex flex-wrap gap-2">{financeTabs.map(tabBtn)}</div>
+              </div>
+            )}
+          </div>
         )}
 
         {tab === 'overview'           && <OverviewTab />}
