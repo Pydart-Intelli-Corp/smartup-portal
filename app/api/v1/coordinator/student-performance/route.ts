@@ -53,7 +53,6 @@ export async function GET(req: NextRequest) {
       JOIN batches b ON b.batch_id = bs.batch_id
       LEFT JOIN portal_users u ON u.email = bs.student_email
       WHERE b.coordinator_email = $1
-        AND bs.is_active = true
         ${batchId ? 'AND bs.batch_id = $2' : ''}
       ORDER BY b.batch_name, u.full_name
     `, batchId ? [user.id, batchId] : [user.id]);
@@ -66,7 +65,7 @@ export async function GET(req: NextRequest) {
         b.grade,
         b.section,
         b.status,
-        (SELECT COUNT(*) FROM batch_students bs WHERE bs.batch_id = b.batch_id AND bs.is_active = true) AS student_count,
+        (SELECT COUNT(*) FROM batch_students bs WHERE bs.batch_id = b.batch_id) AS student_count,
         (SELECT COUNT(*) FROM batch_sessions sess WHERE sess.batch_id = b.batch_id AND sess.status = 'ended') AS completed_sessions
       FROM batches b
       WHERE b.coordinator_email = $1
