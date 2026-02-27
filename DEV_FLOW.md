@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** `e8a0d5f` — Rename "class" → "session" in all user-facing UI text across 28 files (~120 string replacements). Terminology fully migrated: dashboards, classroom components, join flow, ended page, system settings, payroll labels. Grade labels ("Class 10") preserved.
+**Latest Commit:** `84318a3` — Major fix batch: token identity+metadata for all roles, attendance webhook email extraction, payment gate batch_session_id resolution, hand-raise icon update (Lucide-style + filled variant), batch ID format (smartup_date_time_shortid), new-tab classroom launch, duplicate rating prevention (sessionStorage), join route actualRoomId for payment/rejoin checks.
 
 ---
 
