@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** `84318a3` — Major fix batch: token identity+metadata for all roles, attendance webhook email extraction, payment gate batch_session_id resolution, hand-raise icon update (Lucide-style + filled variant), batch ID format (smartup_date_time_shortid), new-tab classroom launch, duplicate rating prevention (sessionStorage), join route actualRoomId for payment/rejoin checks.
+**Latest Commit:** `639f5b2` — End-class coordinator approval flow, student re-entry block after feedback, rejoin requires teacher approval (no auto-approve), double-DELETE fix, payment_attempts column fix, AO leave approval field fix. New API: `/api/v1/room/[room_id]/end-request` (POST/GET/PATCH). Coordinator dashboard: end-class request banner with approve/deny.
 
 ---
 
