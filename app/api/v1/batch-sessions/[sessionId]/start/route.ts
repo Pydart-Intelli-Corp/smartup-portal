@@ -65,12 +65,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ses
     }, { status: 500 });
   }
 
-  // 2. Update session status to 'live'
-  if (session.status === 'scheduled') {
+  // 2. Upsert into rooms table so go-live / end-session routes can find the room.
+  //    Status stays 'scheduled' — teacher must click Go Live inside the classroom
+  //    to promote to 'live'. (batch_sessions status is NOT changed here.)
+  try {
+    const rawDate = typeof session.scheduled_date === 'object'
+      ? (session.scheduled_date as Date).toISOString().slice(0, 10)
+      : (session.scheduled_date as string).slice(0, 10);
+    const rawTime = (session.start_time as string).slice(0, 5);
+    const scheduledStart = new Date(`${rawDate}T${rawTime}+05:30`);
+    const durationMins = Number(session.duration_minutes) || 90;
     await db.query(
-      `UPDATE batch_sessions SET status = 'live', started_at = NOW() WHERE session_id = $1`,
-      [sessionId]
+      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, status,
+                          scheduled_start, duration_minutes, batch_id, batch_session_id, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled', $8, $9, $10, $11, 'teacher', NOW(), NOW())
+       ON CONFLICT (room_id) DO UPDATE SET
+         batch_id = EXCLUDED.batch_id, batch_session_id = EXCLUDED.batch_session_id, updated_at = NOW()`,
+      [roomName, `${session.batch_name} — ${session.subject}`, session.teacher_email || null,
+       session.subject || null, session.grade || null, session.section || null,
+       session.batch_type || 'one_to_many', scheduledStart.toISOString(), durationMins,
+       session.batch_id, sessionId]
     );
+  } catch (err) {
+    // Non-fatal — room may already exist from auto-start
+    console.warn('[session/start] rooms upsert warning:', err);
   }
 
   // 3. Generate tokens for ALL participants
