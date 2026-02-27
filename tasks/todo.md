@@ -1,5 +1,24 @@
 ﻿# SmartUp Portal — Task Tracker
 
+## Phase: Terminology Migration — "Class" → "Session" (Feb 28, 2026)
+
+### Rename all user-facing "class" text to "session"
+- [x] Student dashboard (StudentDashboardClient.tsx): 19 string changes — tabs, headings, badges, placeholders, empty states, attendance labels
+- [x] Teacher dashboard (TeacherDashboardClient.tsx): 16 string changes — workflow rules, stat labels, payroll table headers
+- [x] Classroom components (9 files): 27 string changes — TimeWarningDialog, TeacherView, StudentView, ControlBar, HeaderBar, ClassroomWrapper, ChatPanel, FeedbackDialog, ParticipantList
+- [x] Join flow (2 files): 13 string changes — JoinRoomClient.tsx, join page.tsx
+- [x] Owner dashboard (OwnerDashboardClient.tsx): 10 string changes — tab labels, live counts, section headers
+- [x] Owner sub-pages (4 files): 17 string changes — SystemClient, OwnerTeachersClient, BatchesClient, PayrollClient
+- [x] Parent/Ghost/HR/Coordinator dashboards (6 files): 24 string changes
+- [x] Academic Operator dashboard: 29 string changes — schedule wizard, session management, timetable labels
+- [x] Misc files (3 files): 9 string changes — layout.tsx meta, CreateUserForm role descriptions, ended page
+- [x] TypeScript build: 0 errors
+- [x] Production deploy: commit `e8a0d5f`, build success, PM2 online
+- **Total: 28 files changed, ~120 user-facing string replacements, 174 lines modified**
+- **Preserved: Grade labels ("Class 10"), CSS className, JS class keyword, DB field names, variable/function names**
+
+---
+
 ## Phase: Complete Real-Life Workflow Re-Test (Feb 28, 2026 — Session 2)
 
 ### GET Endpoint Testing — All 8 Roles (Fresh Re-Run)

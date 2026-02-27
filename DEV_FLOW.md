@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** Complete real-life workflow re-test — 70 GET endpoints across 8 roles, 10 POST workflow chains (admission pipeline, batch, session, exam, payment, leave, cancellation, room, session requests, HR user creation), 30 UI pages, 2 bug fixes (room/create coordinator_email, system room FK)
+**Latest Commit:** `e8a0d5f` — Rename "class" → "session" in all user-facing UI text across 28 files (~120 string replacements). Terminology fully migrated: dashboards, classroom components, join flow, ended page, system settings, payroll labels. Grade labels ("Class 10") preserved.
 
 ---
 
