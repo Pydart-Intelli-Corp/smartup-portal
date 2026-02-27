@@ -73,7 +73,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ batc
      LEFT JOIN attendance_sessions a
        ON a.room_id = r.room_id
        AND a.participant_email = bs.student_email
-       AND a.participant_type = 'student'
+       AND a.participant_role = 'student'
      WHERE bs.batch_id = $1
      GROUP BY
        bs.student_email, bs.parent_email, bs.added_at,

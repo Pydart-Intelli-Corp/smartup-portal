@@ -27,9 +27,9 @@ export async function GET(
     // ── Batch memberships + per-batch stats ───────────────────
     const batchesResult = await db.query(
       `SELECT
-         b.id,
-         b.name,
-         b.type,
+         b.batch_id AS id,
+         b.batch_name AS name,
+         b.batch_type AS type,
          b.grade,
          b.section,
          b.subjects,
@@ -37,17 +37,17 @@ export async function GET(
          bs.added_at,
          coord.full_name AS coordinator_name,
          -- Session counts
-         (SELECT COUNT(*)           FROM batch_sessions bss WHERE bss.batch_id = b.id) AS total_sessions,
+         (SELECT COUNT(*)           FROM batch_sessions bss WHERE bss.batch_id = b.batch_id) AS total_sessions,
          (SELECT COUNT(*) FILTER (WHERE bss.status = 'ended')
-                                    FROM batch_sessions bss WHERE bss.batch_id = b.id) AS done_sessions,
+                                    FROM batch_sessions bss WHERE bss.batch_id = b.batch_id) AS done_sessions,
          -- Attendance for this student in this batch's rooms
          (SELECT COUNT(a.*)
             FROM attendance_sessions a
             JOIN rooms r ON r.room_id = a.room_id
             JOIN batch_sessions bss2 ON bss2.livekit_room_name = r.room_id
            WHERE a.participant_email = $1
-             AND a.participant_type = 'student'
-             AND bss2.batch_id = b.id
+             AND a.participant_role = 'student'
+             AND bss2.batch_id = b.batch_id
              AND a.status = 'present')          AS present,
          (SELECT COUNT(*) FILTER (WHERE r2.status = 'ended')
             FROM room_assignments ra2
@@ -55,9 +55,9 @@ export async function GET(
             JOIN batch_sessions bss3 ON bss3.livekit_room_name = r2.room_id
            WHERE ra2.participant_email = $1
              AND ra2.participant_type = 'student'
-             AND bss3.batch_id = b.id)          AS att_total
+             AND bss3.batch_id = b.batch_id)          AS att_total
        FROM batch_students bs
-       JOIN batches b ON b.id = bs.batch_id
+       JOIN batches b ON b.batch_id = bs.batch_id
        LEFT JOIN portal_users coord ON coord.email = b.coordinator_email
        WHERE bs.student_email = $1
          AND b.status != 'archived'
@@ -72,13 +72,13 @@ export async function GET(
       `SELECT
          COUNT(r.room_id)::text AS total,
          COUNT(a.*) FILTER (WHERE a.status = 'present')::text AS present,
-         COUNT(a.*) FILTER (WHERE a.is_late = true)::text AS late
+         COUNT(a.*) FILTER (WHERE a.late_join = true)::text AS late
        FROM room_assignments ra
        JOIN rooms r ON r.room_id = ra.room_id
        LEFT JOIN attendance_sessions a
          ON a.room_id = ra.room_id
          AND a.participant_email = ra.participant_email
-         AND a.participant_type = 'student'
+         AND a.participant_role = 'student'
        WHERE ra.participant_email = $1
          AND ra.participant_type = 'student'
          AND r.status = 'ended'`,

@@ -70,8 +70,8 @@ export async function GET(req: NextRequest) {
            COUNT(*) AS total_sessions,
            COUNT(*) FILTER (WHERE a.status = 'present') AS present,
            COUNT(*) FILTER (WHERE a.status = 'absent') AS absent,
-           COUNT(*) FILTER (WHERE a.is_late = true) AS late_count,
-           COALESCE(AVG(a.time_in_class_seconds), 0) AS avg_time_sec,
+           COUNT(*) FILTER (WHERE a.late_join = true) AS late_count,
+           COALESCE(AVG(a.total_duration_sec), 0) AS avg_time_sec,
            COALESCE(SUM(a.join_count), 0) AS total_rejoins
          FROM attendance_sessions a
          WHERE a.participant_email = $1`,
@@ -87,11 +87,11 @@ export async function GET(req: NextRequest) {
            r.grade,
            r.scheduled_start,
            a.status,
-           a.is_late,
-           a.late_by_seconds,
+           a.late_join AS is_late,
+           a.late_by_sec AS late_by_seconds,
            a.first_join_at,
            a.last_leave_at,
-           a.time_in_class_seconds,
+           a.total_duration_sec AS time_in_class_seconds,
            a.join_count,
            a.engagement_score
          FROM attendance_sessions a

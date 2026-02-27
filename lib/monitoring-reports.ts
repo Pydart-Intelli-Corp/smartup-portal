@@ -160,11 +160,11 @@ export async function generateStudentReport(params: {
     `SELECT
        COUNT(*)::TEXT AS total_sessions,
        COUNT(CASE WHEN status IN ('present','late') THEN 1 END)::TEXT AS sessions_present,
-       COALESCE(SUM(EXTRACT(EPOCH FROM (left_at - joined_at)) / 60), 0)::TEXT AS total_time_min
+       COALESCE(SUM(total_duration_sec / 60.0), 0)::TEXT AS total_time_min
      FROM attendance_sessions
-     WHERE student_email = $1
-       AND session_date >= $2::DATE
-       AND session_date <= $3::DATE`,
+     WHERE participant_email = $1
+       AND created_at >= $2::DATE
+       AND created_at < ($3::DATE + INTERVAL '1 day')`,
     [student_email, period_start, period_end]
   );
 
@@ -363,9 +363,9 @@ export async function generateTeacherReport(params: {
 
   // Batches taught
   const batchesResult = await db.query<{ batch_name: string }>(
-    `SELECT DISTINCT b.name AS batch_name
+    `SELECT DISTINCT b.batch_name AS batch_name
      FROM batches b
-     JOIN rooms r ON r.batch_id = b.id::TEXT
+     JOIN rooms r ON r.batch_id = b.batch_id::TEXT
      JOIN room_assignments ra ON ra.room_id = r.room_id AND ra.participant_type = 'teacher' AND ra.participant_email = $1
      WHERE r.scheduled_start >= $2::DATE
        AND r.scheduled_start < ($3::DATE + INTERVAL '1 day')`,

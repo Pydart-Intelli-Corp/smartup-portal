@@ -511,7 +511,7 @@ async function generateSessionReport(start: string, end: string, filters?: Recor
     // Get attendance for this session
     const attendanceResult = await db.query(
       `SELECT participant_email, participant_name, status, join_count,
-              time_in_class_seconds, is_late
+              total_duration_sec AS time_in_class_seconds, late_join AS is_late
        FROM attendance_sessions
        WHERE room_id = $1`,
       [room.room_id]
@@ -623,8 +623,8 @@ async function generateParentMonthlyReport(start: string, end: string, filters?:
          COUNT(*) AS total_sessions,
          COUNT(*) FILTER (WHERE a.status = 'present') AS present,
          COUNT(*) FILTER (WHERE a.status = 'absent') AS absent,
-         COUNT(*) FILTER (WHERE a.is_late = true) AS late,
-         COALESCE(AVG(a.time_in_class_seconds), 0) AS avg_time_seconds
+         COUNT(*) FILTER (WHERE a.late_join = true) AS late,
+         COALESCE(AVG(a.total_duration_sec), 0) AS avg_time_seconds
        FROM attendance_sessions a
        JOIN rooms r ON r.room_id = a.room_id
        WHERE a.participant_email = $1

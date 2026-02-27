@@ -27,16 +27,16 @@ export async function GET(req: NextRequest) {
       SELECT
         bs.student_email,
         bs.batch_id,
-        b.name AS batch_name,
+        b.batch_name AS batch_name,
         b.grade,
         b.section,
-        u.name AS student_name,
+        u.full_name AS student_name,
         -- Attendance stats
         (SELECT COUNT(*) FROM batch_sessions sess WHERE sess.batch_id = bs.batch_id AND sess.status = 'ended') AS total_sessions,
         (SELECT COUNT(*) FROM attendance_sessions a
           JOIN rooms r ON r.room_id = a.room_id
           JOIN batch_sessions sess ON sess.livekit_room_name = r.livekit_room_id AND sess.batch_id = bs.batch_id
-          WHERE a.student_email = bs.student_email AND a.status = 'present'
+          WHERE a.participant_email = bs.student_email AND a.status = 'present'
         ) AS sessions_present,
         -- Exam stats
         (SELECT COUNT(*) FROM exam_attempts ea
@@ -50,29 +50,29 @@ export async function GET(req: NextRequest) {
           AND (e.grade = b.grade OR e.batch_id = bs.batch_id)
         ) AS avg_exam_score
       FROM batch_students bs
-      JOIN batches b ON b.id = bs.batch_id
+      JOIN batches b ON b.batch_id = bs.batch_id
       LEFT JOIN portal_users u ON u.email = bs.student_email
       WHERE b.coordinator_email = $1
         AND bs.is_active = true
         ${batchId ? 'AND bs.batch_id = $2' : ''}
-      ORDER BY b.name, u.name
+      ORDER BY b.batch_name, u.full_name
     `, batchId ? [user.id, batchId] : [user.id]);
 
     // Get batch-level summary
     const batchesResult = await db.query(`
       SELECT
-        b.id,
-        b.name,
+        b.batch_id AS id,
+        b.batch_name AS name,
         b.grade,
         b.section,
         b.status,
-        (SELECT COUNT(*) FROM batch_students bs WHERE bs.batch_id = b.id AND bs.is_active = true) AS student_count,
-        (SELECT COUNT(*) FROM batch_sessions sess WHERE sess.batch_id = b.id AND sess.status = 'ended') AS completed_sessions
+        (SELECT COUNT(*) FROM batch_students bs WHERE bs.batch_id = b.batch_id AND bs.is_active = true) AS student_count,
+        (SELECT COUNT(*) FROM batch_sessions sess WHERE sess.batch_id = b.batch_id AND sess.status = 'ended') AS completed_sessions
       FROM batches b
       WHERE b.coordinator_email = $1
         AND b.status = 'active'
-        ${batchId ? 'AND b.id = $2' : ''}
-      ORDER BY b.name
+        ${batchId ? 'AND b.batch_id = $2' : ''}
+      ORDER BY b.batch_name
     `, batchId ? [user.id, batchId] : [user.id]);
 
     const students = studentsResult.rows.map((r: Record<string, unknown>) => ({
