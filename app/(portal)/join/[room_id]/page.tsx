@@ -46,11 +46,35 @@ export default async function JoinRoomPage({ params, searchParams }: Props) {
   );
 
   if (roomResult.rows.length === 0) {
+    // Check if there's a batch_session with this id (teacher hasn't started yet)
+    const sessionCheck = await db.query(
+      `SELECT session_id, subject, start_time, scheduled_date, status
+       FROM batch_sessions WHERE session_id = $1 LIMIT 1`,
+      [room_id]
+    );
+    if (sessionCheck.rows.length > 0) {
+      const sess = sessionCheck.rows[0] as { subject: string; start_time: string; scheduled_date: string; status: string };
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="text-center max-w-sm px-6">
+            <div className="mb-3 text-4xl">⏳</div>
+            <h1 className="text-xl font-bold text-foreground">Teacher hasn&apos;t started yet</h1>
+            <p className="mt-2 text-muted-foreground">
+              The {sess.subject} class ({sess.scheduled_date?.slice(0,10)} {sess.start_time?.slice(0,5)}) is scheduled but the teacher hasn&apos;t opened the classroom yet.
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">Please wait a moment and try again.</p>
+            <a href={`/join/${room_id}`} className="mt-4 inline-block rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white hover:opacity-90">
+              Try Again
+            </a>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-xl font-bold text-red-400">Batch Not Found</h1>
-          <p className="mt-2 text-muted-foreground">This batch does not exist or may have been deleted.</p>
+          <h1 className="text-xl font-bold text-red-400">Session Not Found</h1>
+          <p className="mt-2 text-muted-foreground">This session does not exist or may have been deleted.</p>
         </div>
       </div>
     );
