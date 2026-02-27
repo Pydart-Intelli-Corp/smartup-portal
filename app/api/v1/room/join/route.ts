@@ -4,6 +4,7 @@ import { verifySession, COOKIE_NAME } from '@/lib/session';
 import { db } from '@/lib/db';
 import { createLiveKitToken, ensureRoom, ghostIdentity, listParticipants } from '@/lib/livekit';
 import { isGhostRole } from '@/lib/utils';
+import { calculateSessionFee, checkSessionPayment } from '@/lib/payment';
 
 /**
  * POST /api/v1/room/join
@@ -136,6 +137,25 @@ export async function POST(request: NextRequest) {
         }
       } catch {
         // payment_status column may not exist yet — skip check
+      }
+    }
+
+    // ── Per-session fee enforcement (students only) ──────────
+    // check if fee is configured for this session; if so, require payment
+    if (user.role === 'student') {
+      try {
+        const fee = await calculateSessionFee(room_id);
+        if (fee && fee.amountPaise > 0) {
+          const paid = await checkSessionPayment(room_id, user.id);
+          if (!paid.paid) {
+            return NextResponse.json<ApiResponse>(
+              { success: false, error: 'PAYMENT_REQUIRED', message: 'Please complete the session fee payment before joining. Use the payment option on the join page.' },
+              { status: 402 }
+            );
+          }
+        }
+      } catch {
+        // fee tables may not exist — skip
       }
     }
 

@@ -43,8 +43,43 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Resolve student email and parent email
+    // - student: studentEmail = user.id, parentEmail from user_profiles
+    // - parent: find child enrolled in this room via user_profiles.parent_email
+    let studentEmail = user.id;
+    let parentEmail: string | undefined;
+
+    if (user.role === 'parent') {
+      const childResult = await db.query(
+        `SELECT ra.participant_email
+         FROM room_assignments ra
+         JOIN user_profiles up ON up.email = ra.participant_email
+         WHERE ra.room_id = $1
+           AND ra.participant_type = 'student'
+           AND up.parent_email = $2
+         LIMIT 1`,
+        [room_id, user.id]
+      );
+      if (childResult.rows.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: { paymentRequired: false, reason: 'No child enrolled in this session' },
+        });
+      }
+      studentEmail = (childResult.rows[0] as Record<string, unknown>).participant_email as string;
+      parentEmail = user.id;
+    } else {
+      const profileResult = await db.query(
+        `SELECT parent_email FROM user_profiles WHERE email = $1`,
+        [user.id]
+      );
+      if (profileResult.rows.length > 0) {
+        parentEmail = (profileResult.rows[0] as Record<string, unknown>).parent_email as string | undefined;
+      }
+    }
+
     // Check if already paid
-    const existing = await checkSessionPayment(room_id, user.id);
+    const existing = await checkSessionPayment(room_id, studentEmail);
     if (existing.paid) {
       return NextResponse.json({
         success: true,
@@ -59,18 +94,6 @@ export async function POST(req: NextRequest) {
     );
     const room = roomResult.rows[0] as Record<string, unknown>;
 
-    // Get parent email if student
-    let parentEmail: string | undefined;
-    if (user.role === 'student') {
-      const profileResult = await db.query(
-        `SELECT parent_email FROM user_profiles WHERE email = $1`,
-        [user.id]
-      );
-      if (profileResult.rows.length > 0) {
-        parentEmail = (profileResult.rows[0] as Record<string, unknown>).parent_email as string | undefined;
-      }
-    }
-
     // If they have a pending invoice already, reuse it
     if (existing.invoiceId && existing.status === 'pending') {
       // Create payment order for existing invoice
@@ -78,7 +101,7 @@ export async function POST(req: NextRequest) {
         invoiceId: existing.invoiceId,
         amountPaise: fee.amountPaise,
         currency: fee.currency,
-        studentEmail: user.id,
+        studentEmail,
         studentName: user.name,
         description: `Session fee: ${room.room_name} (${room.subject})`,
       });
@@ -103,7 +126,7 @@ export async function POST(req: NextRequest) {
       roomId: room_id,
       roomName: room.room_name as string,
       subject: room.subject as string,
-      studentEmail: user.id,
+      studentEmail,
       parentEmail,
       amountPaise: fee.amountPaise,
       currency: fee.currency,
@@ -116,7 +139,7 @@ export async function POST(req: NextRequest) {
       invoiceId,
       amountPaise: fee.amountPaise,
       currency: fee.currency,
-      studentEmail: user.id,
+      studentEmail,
       studentName: user.name,
       description: `Session fee: ${room.room_name} (${room.subject})`,
     });

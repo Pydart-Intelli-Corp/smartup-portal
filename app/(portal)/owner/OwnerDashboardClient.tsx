@@ -148,14 +148,13 @@ function MoneyTooltip({ active, payload, label }: any) {
   );
 }
 
-type TabKey = 'overview' | 'classes' | 'finance' | 'approvals' | 'people';
+type TabKey = 'overview' | 'classes' | 'finance' | 'approvals';
 
 const TAB_DEF: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'overview',  label: 'Overview',  icon: LayoutDashboard },
   { key: 'classes',   label: 'Sessions',  icon: BookOpen },
   { key: 'finance',   label: 'Finance',   icon: IndianRupee },
   { key: 'approvals', label: 'Approvals', icon: CheckCircle2 },
-  { key: 'people',    label: 'People',    icon: Users },
 ];
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -292,9 +291,6 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
             fetchLeave={fetchLeave}
             handleLeaveAction={handleLeaveAction}
           />
-        )}
-        {tab === 'people' && (
-          <PeopleTab data={data} />
         )}
       </div>
     </DashboardShell>

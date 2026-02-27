@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // Fees & Invoices — Client Component
-// Uses shared UI components — no hardcoded colors or styles
+// Session-based fee model: per-session rates, not period billing
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -17,22 +17,23 @@ import {
   useToast, money,
 } from '@/components/dashboard/shared';
 import {
-  CreditCard, Receipt, FileText, Plus, Calendar,
+  CreditCard, Receipt, Plus,
   IndianRupee, Clock, AlertCircle, Download, ExternalLink,
-  Zap, CheckCircle, Send, Loader2,
+  CheckCircle, Send, Loader2, Settings,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────
 
-interface FeeStructure {
+interface SessionRate {
   id: string;
-  batch_type: string;
-  amount_paise: number;
+  batch_id: string | null;
+  batch_name: string | null;
+  subject: string | null;
+  grade: string | null;
+  per_hour_rate_paise: number;
   currency: string;
-  billing_period: string;
-  grade: string;
-  subject: string;
   is_active: boolean;
+  notes: string | null;
   created_at: string;
 }
 
@@ -59,25 +60,18 @@ interface Props {
 export default function FeesClient({ userName, userEmail, userRole }: Props) {
   const [tab, setTab] = useState('invoices');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [structures, setStructures] = useState<FeeStructure[]>([]);
+  const [rates, setRates] = useState<SessionRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
-
-  // Generate monthly state
-  const [genMonth, setGenMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [genResult, setGenResult] = useState<{ generated: number; skipped: number; errors: string[] } | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
-  // Create fee form
-  const [fName, setFName] = useState('one_to_one');
-  const [fAmount, setFAmount] = useState('');
-  const [fFreq, setFFreq] = useState('monthly');
-  const [fGrade, setFGrade] = useState('');
-  const [fSubject, setFSubject] = useState('');
+  // Add session rate form state
+  const [rSubject, setRSubject] = useState('');
+  const [rGrade, setRGrade] = useState('');
+  const [rRate, setRRate] = useState('');
+  const [rCurrency, setRCurrency] = useState('INR');
+  const [rNotes, setRNotes] = useState('');
+  const [rateError, setRateError] = useState('');
 
   const toast = useToast();
 
@@ -91,66 +85,46 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
     setLoading(false);
   }, []);
 
-  const fetchStructures = useCallback(async () => {
+  const fetchRates = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/payment/fee-structures');
+      const res = await fetch('/api/v1/payment/session-rates');
       const json = await res.json();
-      if (json.success) setStructures(json.data?.structures || json.data?.feeStructures || json.data?.fee_structures || []);
+      if (json.success) setRates(json.data?.rates || []);
     } catch (e) { console.error(e); }
   }, []);
 
-  useEffect(() => { fetchInvoices(); fetchStructures(); }, [fetchInvoices, fetchStructures]);
+  useEffect(() => { fetchInvoices(); fetchRates(); }, [fetchInvoices, fetchRates]);
 
-  const refresh = () => { fetchInvoices(); fetchStructures(); };
+  const refresh = () => { fetchInvoices(); fetchRates(); };
 
-  const generateMonthlyInvoices = async () => {
-    setGenerating(true);
-    setGenResult(null);
-    try {
-      const [year, month] = genMonth.split('-').map(Number);
-      const res = await fetch('/api/v1/payment/generate-monthly', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month, year }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setGenResult({ generated: json.data.generated, skipped: json.data.skipped, errors: json.data.errors || [] });
-        toast.success(`Generated ${json.data.generated} invoices`);
-        fetchInvoices();
-      } else {
-        setGenResult({ generated: 0, skipped: 0, errors: [json.error || 'Failed to generate'] });
-      }
-    } catch {
-      setGenResult({ generated: 0, skipped: 0, errors: ['Network error'] });
-    }
-    setGenerating(false);
-  };
-
-  const createStructure = async () => {
-    if (!fName || !fAmount) return;
+  const createRate = async () => {
+    if (!rRate) { setRateError('Per-hour rate is required'); return; }
+    const rateNum = Number(rRate);
+    if (isNaN(rateNum) || rateNum <= 0) { setRateError('Enter a valid positive rate'); return; }
+    setRateError('');
     setActing(true);
     try {
-      const res = await fetch('/api/v1/payment/fee-structures', {
+      const res = await fetch('/api/v1/payment/session-rates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          batch_type: fName,
-          amount_paise: Math.round(Number(fAmount) * 100),
-          currency: 'INR', billing_period: fFreq,
-          grade: fGrade || null, subject: fSubject || null,
+          per_hour_rate_paise: Math.round(rateNum * 100),
+          currency: rCurrency,
+          subject: rSubject || null,
+          grade: rGrade || null,
+          notes: rNotes || null,
         }),
       });
       const json = await res.json();
       if (json.success) {
-        setFName('one_to_one'); setFAmount(''); setFGrade(''); setFSubject('');
-        setTab('structures');
-        toast.success('Fee structure created');
-        fetchStructures();
+        setRSubject(''); setRGrade(''); setRRate(''); setRNotes('');
+        setTab('rates');
+        toast.success('Session rate created');
+        fetchRates();
       } else {
-        toast.error(json.error || 'Failed to create');
+        toast.error(json.error || 'Failed to create rate');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); toast.error('Network error'); }
     setActing(false);
   };
 
@@ -180,7 +154,7 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
-        <PageHeader icon={CreditCard} title="Fees & Invoices" subtitle="Manage fee structures and track payments">
+        <PageHeader icon={CreditCard} title="Fees & Invoices" subtitle="Per-session fee rates and payment tracking">
           <RefreshButton loading={loading} onClick={refresh} />
         </PageHeader>
 
@@ -194,106 +168,81 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
         {/* Tabs */}
         <TabBar
           tabs={[
-            { key: 'invoices', label: 'Invoices', icon: Receipt },
-            { key: 'structures', label: 'Fee Structures', icon: FileText },
-            { key: 'create', label: 'New Structure', icon: Plus },
-            { key: 'generate', label: 'Generate Monthly', icon: Calendar },
+            { key: 'invoices', label: 'Session Invoices', icon: Receipt },
+            { key: 'rates', label: 'Session Rates', icon: Settings },
+            { key: 'add-rate', label: 'Add Rate', icon: Plus },
           ]}
           active={tab}
           onChange={setTab}
         />
 
-        {/* Generate Monthly Invoices */}
-        {tab === 'generate' && (
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-5">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <Zap className="h-4 w-4 text-emerald-600" /> Generate Monthly Invoices
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Auto-generate invoices for all active students based on their fee structures.
-                Invoices already generated for the selected month will be skipped.
-              </p>
-            </div>
-            <div className="flex items-end gap-4">
-              <FormField label="Month">
-                <Input type="month" value={genMonth} onChange={e => setGenMonth(e.target.value)} />
-              </FormField>
-              <Button variant="primary" icon={Zap} onClick={generateMonthlyInvoices} loading={generating}>
-                {generating ? 'Generating…' : 'Generate Invoices'}
-              </Button>
-            </div>
-            {genResult && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-                <h4 className="text-sm font-semibold text-gray-900">Results</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center">
-                    <p className="text-2xl font-bold text-green-700">{genResult.generated}</p>
-                    <p className="text-xs text-gray-500">Invoices Generated</p>
-                  </div>
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center">
-                    <p className="text-2xl font-bold text-amber-700">{genResult.skipped}</p>
-                    <p className="text-xs text-gray-500">Already Existed (Skipped)</p>
-                  </div>
-                </div>
-                {genResult.errors.length > 0 && (
-                  <Alert variant="error" message={genResult.errors.join(', ')} />
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Create Fee Structure */}
-        {tab === 'create' && (
-          <FormPanel title="Create Fee Structure" icon={Plus} onClose={() => setTab('structures')}>
+        {/* Add Session Rate */}
+        {tab === 'add-rate' && (
+          <FormPanel title="Add Session Fee Rate" icon={Plus} onClose={() => setTab('rates')}>
+            <p className="text-xs text-gray-500 mb-4">
+              Set a per-hour rate for sessions. When a session runs for N minutes, the fee is calculated as
+              <span className="font-medium text-gray-700"> rate × (duration / 60)</span>.
+              Leave subject/grade blank to set a global default rate.
+            </p>
+            {rateError && <Alert variant="error" message={rateError} />}
             <FormGrid cols={3}>
-              <FormField label="Batch Type">
-                <Select value={fName} onChange={setFName} options={[
-                  { value: 'one_to_one', label: '1-to-1' },
-                  { value: 'one_to_three', label: '1-to-3' },
-                  { value: 'one_to_many', label: '1-to-Many' },
+              <FormField label="Per-Hour Rate (₹)">
+                <Input
+                  type="number"
+                  value={rRate}
+                  onChange={e => setRRate(e.target.value)}
+                  placeholder="e.g. 500"
+                />
+              </FormField>
+              <FormField label="Currency">
+                <Select value={rCurrency} onChange={setRCurrency} options={[
+                  { value: 'INR', label: '₹ INR' },
+                  { value: 'USD', label: '$ USD' },
                 ]} />
-              </FormField>
-              <FormField label="Amount (₹)">
-                <Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="5000" />
-              </FormField>
-              <FormField label="Billing Period">
-                <Select value={fFreq} onChange={setFFreq} options={[
-                  { value: 'monthly', label: 'Monthly' },
-                  { value: 'quarterly', label: 'Quarterly' },
-                  { value: 'yearly', label: 'Yearly' },
-                ]} />
-              </FormField>
-              <FormField label="Grade (optional)">
-                <Input value={fGrade} onChange={e => setFGrade(e.target.value)} placeholder="10th" />
               </FormField>
               <FormField label="Subject (optional)">
-                <Input value={fSubject} onChange={e => setFSubject(e.target.value)} placeholder="Mathematics" />
+                <Input value={rSubject} onChange={e => setRSubject(e.target.value)} placeholder="Mathematics" />
+              </FormField>
+              <FormField label="Grade (optional)">
+                <Input value={rGrade} onChange={e => setRGrade(e.target.value)} placeholder="10th" />
+              </FormField>
+              <FormField label="Notes (optional)" className="col-span-2">
+                <Input value={rNotes} onChange={e => setRNotes(e.target.value)} placeholder="e.g. Standard rate for 1-to-1 sessions" />
               </FormField>
             </FormGrid>
-            <FormActions onCancel={() => setTab('structures')} onSubmit={createStructure} submitLabel="Create Structure" submitDisabled={!fAmount} submitting={acting} />
+            <FormActions
+              onCancel={() => setTab('rates')}
+              onSubmit={createRate}
+              submitLabel="Save Rate"
+              submitDisabled={!rRate}
+              submitting={acting}
+            />
           </FormPanel>
         )}
 
-        {/* Fee Structures */}
-        {tab === 'structures' && (
-          structures.length === 0 ? (
-            <EmptyState icon={FileText} message="No fee structures yet" />
+        {/* Session Rates list */}
+        {tab === 'rates' && (
+          rates.length === 0 ? (
+            <EmptyState icon={Settings} message="No session rates configured yet. Add a rate to enable session fee collection." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {structures.map(s => (
-                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              {rates.map(r => (
+                <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900 text-sm">{s.batch_type}</h4>
-                    <Badge label={s.is_active ? 'Active' : 'Inactive'} variant={s.is_active ? 'success' : 'default'} />
+                    <h4 className="font-medium text-gray-900 text-sm">
+                      {r.subject ? r.subject : 'All Subjects'}
+                      {r.grade ? ` — Grade ${r.grade}` : ''}
+                    </h4>
+                    <Badge label={r.is_active ? 'Active' : 'Inactive'} variant={r.is_active ? 'success' : 'default'} />
                   </div>
-                  {s.batch_type && <p className="text-xs text-gray-500 mb-2 capitalize">{s.batch_type.replace(/_/g, '-')}</p>}
-                  <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                    <span className="text-green-700 font-semibold text-sm">{money(s.amount_paise, s.currency)}</span>
-                    <span className="capitalize">{s.billing_period.replace('_', ' ')}</span>
-                    {s.grade && <span>Grade: {s.grade}</span>}
-                    {s.subject && <span>Subject: {s.subject}</span>}
+                  <p className="text-green-700 font-semibold text-sm mb-2">
+                    {money(r.per_hour_rate_paise, r.currency)} / hour
+                  </p>
+                  <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                    <span>{r.currency}</span>
+                    {r.batch_name && <span>Batch: {r.batch_name}</span>}
+                    {r.notes && <span className="truncate max-w-xs">{r.notes}</span>}
+                    <span>{new Date(r.created_at).toLocaleDateString('en-IN')}</span>
                   </div>
                 </div>
               ))}
@@ -301,16 +250,17 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
           )
         )}
 
-        {/* Invoices */}
+        {/* Session Invoices */}
         {tab === 'invoices' && (
           loading ? (
             <LoadingState />
           ) : invoices.length === 0 ? (
-            <EmptyState icon={Receipt} message="No invoices found" />
+            <EmptyState icon={Receipt} message="No session invoices found" />
           ) : (
             <TableWrapper footer={<><span>Showing {invoices.length} invoices</span><span>{invoices.filter(i => i.status === 'paid').length} paid</span></>}>
               <THead>
                 <TH>Student</TH>
+                <TH>Description</TH>
                 <TH className="text-right">Amount</TH>
                 <TH className="text-center">Status</TH>
                 <TH>Due Date</TH>
@@ -324,6 +274,7 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
                       <span className="font-medium">{inv.student_name || inv.student_email}</span>
                       {inv.student_name && <span className="block text-gray-400">{inv.student_email}</span>}
                     </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{inv.description || '—'}</td>
                     <td className="px-4 py-3 text-right text-green-700 font-medium">{money(inv.amount_paise, inv.currency)}</td>
                     <td className="px-4 py-3 text-center"><StatusBadge status={inv.status} icon={inv.status === 'paid' ? CheckCircle : inv.status === 'overdue' ? AlertCircle : Clock} /></td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(inv.due_date).toLocaleDateString('en-IN')}</td>
