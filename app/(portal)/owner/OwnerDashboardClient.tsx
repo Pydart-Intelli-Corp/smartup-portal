@@ -186,7 +186,7 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
     try {
       const res = await fetch('/api/v1/teacher-leave');
       const json = await res.json();
-      if (json.success) setLeaveRequests(json.data || []);
+      if (json.success) setLeaveRequests(json.data?.requests || []);
     } catch { /* ignore */ } finally { setLeaveLoading(false); }
   }, []);
 
