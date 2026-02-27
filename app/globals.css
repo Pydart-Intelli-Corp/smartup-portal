@@ -311,8 +311,18 @@ html.classroom-active body {
 }
 
 /* Pseudo-fullscreen — extra iOS styling */
+html.classroom-fullscreen,
 html.classroom-fullscreen body {
-  min-height: 100dvh;
+  height: 100lvh !important;
+}
+
+/* Temporary override to allow scroll-trick (collapses Safari toolbar) */
+html.classroom-scroll-trick,
+html.classroom-scroll-trick body {
+  position: static !important;
+  height: auto !important;
+  min-height: calc(100vh + 100px) !important;
+  overflow: auto !important;
 }
 
 /* Prevent Safari tap highlight & callout in classroom */
@@ -346,4 +356,10 @@ html.classroom-fullscreen body {
 @keyframes sidebar-ring-spin {
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* iOS fullscreen tip animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }

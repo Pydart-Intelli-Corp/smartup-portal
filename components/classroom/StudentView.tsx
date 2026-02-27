@@ -118,6 +118,7 @@ export default function StudentView({
 
   // ── Student feedback ──
   const [showFeedback, setShowFeedback] = useState(false);
+  const feedbackShownRef = useRef(false);
 
   // ── 5-minute warning dialog ──
   const [showTimeWarning, setShowTimeWarning] = useState(false);
@@ -149,10 +150,12 @@ export default function StudentView({
   const [kbHeight, setKbHeight] = useState(0);
   const [vpHeight, setVpHeight] = useState(0);
   const [pseudoFs, setPseudoFs] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIOSTip, setShowIOSTip] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wakeLockRef = useRef<any>(null);
 
-  // ── detect mobile & iOS ──
+  // ── detect mobile & iOS & PWA standalone ──
   useEffect(() => {
     const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const ua = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -160,6 +163,10 @@ export default function StudentView({
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     setIsIOS(ios);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const standalone = (navigator as any).standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    setIsStandalone(standalone);
   }, []);
 
   // ── detect portrait ──
@@ -327,14 +334,31 @@ export default function StudentView({
           // iOS Safari / non-supporting browsers — pseudo-fullscreen
           setPseudoFs(true);
           document.documentElement.classList.add('classroom-fullscreen');
-          // Try to minimize Safari's address bar
-          window.scrollTo(0, 1);
+
+          if (isIOS) {
+            // Scroll trick: temporarily allow scrolling to trigger Safari toolbar collapse
+            document.documentElement.classList.add('classroom-scroll-trick');
+            await new Promise(r => setTimeout(r, 60));
+            window.scrollTo({ top: 60, behavior: 'instant' as ScrollBehavior });
+            await new Promise(r => setTimeout(r, 400));
+            document.documentElement.classList.remove('classroom-scroll-trick');
+            window.scrollTo(0, 0);
+
+            // Show home-screen tip (only in Safari, not in PWA standalone)
+            if (!isStandalone) {
+              setShowIOSTip(true);
+              setTimeout(() => setShowIOSTip(false), 8000);
+            }
+          } else {
+            window.scrollTo(0, 1);
+          }
         }
       } else {
         // ── EXIT fullscreen ──
         if (pseudoFs) {
           setPseudoFs(false);
           document.documentElement.classList.remove('classroom-fullscreen');
+          setShowIOSTip(false);
         } else {
           if (isMobile) unlockOrientation();
           if (document.exitFullscreen) await document.exitFullscreen();
@@ -344,7 +368,7 @@ export default function StudentView({
       }
     } catch {}
     showOverlay();
-  }, [showOverlay, isMobile, pseudoFs, lockLandscape, unlockOrientation]);
+  }, [showOverlay, isMobile, isIOS, isStandalone, pseudoFs, lockLandscape, unlockOrientation]);
 
   // keep overlays visible while dialog or chat is open
   useEffect(() => {
@@ -533,8 +557,7 @@ export default function StudentView({
     } catch {}
   }, [localParticipant, showToast]);
 
-  const { message: mediaCtrlMsg } = useDataChannel('media_control', onMediaControl);
-  useEffect(() => { if (mediaCtrlMsg) onMediaControl(mediaCtrlMsg); }, [mediaCtrlMsg, onMediaControl]);
+  useDataChannel('media_control', onMediaControl);
 
   // ── Leave approval system ──
   // Student sends leave_request → teacher approves/denies → leave_control response
@@ -550,7 +573,10 @@ export default function StudentView({
         showToast('Teacher approved — please rate your session');
         setShowLeaveDialog(false);
         setLeaveRequestPending(false);
-        setShowFeedback(true); // Show feedback dialog before leaving
+        if (!feedbackShownRef.current) {
+          feedbackShownRef.current = true;
+          setShowFeedback(true); // Show feedback dialog before leaving
+        }
       } else {
         setLeaveRequestPending(false);
         setLeaveDenied(true);
@@ -560,8 +586,7 @@ export default function StudentView({
     } catch {}
   }, [localParticipant, showToast]);
 
-  const { message: leaveCtrlMsg } = useDataChannel('leave_control', onLeaveControl);
-  useEffect(() => { if (leaveCtrlMsg) onLeaveControl(leaveCtrlMsg); }, [leaveCtrlMsg, onLeaveControl]);
+  useDataChannel('leave_control', onLeaveControl);
 
   // ── Rejoin approval system ──
   // When student is rejoining (isRejoin=true), they are blocked until teacher approves.
@@ -586,8 +611,7 @@ export default function StudentView({
     } catch {}
   }, [localParticipant, showToast, onLeave]);
 
-  const { message: rejoinCtrlMsg } = useDataChannel('rejoin_control', onRejoinControl);
-  useEffect(() => { if (rejoinCtrlMsg) onRejoinControl(rejoinCtrlMsg); }, [rejoinCtrlMsg, onRejoinControl]);
+  useDataChannel('rejoin_control', onRejoinControl);
 
   // Auto-send rejoin_request once connected
   useEffect(() => {
@@ -1086,6 +1110,23 @@ export default function StudentView({
           </button>
         </div>
       </div>
+
+      {/* iOS fullscreen tip — shown when pseudo-fullscreen is active in Safari */}
+      {showIOSTip && (
+        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[9999]"
+          style={{ animation: 'fadeInUp .3s ease-out' }}>
+          <div className="bg-white/95 text-gray-800 rounded-2xl px-4 py-3 shadow-xl text-center max-w-[280px] backdrop-blur-sm">
+            <p className="font-semibold text-xs mb-1">📱 Full Screen Tip</p>
+            <p className="text-[11px] text-gray-500 leading-tight">
+              Tap <span className="text-blue-500 font-medium">⬆ Share</span> → <span className="font-medium">&quot;Add to Home Screen&quot;</span> for true fullscreen
+            </p>
+            <button onClick={() => setShowIOSTip(false)}
+              className="mt-2 text-[10px] text-blue-500 font-medium active:text-blue-700">
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* === LAYER 3 — Panels & dialogs === */}
 

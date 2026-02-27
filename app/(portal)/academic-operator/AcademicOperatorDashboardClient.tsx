@@ -4759,9 +4759,9 @@ function CreateBatchWizard({ batches, userRole, userEmail, onClose, onCreated }:
    ═══════════════════════════════════════════════════════════════ */
 
 const SEVERITY_STYLE: Record<string, { border: string; bg: string; text: string }> = {
-  critical: { border: 'border-red-700', bg: 'bg-red-950/40', text: 'text-red-400' },
-  warning:  { border: 'border-amber-700', bg: 'bg-amber-950/40', text: 'text-amber-400' },
-  info:     { border: 'border-blue-700', bg: 'bg-blue-950/40', text: 'text-blue-400' },
+  critical: { border: 'border-red-200', bg: 'bg-red-50', text: 'text-red-600' },
+  warning:  { border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-600' },
+  info:     { border: 'border-blue-200', bg: 'bg-blue-50', text: 'text-blue-600' },
 };
 
 function AOMonitoringTab({ alerts, loading, onRefresh }: {
@@ -4799,7 +4799,7 @@ function AOMonitoringTab({ alerts, loading, onRefresh }: {
                 <AlertTriangle className={`h-4 w-4 ${sty.text}`} />
                 <span className={`text-2xl font-bold ${sty.text}`}>{count}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1 capitalize">{sev}</p>
+              <p className="text-[10px] text-gray-500 mt-1 capitalize">{sev}</p>
             </div>
           );
         })}
@@ -4808,20 +4808,20 @@ function AOMonitoringTab({ alerts, loading, onRefresh }: {
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)}
-          className="rounded-lg border border-border bg-muted px-2 py-1.5 text-xs text-foreground">
+          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900">
           <option value="all">All Severity</option>
           <option value="critical">Critical</option>
           <option value="warning">Warning</option>
           <option value="info">Info</option>
         </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)}
-          className="rounded-lg border border-border bg-muted px-2 py-1.5 text-xs text-foreground">
+          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900">
           <option value="all">All Types</option>
           {types.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
         </select>
         <div className="flex-1" />
         <button onClick={onRefresh}
-          className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+          className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:text-gray-900">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
@@ -4844,14 +4844,14 @@ function AOMonitoringTab({ alerts, loading, onRefresh }: {
                       <span className={`text-sm font-semibold ${sty.text}`}>{alert.title}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${sty.text}`}>{alert.severity}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{alert.message}</p>
-                    <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                    <p className="text-xs text-gray-500 mt-1">{alert.message}</p>
+                    <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500">
                       {alert.target_email && <span>{alert.target_email}</span>}
                       <span>{new Date(alert.created_at).toLocaleString()}</span>
                     </div>
                   </div>
                   <button onClick={() => dismissAlert(alert.id)}
-                    className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground shrink-0">
+                    className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-500 hover:text-gray-900 shrink-0">
                     <XCircle className="h-3 w-3" /> Dismiss
                   </button>
                 </div>
@@ -4904,11 +4904,11 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <button onClick={() => setView('sessions')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition
-            ${view === 'sessions' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+            ${view === 'sessions' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-900'}`}>
             <CalendarClock className="h-4 w-4" />Session Requests{pendingSessionCount > 0 && <Badge label={String(pendingSessionCount)} variant="warning" />}
           </button>
           <button onClick={() => setView('leave')} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition
-            ${view === 'leave' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+            ${view === 'leave' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-900'}`}>
             <Briefcase className="h-4 w-4" />Teacher Leave{pendingLeaveCount > 0 && <Badge label={String(pendingLeaveCount)} variant="warning" />}
           </button>
         </div>
@@ -4922,14 +4922,14 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
         ) : (
           <div className="space-y-3">
             {sessionRequests.map(r => (
-              <div key={r.id} className="rounded-xl border border-border bg-card p-4">
+              <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg
-                      ${r.request_type === 'cancel' ? 'bg-red-100 dark:bg-red-950/30' : 'bg-blue-100 dark:bg-blue-950/30'}`}>
+                      ${r.request_type === 'cancel' ? 'bg-red-100' : 'bg-blue-100'}`}>
                       {r.request_type === 'cancel'
-                        ? <Ban className="h-4.5 w-4.5 text-red-600 dark:text-red-400" />
-                        : <CalendarClock className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+                        ? <Ban className="h-4.5 w-4.5 text-red-600" />
+                        : <CalendarClock className="h-4.5 w-4.5 text-blue-600" />
                       }
                     </div>
                     <div className="min-w-0">
@@ -4938,19 +4938,19 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
                         <StatusBadge status={r.status} />
                         <Badge label={r.requester_role} variant="secondary" />
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-gray-500">
                         By <span className="font-medium">{r.requester_name || r.requester_email}</span>
                         {r.batch_name && ` · ${r.batch_name}`}
                         {r.subject && ` · ${r.subject}`}
                         {r.session_date && ` · ${new Date(r.session_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`}
                       </p>
                       {r.proposed_date && <p className="text-xs text-blue-500 mt-0.5">Proposed: {r.proposed_date}{r.proposed_time ? ` at ${r.proposed_time}` : ''}</p>}
-                      <p className="text-xs text-muted-foreground/70 mt-0.5">{r.reason}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{r.reason}</p>
                       {r.rejection_reason && <p className="text-xs text-red-500 mt-1">Rejected: {r.rejection_reason}</p>}
                     </div>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
-                    <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString('en-IN')}</p>
+                    <p className="text-[10px] text-gray-500">{new Date(r.created_at).toLocaleDateString('en-IN')}</p>
                     {r.status === 'pending' && (
                       <div className="flex gap-1.5">
                         <button disabled={actionId === r.id} onClick={() => handleAction('session', r.id, 'approve')}
@@ -4960,13 +4960,13 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
                         {showReject === r.id ? (
                           <div className="flex items-center gap-1">
                             <input placeholder="Reason…" value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                              className="w-32 rounded border border-border bg-background px-2 py-1 text-[11px]" />
+                              className="w-32 rounded border border-gray-200 bg-white px-2 py-1 text-[11px]" />
                             <button disabled={actionId === r.id || !rejectReason} onClick={() => handleAction('session', r.id, 'reject', rejectReason)}
                               className="rounded bg-red-600 px-2 py-1 text-[11px] text-white font-medium hover:bg-red-700 disabled:opacity-50">Go</button>
                           </div>
                         ) : (
                           <button onClick={() => setShowReject(r.id)}
-                            className="flex items-center gap-1 rounded-lg border border-red-600/50 px-2.5 py-1 text-[11px] text-red-500 font-medium hover:bg-red-50 dark:hover:bg-red-950/20 transition">
+                            className="flex items-center gap-1 rounded-lg border border-red-600/50 px-2.5 py-1 text-[11px] text-red-500 font-medium hover:bg-red-50 transition">
                             <XCircle className="h-3 w-3" />Reject
                           </button>
                         )}
@@ -4985,11 +4985,11 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
         ) : (
           <div className="space-y-3">
             {leaveRequests.map(lr => (
-              <div key={lr.id} className="rounded-xl border border-border bg-card p-4">
+              <div key={lr.id} className="rounded-xl border border-gray-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-950/30">
-                      <Briefcase className="h-4.5 w-4.5 text-orange-600 dark:text-orange-400" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100">
+                      <Briefcase className="h-4.5 w-4.5 text-orange-600" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -4997,11 +4997,11 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
                         <Badge label={lr.leave_type} variant="secondary" />
                         <StatusBadge status={lr.status} />
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-gray-500">
                         {new Date(lr.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(lr.end_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         {lr.affected_sessions?.length > 0 && ` · ${lr.affected_sessions.length} sessions affected`}
                       </p>
-                      <p className="text-xs text-muted-foreground/70 mt-0.5">{lr.reason}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{lr.reason}</p>
                       <div className="flex items-center gap-3 mt-1 text-[10px]">
                         <span className={lr.ao_status === 'approved' ? 'text-green-500' : lr.ao_status === 'rejected' ? 'text-red-500' : 'text-yellow-500'}>
                           AO: {lr.ao_status}
@@ -5010,7 +5010,7 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
                     </div>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
-                    <p className="text-[10px] text-muted-foreground">{new Date(lr.created_at).toLocaleDateString('en-IN')}</p>
+                    <p className="text-[10px] text-gray-500">{new Date(lr.created_at).toLocaleDateString('en-IN')}</p>
                     {lr.ao_status === 'pending' && (
                       <div className="flex gap-1.5">
                         <button disabled={actionId === lr.id} onClick={() => handleAction('leave', lr.id, 'approve')}
@@ -5020,13 +5020,13 @@ function AORequestsTab({ sessionRequests, leaveRequests, loadingRequests, loadin
                         {showReject === lr.id ? (
                           <div className="flex items-center gap-1">
                             <input placeholder="Reason…" value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                              className="w-32 rounded border border-border bg-background px-2 py-1 text-[11px]" />
+                              className="w-32 rounded border border-gray-200 bg-white px-2 py-1 text-[11px]" />
                             <button disabled={actionId === lr.id || !rejectReason} onClick={() => handleAction('leave', lr.id, 'reject', rejectReason)}
                               className="rounded bg-red-600 px-2 py-1 text-[11px] text-white font-medium hover:bg-red-700 disabled:opacity-50">Go</button>
                           </div>
                         ) : (
                           <button onClick={() => setShowReject(lr.id)}
-                            className="flex items-center gap-1 rounded-lg border border-red-600/50 px-2.5 py-1 text-[11px] text-red-500 font-medium hover:bg-red-50 dark:hover:bg-red-950/20 transition">
+                            className="flex items-center gap-1 rounded-lg border border-red-600/50 px-2.5 py-1 text-[11px] text-red-500 font-medium hover:bg-red-50 transition">
                             <XCircle className="h-3 w-3" />Reject
                           </button>
                         )}

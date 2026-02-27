@@ -19,6 +19,11 @@ export const metadata: Metadata = {
     icon: '/logo/main.png',
     apple: '/logo/main.png',
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'SmartUp',
+  },
 };
 
 export const viewport: Viewport = {
