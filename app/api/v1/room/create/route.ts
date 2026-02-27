@@ -125,12 +125,20 @@ export async function POST(request: NextRequest) {
     const defaultOpenAt = open_at || new Date(scheduledDate.getTime() - 15 * 60 * 1000).toISOString(); // 15 min before
     const defaultExpiresAt = expires_at || new Date(scheduledDate.getTime() + resolvedDuration * 60 * 1000 + 30 * 60 * 1000).toISOString(); // duration + 30 min buffer
 
+    // Resolve coordinator_email: from batch, or from caller if coordinator, or creator
+    let coordinatorEmail = user.id; // default to creator
+    if (batch_id) {
+      const batchRow = await db.query('SELECT coordinator_email FROM batches WHERE batch_id = $1', [batch_id]);
+      if (batchRow.rows[0]?.coordinator_email) coordinatorEmail = batchRow.rows[0].coordinator_email;
+    }
+    if (user.role === 'batch_coordinator') coordinatorEmail = user.id;
+
     // Insert room into database
     const result = await db.query(
-      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, max_participants, status, scheduled_start, duration_minutes, open_at, expires_at, batch_id, batch_session_id, created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, max_participants, status, scheduled_start, duration_minutes, open_at, expires_at, batch_id, batch_session_id, coordinator_email, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
        RETURNING *`,
-      [room_id, room_name, teacher_email || null, subject || null, grade || null, section || null, resolvedBatchType, batchMaxParticipants, scheduledDate.toISOString(), resolvedDuration, defaultOpenAt, defaultExpiresAt, batch_id || null, batch_session_id || null, user.id]
+      [room_id, room_name, teacher_email || null, subject || null, grade || null, section || null, resolvedBatchType, batchMaxParticipants, scheduledDate.toISOString(), resolvedDuration, defaultOpenAt, defaultExpiresAt, batch_id || null, batch_session_id || null, coordinatorEmail, user.id]
     );
 
     // Ensure the room exists on LiveKit server
