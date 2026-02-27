@@ -51,18 +51,18 @@ export interface NavItemConfig {
 /* ── Per-role nav definitions ── */
 
 const OWNER_NAV: NavItemConfig[] = [
-  { label: 'Overview',        href: '/owner',          icon: LayoutDashboard },
-  { label: 'Teachers',        href: '/owner/teachers', icon: BookOpen },
-  { label: 'Roles',           href: '/owner/roles',    icon: UserCog },
-  { label: 'HR',              href: '/owner/hr',       icon: Briefcase },
+  { label: 'Overview',        href: '/owner',                   icon: LayoutDashboard },
+  { label: 'Batches',         href: '/owner/batches',           icon: Database },
   { label: 'Academic Ops',    href: '/owner/academic-operator', icon: Calendar },
-  { label: 'Batches',         href: '/owner/batches',  icon: Database },
-  { label: 'Users & HR',      href: '/owner/users',    icon: Users },
-  { label: 'Fees & Payments', href: '/owner/fees',     icon: CreditCard },
-  { label: 'Reports',         href: '/owner/reports',  icon: BarChart3 },
-  { label: 'Exams',           href: '/owner/exams',    icon: BookOpen },
-  { label: 'Ghost Mode',      href: '/ghost',          icon: Eye },
-  { label: 'System',          href: '/owner/system',   icon: Shield },
+  { label: 'Teachers',        href: '/owner/teachers',          icon: GraduationCap },
+  { label: 'HR',              href: '/owner/hr',                icon: Briefcase },
+  { label: 'User List',       href: '/owner/users',             icon: Users },
+  { label: 'Roles',           href: '/owner/roles',             icon: UserCog },
+  { label: 'Fees & Payments', href: '/owner/fees',              icon: CreditCard },
+  { label: 'Exams',           href: '/owner/exams',             icon: Award },
+  { label: 'Reports',         href: '/owner/reports',           icon: BarChart3 },
+  { label: 'Ghost Mode',      href: '/ghost',                   icon: Eye },
+  { label: 'System',          href: '/owner/system',            icon: Shield },
 ];
 
 const BATCH_COORDINATOR_NAV: NavItemConfig[] = [
