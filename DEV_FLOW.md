@@ -6,8 +6,8 @@
 **Teacher App:** `G:\smartup\smartup-teacher`  
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
-**Last Updated:** February 26, 2026  
-**Latest Commit:** Owner dashboard: comprehensive 5-tab command center (Overview/Classes/Finance/Approvals/People) with 17-query API, charts, live monitoring, leave approvals, revenue tracking
+**Last Updated:** February 27, 2026  
+**Latest Commit:** Full system audit: catch-up migration 032 (9 missing tables, 10 column fixes), HR attendance ambiguous-status fix, payroll column name alignment, owner dashboard display_name fix — all 29 API endpoints now passing 100%
 
 ---
 

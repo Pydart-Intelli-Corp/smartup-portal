@@ -1,8 +1,59 @@
 ﻿# SmartUp Portal — Task Tracker
 
-## Phase: Session Management, Leave, LiveKit & Ghost Monitoring
+## Phase: Full System Audit & Schema Alignment (Feb 27, 2026)
 
-### Session Requests & Student Availability
+### System Health Audit
+- [x] Read and map workflow.json institutional spec (337 lines, 12 sections + extras)
+- [x] Complete project audit (100 API routes, 146 handlers, 31 pages, 50 tables)
+- [x] Production health check (DB/Redis/LiveKit all ok)
+- [x] Test 29 API endpoints on production — 19 PASS, 10 FAIL (500 errors)
+- [x] Diagnose all 10 failures to root causes
+
+### Migration 032: Catch-Up Schema
+- [x] Create 9 missing tables (admission_requests, rejoin_requests, session_config, class_monitoring_events, monitoring_alerts, monitoring_reports, session_requests, student_availability, teacher_leave_requests)
+- [x] Add 6 missing columns to rooms (batch_type, class_portion, class_remarks, created_by, batch_id, batch_session_id)
+- [x] Add 4 columns to attendance_sessions (mic_off_count, camera_off_count, leave_request_count, attention_avg)
+- [x] Rename payslips columns: loss_of_pay_paise→lop_paise, total_pay_paise→total_paise
+- [x] Update constraints: room_events, email_log, generated_reports, attendance_logs
+- [x] Record 11 unapplied migrations as applied
+
+### Code Bug Fixes
+- [x] HR attendance: ambiguous `status` column in JOINed queries → prefix with `a.`
+- [x] Owner dashboard: `display_name` → `full_name` on portal_users (2 queries)
+- [x] Payroll: `pp.start_date` → `pp.period_start`, `pp.end_date` → `pp.period_end` (4 locations)
+
+### Deployment & Verification
+- [x] Apply migration 032 to production via SSH
+- [x] Deploy code fixes (2 commits, 0 TS errors)
+- [x] Retest all 29 endpoints — **29 PASS / 0 FAIL** ✅
+
+### Gap Analysis Report
+- [x] Compare workflow.json spec vs actual implementation
+- [x] Generate detailed gap analysis at portal_dev/GAP_ANALYSIS.md
+- [x] Results: 27 fully implemented, 10 partial, 4 missing
+
+---
+
+## Remaining Gaps (Priority Order)
+
+### ❌ Missing Features
+- [ ] Website integration: Public enquiry form → admission pipeline
+- [ ] Role-based theming: Per-role accent colors (all roles currently share green theme)
+
+### ⚠️ Partial Features
+- [ ] AI-generated reports: Current reports are algorithmic, not LLM-powered narrative
+- [ ] Offline marks entry UI: API supports it, no dedicated teacher form
+- [ ] Parent fees tab: API exists, parent dashboard nav missing fees link
+- [ ] Student preferred timing UI: session-requests + availability APIs exist, no student form
+- [ ] Mobile responsive audit: Desktop-first design, needs responsive testing
+- [ ] Automated batch allocation: Manual allocation only in admission workflow
+- [ ] "Batch" terminology: UI uses "Batch" but DB/API still uses "room" internally
+
+---
+
+## Previous Phases
+
+### Phase: Session Management, Leave, LiveKit & Ghost Monitoring
 - [x] Migration 029: session_requests, student_availability, teacher_leave_requests tables + rooms.batch_id/batch_session_id
 - [x] API: /api/v1/session-requests — GET/POST with approve/reject/withdraw
 - [x] API: /api/v1/student-availability — GET/POST with bulk_replace
