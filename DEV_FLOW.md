@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** `561e49d` — Fix payment verification: completePayment() now updates session_payments.status to 'paid', room_assignments payment_status update widened, Razorpay checkout.js script strategy changed from lazyOnload to afterInteractive (fixes mobile).
+**Latest Commit:** `fe6e270` — Fix feedback double-show, end-session 500, coordinator+AO theme rewrite, razorpay live mode, iOS fullscreen.
 
 ---
 

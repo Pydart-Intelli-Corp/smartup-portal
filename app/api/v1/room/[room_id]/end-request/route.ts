@@ -182,13 +182,15 @@ export async function GET(
     else if (eventType === 'end_class_approved') status = 'approved';
     else if (eventType === 'end_class_denied') status = 'denied';
 
-    return NextResponse.json<ApiResponse<{ status: string; reason?: string; decided_by?: string }>>(
+    return NextResponse.json<ApiResponse<{ status: string; reason?: string; decided_by?: string; teacher_name?: string; requested_at?: string }>>(
       {
         success: true,
         data: {
           status,
           reason: payload.reason || payload.deny_reason || undefined,
           decided_by: payload.decided_by || undefined,
+          teacher_name: payload.teacher_name || undefined,
+          requested_at: payload.requested_at || (latest.created_at ? String(latest.created_at) : undefined),
         },
       }
     );

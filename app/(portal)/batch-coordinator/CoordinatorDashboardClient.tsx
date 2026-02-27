@@ -138,9 +138,10 @@ type TabId = 'overview' | 'batches' | 'sessions' | 'monitoring' | 'reports' | 's
    HELPERS
     */
 
-function effectiveStatus(room: { status: string; scheduled_start: string; duration_minutes: number }): string {
+function effectiveStatus(room: { status: string; scheduled_start: string; duration_minutes: number; go_live_at?: string | null }): string {
   if (room.status === 'live') {
-    const endMs = new Date(room.scheduled_start).getTime() + room.duration_minutes * 60_000;
+    const start = room.go_live_at ? new Date(room.go_live_at).getTime() : new Date(room.scheduled_start).getTime();
+    const endMs = start + room.duration_minutes * 60_000;
     if (Date.now() >= endMs) return 'ended';
   }
   return room.status;
@@ -232,7 +233,8 @@ export default function CoordinatorDashboardClient({
       const res = await fetch('/api/v1/coordinator/rooms');
       const data = await res.json();
       if (!data.success) return;
-      const liveRooms = (data.data?.rooms || []).filter((r: Room) => effectiveStatus(r) === 'live');
+      // Also include rooms the DB says are live even if effectiveStatus says ended
+      const liveRooms = (data.data?.rooms || []).filter((r: Room) => r.status === 'live' || effectiveStatus(r) === 'live');
       const requests: { room_id: string; room_name: string; teacher_name: string; reason: string; requested_at: string }[] = [];
       await Promise.all(liveRooms.map(async (r: Room) => {
         try {
@@ -242,12 +244,12 @@ export default function CoordinatorDashboardClient({
             requests.push({
               room_id: r.room_id,
               room_name: r.room_name,
-              teacher_name: r.teacher_email || 'Teacher',
+              teacher_name: reqData.data.teacher_name || r.teacher_email || 'Teacher',
               reason: reqData.data.reason || '',
               requested_at: reqData.data.requested_at || new Date().toISOString(),
             });
           }
-        } catch {}
+        } catch (e) { console.error(`[end-request] Failed to check room ${r.room_id}:`, e); }
       }));
       setEndClassRequests(requests);
     } catch (err) { console.error('Failed to fetch end-class requests:', err); }
@@ -265,7 +267,7 @@ export default function CoordinatorDashboardClient({
     } catch (err) { console.error('Failed to process end-class decision:', err); }
   }, [fetchRooms]);
 
-  useEffect(() => { fetchRooms(); fetchAlerts(); fetchEndClassRequests(); }, [fetchRooms, fetchAlerts]);
+  useEffect(() => { fetchRooms(); fetchAlerts(); fetchEndClassRequests(); }, [fetchRooms, fetchAlerts, fetchEndClassRequests]);
 
   useEffect(() => {
     if (activeTab === 'students' && perfStudents.length === 0) fetchPerformance();

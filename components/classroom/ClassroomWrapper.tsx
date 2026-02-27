@@ -360,6 +360,8 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
           roomName={roomName}
           observerName={participantName}
           observerRole={role}
+          scheduledStart={scheduledStart}
+          durationMinutes={durationMinutes}
           onLeave={handleLeave}
         />
       ) : (
