@@ -1,4 +1,10 @@
-import { Pool, type PoolClient, type QueryResult } from 'pg';
+import { Pool, type PoolClient, type QueryResult, types } from 'pg';
+
+// Return DATE (1082) and TIME (1083) columns as plain strings instead of
+// JavaScript Date/string objects so template literals like
+// `${row.scheduled_date}T${row.start_time}+05:30` work correctly.
+types.setTypeParser(1082, (val: string) => val); // DATE  → "YYYY-MM-DD"
+types.setTypeParser(1083, (val: string) => val); // TIME  → "HH:MM:SS"
 
 /**
  * PostgreSQL client singleton with connection pooling.

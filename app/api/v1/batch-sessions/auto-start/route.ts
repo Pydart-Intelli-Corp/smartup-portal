@@ -79,7 +79,13 @@ export async function POST(req: NextRequest) {
 
         // 2b. Bridge to rooms table so ghost/coordinator systems see this session
         // Use +05:30 so the timestamp is stored as IST in UTC-normalised form
-        const scheduledStart = new Date(`${session.scheduled_date}T${session.start_time}+05:30`);
+        // scheduled_date is a plain "YYYY-MM-DD" string (type parser set in db.ts)
+        // start_time is a plain "HH:MM:SS" string — slice to HH:MM for safety
+        const rawDate = typeof session.scheduled_date === 'object'
+          ? (session.scheduled_date as Date).toISOString().slice(0, 10)
+          : (session.scheduled_date as string).slice(0, 10);
+        const rawTime = (session.start_time as string).slice(0, 5);
+        const scheduledStart = new Date(`${rawDate}T${rawTime}+05:30`);
         const durationMins = Number(session.duration_minutes) || 90;
         await db.query(
           `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, status,
