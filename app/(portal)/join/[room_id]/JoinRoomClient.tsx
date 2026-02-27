@@ -275,7 +275,7 @@ export default function JoinRoomClient({
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => setRazorpayLoaded(true)}
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
 
       <div className="flex min-h-screen items-center justify-center bg-background p-4">

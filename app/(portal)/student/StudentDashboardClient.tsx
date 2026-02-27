@@ -1223,7 +1223,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
 
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="lazyOnload" />
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="afterInteractive" />
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <PageHeader

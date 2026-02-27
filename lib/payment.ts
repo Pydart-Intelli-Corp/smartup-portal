@@ -224,9 +224,16 @@ export async function completePayment(invoiceId: string, paymentId: string, paym
 
     // Update all pending room_assignments for this student to 'paid'
     await client.query(
-      `UPDATE room_assignments SET payment_status = 'paid'
-       WHERE participant_email = $1 AND payment_status IN ('unpaid', 'unknown')`,
+      `UPDATE room_assignments SET payment_status = 'paid', payment_verified = true
+       WHERE participant_email = $1 AND payment_status != 'paid'`,
       [invoice.student_email]
+    );
+
+    // Update session_payments for this invoice to 'paid'
+    await client.query(
+      `UPDATE session_payments SET status = 'paid'
+       WHERE invoice_id = $1`,
+      [invoiceId]
     );
 
     // Log payment event

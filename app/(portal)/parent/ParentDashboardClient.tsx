@@ -498,7 +498,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
 
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="lazyOnload" />
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="afterInteractive" />
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Parent Dashboard</h1>
         <p className="text-sm text-muted-foreground">Monitor your child&apos;s sessions, progress, and fees</p>
