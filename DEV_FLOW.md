@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 26, 2026  
-**Latest Commit:** Payment system live (Razorpay, 4 payment email templates, student pay, owner reminders, overdue auto-detect, API fixes)
+**Latest Commit:** Owner dashboard: comprehensive 5-tab command center (Overview/Classes/Finance/Approvals/People) with 17-query API, charts, live monitoring, leave approvals, revenue tracking
 
 ---
 
