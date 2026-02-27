@@ -135,7 +135,9 @@ export async function GET(
   <div class="page">
     <div class="header">
       <div style="display:flex;align-items:center;gap:14px;">
-        <img src="/logo/full.png" alt="SmartUp" width="48" height="48" style="border-radius:10px;" />
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; padding:5px; display:inline-flex; align-items:center; justify-content:center; line-height:0;">
+          <img src="/logo/full.png" alt="SmartUp" height="40" style="width:auto; display:block; border-radius:6px;" />
+        </div>
         <div>
           <h1>SmartUp Academy</h1>
           <div class="subtitle">Education Management System</div>

@@ -28,8 +28,8 @@ function masterLayout(body: string, recipientEmail: string): string {
                 <td style="vertical-align:middle;">
                   <table cellpadding="0" cellspacing="0" border="0"><tr>
                     <td style="vertical-align:middle; padding-right:12px;">
-                      <div style="width:44px; height:44px; background-color:rgba(255,255,255,0.2); border-radius:10px; display:table-cell; vertical-align:middle; text-align:center;">
-                        <img src="https://smartuplearning.online/logo/full.png" alt="S" width="44" height="44" style="display:block; border-radius:10px;" />
+                      <div style="background-color:#ffffff; border-radius:10px; padding:5px; display:inline-block; line-height:0;">
+                        <img src="https://smartuplearning.online/logo/full.png" alt="SmartUp" height="36" style="display:block; width:auto; border-radius:6px;" />
                       </div>
                     </td>
                     <td style="vertical-align:middle;">
