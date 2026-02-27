@@ -94,13 +94,8 @@ export async function GET(
          e.total_marks,
          e.passing_marks,
          ea.score,
-         ea.total_questions,
+         ea.percentage,
          ea.status AS attempt_status,
-         CASE
-           WHEN ea.total_questions > 0
-           THEN ROUND((ea.score::numeric / ea.total_marks) * 100, 1)
-           ELSE NULL
-         END AS percentage,
          ea.submitted_at
        FROM exam_attempts ea
        JOIN exams e ON e.id = ea.exam_id
