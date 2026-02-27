@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     let coordinatorEmail = user.id; // default to creator
     if (batch_id) {
       const batchRow = await db.query('SELECT coordinator_email FROM batches WHERE batch_id = $1', [batch_id]);
-      if (batchRow.rows[0]?.coordinator_email) coordinatorEmail = batchRow.rows[0].coordinator_email;
+      if (batchRow.rows[0]?.coordinator_email) coordinatorEmail = batchRow.rows[0].coordinator_email as string;
     }
     if (user.role === 'batch_coordinator') coordinatorEmail = user.id;
 
