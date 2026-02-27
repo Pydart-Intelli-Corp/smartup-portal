@@ -98,6 +98,15 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
+  // ── Reject sessions scheduled in the past (IST) ──────────
+  const sessionDateTimeIST = new Date(`${scheduled_date}T${(start_time as string).slice(0, 5)}+05:30`);
+  if (sessionDateTimeIST < new Date()) {
+    return NextResponse.json({
+      success: false,
+      error: 'Cannot schedule a session in the past. Please select a future date and time (IST).',
+    }, { status: 400 });
+  }
+
   // Verify batch exists and caller has access
   const batchRes = await db.query('SELECT * FROM batches WHERE batch_id = $1', [batch_id]);
   if (batchRes.rows.length === 0) {

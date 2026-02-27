@@ -78,7 +78,8 @@ export async function POST(req: NextRequest) {
         );
 
         // 2b. Bridge to rooms table so ghost/coordinator systems see this session
-        const scheduledStart = new Date(`${session.scheduled_date}T${session.start_time}`);
+        // Use +05:30 so the timestamp is stored as IST in UTC-normalised form
+        const scheduledStart = new Date(`${session.scheduled_date}T${session.start_time}+05:30`);
         const durationMins = Number(session.duration_minutes) || 90;
         await db.query(
           `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, status,

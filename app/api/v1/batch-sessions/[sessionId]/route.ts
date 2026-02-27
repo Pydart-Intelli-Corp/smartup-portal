@@ -123,6 +123,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ se
     }, { status: 400 });
   }
 
+  // ── Reject past date/time when scheduling fields are updated ─
+  if ('scheduled_date' in body || 'start_time' in body) {
+    const newDate = (body.scheduled_date as string) || session.scheduled_date;
+    const newTime = ((body.start_time as string) || session.start_time).slice(0, 5);
+    const newDateTimeIST = new Date(`${newDate}T${newTime}+05:30`);
+    if (newDateTimeIST < new Date()) {
+      return NextResponse.json({
+        success: false,
+        error: 'Cannot reschedule a session to a past date/time (IST).',
+      }, { status: 400 });
+    }
+  }
+
   const updatable = ['subject', 'teacher_email', 'teacher_name', 'scheduled_date', 'start_time',
                      'duration_minutes', 'teaching_minutes', 'prep_buffer_minutes', 'topic', 'notes'];
   const sets: string[] = [];

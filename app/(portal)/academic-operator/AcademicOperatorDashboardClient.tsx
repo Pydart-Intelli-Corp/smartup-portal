@@ -3202,6 +3202,12 @@ function EditSessionModal({ session, batch, onClose, onSaved }: {
       setError('Subject, date, and time are required');
       return;
     }
+    // Reject sessions in the past (IST)
+    const sessionDateTimeIST = new Date(`${form.scheduled_date}T${form.start_time}+05:30`);
+    if (sessionDateTimeIST < new Date()) {
+      setError('Session date and time cannot be in the past (Indian Standard Time).');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -3573,6 +3579,13 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
     if (!form.scheduled_date) { setError('Date is required'); return; }
     if (!form.start_time) { setError('Start time is required'); return; }
 
+    // Reject sessions in the past (use IST +05:30 for comparison)
+    const sessionDateTimeIST = new Date(`${form.scheduled_date}T${form.start_time}+05:30`);
+    if (sessionDateTimeIST < new Date()) {
+      setError('Session date and time cannot be in the past (Indian Standard Time). Please select a future time.');
+      return;
+    }
+
     setError(''); setSubmitting(true);
 
     const basePayload = {
@@ -3827,6 +3840,16 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
               Overlaps with: {conflicting.map(s => `${s.subject} (${fmtTime12(s.start_time)}–${fmtTime12(minutesToTime(timeToMinutes(s.start_time) + (s.duration_minutes || 60)))})`).join(', ')}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Past-time warning — shown when selected date+time is already in the past (IST) */}
+      {form.scheduled_date && form.start_time && new Date(`${form.scheduled_date}T${form.start_time}+05:30`) < new Date() && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-700">
+            Selected time has already passed (IST). Please choose a future date or time — this session cannot be saved.
+          </p>
         </div>
       )}
 
