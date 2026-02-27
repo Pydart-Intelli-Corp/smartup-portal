@@ -39,6 +39,14 @@ export async function GET(req: NextRequest) {
       recentUsersResult,
       cancelledResult,
       paymentResult,
+      todaySessionsResult,
+      pendingLeavesResult,
+      pendingCancellationsResult,
+      pendingSessionReqResult,
+      alertsCountResult,
+      recentPaymentsResult,
+      payrollSummaryResult,
+      revenueTrendResult,
     ] = await Promise.all([
       // 1. Room status counts
       db.query(`
@@ -129,6 +137,82 @@ export async function GET(req: NextRequest) {
           COALESCE(SUM(amount_paise) FILTER (WHERE status = 'paid' AND paid_at >= NOW() - INTERVAL '30 days'), 0)::bigint AS collected_last_30d_paise
         FROM invoices
       `),
+
+      // 10. Today's sessions
+      db.query(`
+        SELECT COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE status = 'live')::int AS live,
+               COUNT(*) FILTER (WHERE status = 'scheduled')::int AS upcoming,
+               COUNT(*) FILTER (WHERE status = 'ended')::int AS completed,
+               COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled
+        FROM rooms
+        WHERE DATE(scheduled_start) = CURRENT_DATE
+      `),
+
+      // 11. Pending leave requests (owner level)
+      db.query(`
+        SELECT COUNT(*)::int AS count
+        FROM teacher_leave_requests
+        WHERE owner_status = 'pending'
+      `).catch(() => ({ rows: [{ count: 0 }] })),
+
+      // 12. Pending cancellation requests
+      db.query(`
+        SELECT COUNT(*)::int AS count
+        FROM cancellation_requests
+        WHERE status NOT IN ('approved', 'rejected', 'withdrawn')
+      `).catch(() => ({ rows: [{ count: 0 }] })),
+
+      // 13. Pending session requests
+      db.query(`
+        SELECT COUNT(*)::int AS count
+        FROM session_requests
+        WHERE status = 'pending'
+      `).catch(() => ({ rows: [{ count: 0 }] })),
+
+      // 14. Active monitoring alerts count
+      db.query(`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE severity = 'critical')::int AS critical,
+          COUNT(*) FILTER (WHERE severity = 'warning')::int AS warning
+        FROM monitoring_alerts
+        WHERE status = 'active'
+      `).catch(() => ({ rows: [{ total: 0, critical: 0, warning: 0 }] })),
+
+      // 15. Recent paid invoices (last 10)
+      db.query(`
+        SELECT i.id, i.student_email, i.amount_paise, i.paid_at,
+               u.display_name AS student_name
+        FROM invoices i
+        LEFT JOIN portal_users u ON u.email = i.student_email
+        WHERE i.status = 'paid'
+        ORDER BY i.paid_at DESC
+        LIMIT 10
+      `).catch(() => ({ rows: [] })),
+
+      // 16. Payroll summary
+      db.query(`
+        SELECT
+          COUNT(*)::int AS total_periods,
+          COUNT(*) FILTER (WHERE status = 'draft')::int AS draft_periods,
+          COUNT(*) FILTER (WHERE status = 'finalized')::int AS finalized_periods,
+          COUNT(*) FILTER (WHERE status = 'paid')::int AS paid_periods,
+          (SELECT COALESCE(SUM(total_paise), 0)::bigint FROM payslips WHERE status = 'paid') AS total_paid_paise
+        FROM payroll_periods
+      `).catch(() => ({ rows: [{ total_periods: 0, draft_periods: 0, finalized_periods: 0, paid_periods: 0, total_paid_paise: 0 }] })),
+
+      // 17. Revenue trend (monthly, last 6 months)
+      db.query(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', paid_at), 'Mon YY') AS month,
+          COALESCE(SUM(amount_paise), 0)::bigint AS collected_paise,
+          COUNT(*)::int AS invoice_count
+        FROM invoices
+        WHERE status = 'paid' AND paid_at >= NOW() - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', paid_at)
+        ORDER BY DATE_TRUNC('month', paid_at) ASC
+      `).catch(() => ({ rows: [] })),
     ]);
 
     // Process status counts into a map
@@ -143,6 +227,8 @@ export async function GET(req: NextRequest) {
       0,
     );
 
+    const today = todaySessionsResult.rows[0] || { total: 0, live: 0, upcoming: 0, completed: 0, cancelled: 0 };
+
     return NextResponse.json({
       success: true,
       data: {
@@ -155,6 +241,25 @@ export async function GET(req: NextRequest) {
           cancelledBatches: statusCounts['cancelled'] || 0,
           totalUsers,
           cancelledLast30: cancelledResult.rows[0]?.total_cancelled || 0,
+        },
+
+        // Today's sessions quick stats
+        today: {
+          total: today.total,
+          live: today.live,
+          upcoming: today.upcoming,
+          completed: today.completed,
+          cancelled: today.cancelled,
+        },
+
+        // Pending items (for urgent attention banner)
+        pending: {
+          leaveRequests: pendingLeavesResult.rows[0]?.count || 0,
+          cancellations: pendingCancellationsResult.rows[0]?.count || 0,
+          sessionRequests: pendingSessionReqResult.rows[0]?.count || 0,
+          alerts: alertsCountResult.rows[0]?.total || 0,
+          criticalAlerts: alertsCountResult.rows[0]?.critical || 0,
+          warningAlerts: alertsCountResult.rows[0]?.warning || 0,
         },
 
         // User breakdown
@@ -192,6 +297,31 @@ export async function GET(req: NextRequest) {
           totalInvoicedPaise: Number(paymentResult.rows[0]?.total_invoiced_paise || 0),
           collectedLast30dPaise: Number(paymentResult.rows[0]?.collected_last_30d_paise || 0),
         },
+
+        // Recent payments (last 10 paid invoices)
+        recentPayments: (recentPaymentsResult.rows || []).map((r: any) => ({
+          id: r.id,
+          studentEmail: r.student_email,
+          studentName: r.student_name || r.student_email,
+          amountPaise: Number(r.amount_paise),
+          paidAt: r.paid_at,
+        })),
+
+        // Payroll summary
+        payroll: {
+          totalPeriods: payrollSummaryResult.rows[0]?.total_periods || 0,
+          draftPeriods: payrollSummaryResult.rows[0]?.draft_periods || 0,
+          finalizedPeriods: payrollSummaryResult.rows[0]?.finalized_periods || 0,
+          paidPeriods: payrollSummaryResult.rows[0]?.paid_periods || 0,
+          totalPaidPaise: Number(payrollSummaryResult.rows[0]?.total_paid_paise || 0),
+        },
+
+        // Revenue trend (last 6 months)
+        revenueTrend: (revenueTrendResult.rows || []).map((r: any) => ({
+          month: r.month,
+          collectedPaise: Number(r.collected_paise),
+          invoiceCount: r.invoice_count,
+        })),
       },
     });
   } catch (err) {
