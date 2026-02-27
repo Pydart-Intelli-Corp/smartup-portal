@@ -14,11 +14,20 @@ export async function GET(req: NextRequest) {
   if (!user || !['teacher', 'owner'].includes(user.role))
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
+  // class_portion / class_remarks may not exist yet (migration 012)
+  let hasPortionCols = false;
+  try {
+    const colCheck = await db.query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'class_portion' LIMIT 1`
+    );
+    hasPortionCols = colCheck.rows.length > 0;
+  } catch { /* ignore */ }
+
   const result = await db.query(
     `SELECT r.room_id, r.room_name, r.subject, r.grade, r.section,
             r.status, r.scheduled_start, r.duration_minutes,
             r.notes_for_teacher, r.max_participants,
-            r.class_portion, r.class_remarks,
+            ${hasPortionCols ? 'r.class_portion, r.class_remarks,' : 'NULL AS class_portion, NULL AS class_remarks,'}
             (SELECT COUNT(*) FROM room_assignments ra WHERE ra.room_id = r.room_id AND ra.participant_type = 'student')::int AS student_count
      FROM rooms r
      WHERE r.teacher_email = $1

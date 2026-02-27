@@ -771,7 +771,7 @@ export function TRow({
       onClick={onClick}
       className={`border-b border-gray-50 hover:bg-emerald-50/30 transition ${
         onClick ? 'cursor-pointer' : ''
-      } ${selected ? 'bg-emerald-50/50' : ''} ${className ?? ''}`}
+      } ${selected ? 'bg-emerald-100/80 border-emerald-200' : ''} ${className ?? ''}`}
     >
       {children}
     </tr>

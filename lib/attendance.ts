@@ -133,6 +133,16 @@ export async function recordLeaveAction(
     [roomId, email, action, payload ? JSON.stringify(payload) : null],
   );
 
+  if (action === 'leave_request') {
+    await db.query(
+      `UPDATE attendance_sessions SET
+         leave_request_count = COALESCE(leave_request_count, 0) + 1,
+         updated_at = NOW()
+       WHERE room_id = $1 AND participant_email = $2`,
+      [roomId, email],
+    );
+  }
+
   if (action === 'leave_approved') {
     await db.query(
       `UPDATE attendance_sessions SET
@@ -214,4 +224,68 @@ export async function finalizeAttendance(roomId: string): Promise<void> {
       [roomId, r.participant_email, r.participant_name],
     );
   }
+}
+
+// ── Record a media event (mic/camera off/on) ─────────────────
+export async function recordMediaEvent(
+  roomId: string,
+  email: string,
+  eventType: 'mic_off' | 'mic_on' | 'camera_off' | 'camera_on',
+  payload?: Record<string, unknown>,
+): Promise<void> {
+  // Log the event
+  await db.query(
+    `INSERT INTO attendance_logs (room_id, participant_email, event_type, event_at, payload)
+     VALUES ($1, $2, $3, NOW(), $4)`,
+    [roomId, email, eventType, payload ? JSON.stringify(payload) : null],
+  );
+
+  // Increment counters on attendance_sessions
+  if (eventType === 'mic_off') {
+    await db.query(
+      `UPDATE attendance_sessions SET mic_off_count = COALESCE(mic_off_count, 0) + 1, updated_at = NOW()
+       WHERE room_id = $1 AND participant_email = $2`,
+      [roomId, email],
+    );
+  } else if (eventType === 'camera_off') {
+    await db.query(
+      `UPDATE attendance_sessions SET camera_off_count = COALESCE(camera_off_count, 0) + 1, updated_at = NOW()
+       WHERE room_id = $1 AND participant_email = $2`,
+      [roomId, email],
+    );
+  }
+}
+
+// ── Record leave request count increment ─────────────────────
+export async function incrementLeaveRequestCount(
+  roomId: string,
+  email: string,
+): Promise<void> {
+  await db.query(
+    `UPDATE attendance_sessions SET leave_request_count = COALESCE(leave_request_count, 0) + 1, updated_at = NOW()
+     WHERE room_id = $1 AND participant_email = $2`,
+    [roomId, email],
+  );
+}
+
+// ── Record attention report (MediaPipe) ──────────────────────
+export async function recordAttentionReport(
+  roomId: string,
+  email: string,
+  score: number,
+  details?: Record<string, unknown>,
+): Promise<void> {
+  // Log the attention data
+  await db.query(
+    `INSERT INTO attendance_logs (room_id, participant_email, event_type, event_at, payload)
+     VALUES ($1, $2, 'attention_report', NOW(), $3)`,
+    [roomId, email, JSON.stringify({ score, ...details })],
+  );
+
+  // Update average attention score on the session
+  await db.query(
+    `UPDATE attendance_sessions SET attention_avg = $3, updated_at = NOW()
+     WHERE room_id = $1 AND participant_email = $2`,
+    [roomId, email, Math.round(score)],
+  );
 }

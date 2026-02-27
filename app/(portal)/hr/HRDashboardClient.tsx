@@ -22,12 +22,13 @@ import {
   UserPlus, Search, Eye, EyeOff, Save,
   KeyRound, UserX, UserCheck2, Mail, Phone, AlertCircle, CheckCircle2,
   ChevronDown, ChevronUp, Shield, Award, Briefcase, Pencil,
-  XCircle, ClipboardList, CreditCard, Clock, TrendingUp,
+  XCircle, ClipboardList, CreditCard, Clock, TrendingUp, Loader2,
   Calendar, DollarSign, FileText, ArrowRight, Ban, Check,
   AlertTriangle, Activity, Zap, X, Trash2,
+  CalendarClock,
 } from 'lucide-react';
 import {
-  SUBJECTS, GRADES, BOARDS, GCC_REGIONS, QUALIFICATIONS,
+  SUBJECTS, GRADES, BOARDS, QUALIFICATIONS,
   PwdInput, SubjectSelector, QualificationSelector,
   CredentialsPanel, CreateUserModal,
 } from '@/components/dashboard/CreateUserForm';
@@ -71,7 +72,7 @@ interface HRDashboardClientProps {
 }
 
 // ─── Constants ───────────────────────────────────────────────
-type HRTab = 'overview' | 'teachers' | 'students' | 'parents' | 'coordinators' | 'academic_operators' | 'hr_associates' | 'ghost_observers' | 'cancellations' | 'attendance' | 'payroll';
+type HRTab = 'overview' | 'teachers' | 'students' | 'parents' | 'coordinators' | 'academic_operators' | 'hr_associates' | 'ghost_observers' | 'cancellations' | 'attendance' | 'payroll' | 'fee_rates' | 'leave_requests';
 
 // Constants, PwdInput, SubjectSelector, QualificationSelector, CredentialsPanel,
 // CreateUserModal — all imported from @/components/dashboard/CreateUserForm
@@ -90,7 +91,7 @@ export default function HRDashboardClient({ userName, userEmail, userRole, permi
   useEffect(() => {
     const syncHash = () => {
       const hash = window.location.hash.replace('#', '') as HRTab;
-      const valid: HRTab[] = ['overview','teachers','students','parents','coordinators','academic_operators','hr_associates','ghost_observers','cancellations','attendance','payroll'];
+      const valid: HRTab[] = ['overview','teachers','students','parents','coordinators','academic_operators','hr_associates','ghost_observers','cancellations','attendance','payroll','fee_rates','leave_requests'];
       if (hash && valid.includes(hash)) setTab(hash);
     };
     syncHash();
@@ -103,13 +104,15 @@ export default function HRDashboardClient({ userName, userEmail, userRole, permi
     { key: 'teachers',           label: 'Teachers',           icon: BookOpen        },
     { key: 'students',           label: 'Students',           icon: GraduationCap   },
     { key: 'parents',            label: 'Parents',            icon: Shield          },
-    { key: 'coordinators',       label: 'Coordinators',       icon: UserCheck       },
+    { key: 'coordinators',       label: 'Batch Coordinators',  icon: UserCheck       },
     { key: 'academic_operators', label: 'Academic Operators',  icon: Briefcase       },
     { key: 'hr_associates',      label: 'HR Associates',       icon: UserCheck       },
     { key: 'ghost_observers',    label: 'Ghost Observers',     icon: Eye             },
     ...(permissions?.cancellations_manage !== false ? [{ key: 'cancellations', label: 'Cancellations', icon: XCircle }] : []),
     ...(permissions?.attendance_view !== false      ? [{ key: 'attendance',    label: 'Attendance',    icon: ClipboardList }] : []),
     ...(permissions?.payroll_manage !== false        ? [{ key: 'payroll',       label: 'Payroll',       icon: CreditCard }] : []),
+    { key: 'fee_rates', label: 'Fee Rates', icon: DollarSign },
+    { key: 'leave_requests', label: 'Leave Requests', icon: CalendarClock },
   ];
 
   return (
@@ -129,13 +132,15 @@ export default function HRDashboardClient({ userName, userEmail, userRole, permi
         {tab === 'teachers'           && <UsersTab role="teacher"           label="Teachers"           permissions={permissions} />}
         {tab === 'students'           && <UsersTab role="student"           label="Students"           permissions={permissions} />}
         {tab === 'parents'            && <UsersTab role="parent"            label="Parents"            permissions={permissions} />}
-        {tab === 'coordinators'       && <UsersTab role="coordinator"       label="Coordinators"       permissions={permissions} />}
+        {tab === 'coordinators'       && <UsersTab role="batch_coordinator" label="Batch Coordinators" permissions={permissions} />}
         {tab === 'academic_operators' && <UsersTab role="academic_operator" label="Academic Operators"  permissions={permissions} />}
         {tab === 'hr_associates'      && <UsersTab role="hr"                label="HR Associates"       permissions={permissions} />}
         {tab === 'ghost_observers'    && <UsersTab role="ghost"             label="Ghost Observers"     permissions={permissions} />}
         {tab === 'cancellations'      && <CancellationsTab />}
         {tab === 'attendance'         && <AttendanceTab />}
         {tab === 'payroll'            && <PayrollTab />}
+        {tab === 'fee_rates'          && <FeeRatesTab />}
+        {tab === 'leave_requests'      && <LeaveRequestsTab />}
       </div>
     </DashboardShell>
   );
@@ -222,7 +227,7 @@ function OverviewTab() {
         <StatCardSmall icon={BookOpen}      label="Teachers"         value={c.teacher?.total ?? 0}           variant="info" />
         <StatCardSmall icon={GraduationCap} label="Students"         value={c.student?.total ?? 0}           variant="info" />
         <StatCardSmall icon={Shield}        label="Parents"          value={c.parent?.total ?? 0}            variant="default" />
-        <StatCardSmall icon={UserCheck}     label="Coordinators"     value={c.coordinator?.total ?? 0}       variant="default" />
+        <StatCardSmall icon={UserCheck}     label="Batch Coordinators" value={c.batch_coordinator?.total ?? 0}  variant="default" />
       </div>
 
       {/* ── Role Breakdown Cards ── */}
@@ -231,7 +236,7 @@ function OverviewTab() {
           { role: 'teacher',           label: 'Teachers',          icon: BookOpen    },
           { role: 'student',           label: 'Students',          icon: GraduationCap },
           { role: 'parent',            label: 'Parents',           icon: Shield      },
-          { role: 'coordinator',       label: 'Coordinators',      icon: UserCheck   },
+          { role: 'batch_coordinator', label: 'Batch Coordinators', icon: UserCheck   },
           { role: 'academic_operator', label: 'Acad. Operators',   icon: Briefcase   },
         ].map(({ role, label, icon: Icon }) => {
           const d = c[role] || { total: 0, active: 0 };
@@ -434,7 +439,6 @@ function UsersTab({ role, label, permissions }: { role: string; label: string; p
             {role === 'teacher' && <TH>Rate/hr</TH>}
             {role === 'student' && <TH>Grade</TH>}
             {role === 'parent' && <TH>Children</TH>}
-            {(role === 'coordinator' || role === 'academic_operator') && <TH>Region</TH>}
             <TH>Status</TH>
             <TH className="text-right">Actions</TH>
           </THead>
@@ -484,9 +488,6 @@ function UsersTab({ role, label, permissions }: { role: string; label: string; p
                           : <span className="text-gray-300">No children linked</span>}
                       </td>
                     )}
-                    {(role === 'coordinator' || role === 'academic_operator') && (
-                      <td className="px-4 py-3 text-xs text-gray-500">{u.assigned_region || '—'}</td>
-                    )}
                     <td className="px-4 py-3">
                       <ActiveIndicator active={u.is_active} />
                     </td>
@@ -514,7 +515,7 @@ function UsersTab({ role, label, permissions }: { role: string; label: string; p
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={role === 'teacher' || role === 'student' || role === 'parent' || role === 'coordinator' || role === 'academic_operator' ? 6 : 5} className="bg-emerald-50/40 border-b border-emerald-100 px-4 py-4">
+                      <td colSpan={role === 'teacher' || role === 'student' || role === 'parent' ? 6 : 5} className="bg-emerald-50/40 border-b border-emerald-100 px-4 py-4">
                         <UserDetailPanel user={u} />
                       </td>
                     </tr>
@@ -539,7 +540,33 @@ function UsersTab({ role, label, permissions }: { role: string; label: string; p
 }
 
 // ─── Detail Panel (expanded row) ─────────────────────────────
+interface StudentPerf {
+  batches: {
+    id: string; name: string; type: string; grade: string | null;
+    subjects: string[]; stats: {
+      total_sessions: number; done_sessions: number;
+      att_total: number; present: number; rate: number;
+    };
+    coordinator: string | null;
+  }[];
+  attendance: { total_classes: number; present: number; absent: number; late: number; attendance_rate: number };
+  exams: { id: string; title: string; subject: string; total_marks: number; score: number | null; percentage: number | null; attempt_status: string }[];
+}
+
 function UserDetailPanel({ user }: { user: UserRow }) {
+  const [perf, setPerf] = React.useState<StudentPerf | null>(null);
+  const [loadingPerf, setLoadingPerf] = React.useState(false);
+
+  React.useEffect(() => {
+    if (user.portal_role !== 'student') return;
+    setLoadingPerf(true);
+    fetch(`/api/v1/hr/students/${encodeURIComponent(user.email)}/performance`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setPerf(d.data); })
+      .catch(() => {})
+      .finally(() => setLoadingPerf(false));
+  }, [user.email, user.portal_role]);
+
   type FieldPair = [string, string | number | null | undefined, React.ComponentType<{ className?: string }>?];
   const fields = ([
     ['Email', user.email, Mail],
@@ -559,9 +586,12 @@ function UserDetailPanel({ user }: { user: UserRow }) {
     ['Account created', fmtDateTimeIST(user.created_at), Clock],
   ] as FieldPair[]).filter(([, v]) => v != null && v !== '');
 
+  const attColor = (r: number) => r >= 75 ? 'text-green-700' : r >= 50 ? 'text-amber-700' : 'text-red-600';
+  const attBar   = (r: number) => r >= 75 ? 'bg-green-500' : r >= 50 ? 'bg-amber-500' : 'bg-red-500';
+
   return (
-    <div className="rounded-xl border border-emerald-200/60 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+    <div className="rounded-xl border border-emerald-200/60 bg-white p-4 shadow-sm space-y-4">
+      <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
         <Avatar name={user.full_name} size="md" />
         <div>
           <p className="text-sm font-semibold text-gray-900">{user.full_name}</p>
@@ -579,6 +609,90 @@ function UserDetailPanel({ user }: { user: UserRow }) {
           </InfoCard>
         ))}
       </div>
+
+      {/* ── Student Performance Section ── */}
+      {user.portal_role === 'student' && (
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5" /> Academic Performance
+          </p>
+          {loadingPerf ? (
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading performance data…
+            </div>
+          ) : perf ? (
+            <div className="space-y-3">
+              {/* Attendance summary */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-lg bg-gray-50 p-3 text-center">
+                  <p className={`text-lg font-bold ${attColor(perf.attendance.attendance_rate)}`}>
+                    {perf.attendance.attendance_rate}%
+                  </p>
+                  <p className="text-[10px] text-gray-400">Attendance</p>
+                  <div className="mt-1.5 h-1 rounded-full bg-gray-200">
+                    <div className={`h-full rounded-full ${attBar(perf.attendance.attendance_rate)}`}
+                      style={{ width: `${perf.attendance.attendance_rate}%` }} />
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3 text-center">
+                  <p className="text-lg font-bold text-gray-800">{perf.attendance.total_classes}</p>
+                  <p className="text-[10px] text-gray-400">Classes</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3 text-center">
+                  <p className="text-lg font-bold text-green-700">{perf.attendance.present}</p>
+                  <p className="text-[10px] text-gray-400">Present</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3 text-center">
+                  <p className="text-lg font-bold text-red-600">{perf.attendance.absent}</p>
+                  <p className="text-[10px] text-gray-400">Absent</p>
+                </div>
+              </div>
+
+              {/* Batches */}
+              {perf.batches.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-medium text-gray-500 mb-2">
+                    Enrolled in {perf.batches.length} batch{perf.batches.length !== 1 ? 'es' : ''}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {perf.batches.map(b => (
+                      <div key={b.id} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs">
+                        <span className="font-medium text-gray-800">{b.name}</span>
+                        {b.grade && <span className="text-gray-400">· {b.grade}</span>}
+                        <span className={`font-bold ${attColor(b.stats.rate)}`}>{b.stats.rate}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent exam results */}
+              {perf.exams.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-medium text-gray-500 mb-2">Recent Exams</p>
+                  <div className="space-y-1">
+                    {perf.exams.slice(0, 4).map(e => (
+                      <div key={e.id} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{e.title}</p>
+                          <p className="text-[10px] text-gray-400">{e.subject}</p>
+                        </div>
+                        {e.percentage !== null ? (
+                          <span className={`text-xs font-bold ${attColor(e.percentage)}`}>{e.percentage}%</span>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 capitalize">{e.attempt_status}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">No performance data available.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -625,12 +739,11 @@ function EditUserModal({ user, onClose, onSaved }: { user: UserRow; onClose: () 
       payload.parent_email = form.parent_email.trim().toLowerCase() || null;
       payload.admission_date = form.admission_date || null;
     }
-    if (user.portal_role === 'coordinator') {
-      payload.assigned_region = form.assigned_region || null;
+    if (user.portal_role === 'batch_coordinator') {
+      payload.qualification = form.qualification?.trim() || null;
     }
     if (user.portal_role === 'academic_operator') {
-      payload.assigned_region = form.assigned_region || null;
-      payload.experience_years = form.experience_years ? Number(form.experience_years) : null;
+      payload.qualification = form.qualification?.trim() || null;
     }
 
     try {
@@ -710,12 +823,8 @@ function EditUserModal({ user, onClose, onSaved }: { user: UserRow; onClose: () 
           </>
         )}
 
-        {user.portal_role === 'coordinator' && (
+        {user.portal_role === 'batch_coordinator' && (
           <>
-            <FormField label="Assigned Region">
-              <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
-                options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
-            </FormField>
             <FormField label="Qualification">
               <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
             </FormField>
@@ -724,15 +833,6 @@ function EditUserModal({ user, onClose, onSaved }: { user: UserRow; onClose: () 
 
         {user.portal_role === 'academic_operator' && (
           <>
-            <FormGrid cols={2}>
-              <FormField label="Assigned Region">
-                <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
-                  options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
-              </FormField>
-              <FormField label="Experience (years)">
-                <Input type="number" min={0} value={form.experience_years} onChange={(e) => f('experience_years', e.target.value)} />
-              </FormField>
-            </FormGrid>
             <FormField label="Qualification">
               <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
             </FormField>
@@ -1620,6 +1720,387 @@ function PayrollTab() {
               Create Period
             </Button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Fee Rates Tab ────────────────────────────────────────────
+interface FeeRate {
+  id: string;
+  batch_id: string | null;
+  batch_name: string | null;
+  subject: string | null;
+  grade: string | null;
+  per_hour_rate_paise: number;
+  currency: string;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+function FeeRatesTab() {
+  const [rates, setRates] = useState<FeeRate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [batches, setBatches] = useState<{ batch_id: string; batch_name: string }[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    batch_id: '', subject: '', grade: '',
+    per_hour_rate: '', currency: 'INR', notes: '',
+  });
+  const toast = useToast();
+
+  const fetchRates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/v1/payment/session-rates');
+      const data = await res.json();
+      if (data.success) setRates(data.data?.rates || []);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  const fetchBatches = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/batches');
+      const data = await res.json();
+      if (data.success) setBatches(data.data?.batches || []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchRates(); fetchBatches(); }, [fetchRates, fetchBatches]);
+
+  function resetForm() {
+    setForm({ batch_id: '', subject: '', grade: '', per_hour_rate: '', currency: 'INR', notes: '' });
+    setEditId(null);
+    setShowForm(false);
+  }
+
+  function startEdit(rate: FeeRate) {
+    setForm({
+      batch_id: rate.batch_id || '',
+      subject: rate.subject || '',
+      grade: rate.grade || '',
+      per_hour_rate: String(rate.per_hour_rate_paise / 100),
+      currency: rate.currency || 'INR',
+      notes: rate.notes || '',
+    });
+    setEditId(rate.id);
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    const rateNum = parseFloat(form.per_hour_rate);
+    if (!rateNum || rateNum <= 0) {
+      toast.error('Enter a valid per-hour rate');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/v1/payment/session-rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(editId ? { id: editId } : {}),
+          batch_id: form.batch_id || null,
+          subject: form.subject || null,
+          grade: form.grade || null,
+          per_hour_rate_paise: Math.round(rateNum * 100),
+          currency: form.currency,
+          notes: form.notes || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(editId ? 'Rate updated' : 'Rate created');
+        resetForm();
+        fetchRates();
+      } else {
+        toast.error(data.error || 'Failed to save rate');
+      }
+    } catch { toast.error('Network error'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch('/api/v1/payment/session-rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_active: false }),
+      });
+      const data = await res.json();
+      if (data.success) { toast.success('Rate deactivated'); fetchRates(); }
+    } catch { toast.error('Failed'); }
+  }
+
+  const fmtRate = (paise: number, cur: string) => {
+    const sym: Record<string, string> = { INR: '\u20b9', USD: '$', AED: '\u062f.\u0625', SAR: '\ufdfc' };
+    return `${sym[cur] || cur} ${(paise / 100).toFixed(2)}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold">Session Fee Rates</h3>
+          <p className="text-xs text-muted-foreground">Configure per-hour rates for batch/subject combinations. These are used when students join sessions.</p>
+        </div>
+        <div className="flex gap-2">
+          <RefreshButton onClick={fetchRates} loading={loading} />
+          <Button variant="primary" icon={DollarSign} onClick={() => { resetForm(); setShowForm(true); }}>
+            Add Rate
+          </Button>
+        </div>
+      </div>
+
+      {/* Create/Edit form */}
+      {showForm && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <h4 className="font-semibold text-sm">{editId ? 'Edit Fee Rate' : 'New Fee Rate'}</h4>
+          <FormGrid cols={3}>
+            <FormField label="Batch (optional)">
+              <Select
+                value={form.batch_id}
+                onChange={(val) => setForm({ ...form, batch_id: val })}
+                placeholder="All Batches"
+                options={batches.map(b => ({ value: b.batch_id, label: b.batch_name }))}
+              />
+            </FormField>
+            <FormField label="Subject (optional)">
+              <Select
+                value={form.subject}
+                onChange={(val) => setForm({ ...form, subject: val })}
+                placeholder="All Subjects"
+                options={SUBJECTS.map(s => ({ value: s, label: s }))}
+              />
+            </FormField>
+            <FormField label="Grade (optional)">
+              <Select
+                value={form.grade}
+                onChange={(val) => setForm({ ...form, grade: val })}
+                placeholder="All Grades"
+                options={GRADES.map(g => ({ value: g, label: g }))}
+              />
+            </FormField>
+          </FormGrid>
+          <FormGrid cols={3}>
+            <FormField label="Per-Hour Rate">
+              <Input type="number" step="0.01" min="0" placeholder="e.g. 500"
+                value={form.per_hour_rate} onChange={(e) => setForm({ ...form, per_hour_rate: e.target.value })} />
+            </FormField>
+            <FormField label="Currency">
+              <Select
+                value={form.currency}
+                onChange={(val) => setForm({ ...form, currency: val })}
+                options={['INR', 'USD', 'AED', 'SAR', 'QAR', 'KWD', 'OMR', 'BHD'].map(c => ({ value: c, label: c }))}
+              />
+            </FormField>
+            <FormField label="Notes (optional)">
+              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Internal note" />
+            </FormField>
+          </FormGrid>
+          <div className="flex gap-2 pt-1">
+            <Button variant="secondary" onClick={resetForm}>Cancel</Button>
+            <Button variant="primary" icon={Save} onClick={handleSave} loading={saving} disabled={saving || !form.per_hour_rate}>
+              {editId ? 'Update Rate' : 'Create Rate'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Rates table */}
+      {loading ? (
+        <LoadingState />
+      ) : rates.length === 0 ? (
+        <EmptyState icon={DollarSign} message="No fee rates configured yet" />
+      ) : (
+        <TableWrapper>
+          <THead>
+            <TH>Batch</TH>
+            <TH>Subject</TH>
+            <TH>Grade</TH>
+            <TH>Per-Hour Rate</TH>
+            <TH>Currency</TH>
+            <TH>Notes</TH>
+            <TH>Actions</TH>
+          </THead>
+          <tbody>
+            {rates.map(r => (
+              <TRow key={r.id}>
+                <td className="px-3 py-2 text-sm">{r.batch_name || <span className="text-muted-foreground italic">All</span>}</td>
+                <td className="px-3 py-2 text-sm">{r.subject || <span className="text-muted-foreground italic">All</span>}</td>
+                <td className="px-3 py-2 text-sm">{r.grade || <span className="text-muted-foreground italic">All</span>}</td>
+                <td className="px-3 py-2 text-sm font-bold text-green-400">{fmtRate(r.per_hour_rate_paise, r.currency)}/hr</td>
+                <td className="px-3 py-2 text-sm">{r.currency}</td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">{r.notes || '—'}</td>
+                <td className="px-3 py-2 text-sm">
+                  <div className="flex gap-1">
+                    <IconButton icon={Pencil} title="Edit" onClick={() => startEdit(r)} size="sm" />
+                    <IconButton icon={Trash2} title="Delete" onClick={() => handleDelete(r.id)} size="sm" variant="danger" />
+                  </div>
+                </td>
+              </TRow>
+            ))}
+          </tbody>
+        </TableWrapper>
+      )}
+
+      {/* Info box */}
+      <div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+        <p><strong>How fee rates work:</strong></p>
+        <p>When a student joins a session, the system looks for the most specific matching rate:</p>
+        <p>1. Exact batch + subject match &rarr; 2. Batch only &rarr; 3. Subject + grade &rarr; 4. Subject only &rarr; 5. Default</p>
+        <p>The per-hour rate is prorated by session duration (e.g. 45-min session = 75% of hourly rate).</p>
+      </div>
+    </div>
+  );
+}
+// ═══════════════════════════════════════════════════════════════
+// TAB: Leave Requests (HR approval)
+// ═══════════════════════════════════════════════════════════════
+
+interface HRLeaveRequest {
+  id: string;
+  teacher_email: string;
+  teacher_name?: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: string;
+  ao_status: string;
+  hr_status: string;
+  owner_status: string;
+  ao_reviewed_by: string | null;
+  hr_reviewed_by: string | null;
+  affected_sessions: string[];
+  created_at: string;
+}
+
+function LeaveRequestsTab() {
+  const [requests, setRequests] = useState<HRLeaveRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [showReject, setShowReject] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const toast = useToast();
+
+  const fetchLeave = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/v1/teacher-leave');
+      const data = await res.json();
+      if (data.success) setRequests(data.requests ?? []);
+    } catch { toast.error('Failed to load leave requests'); }
+    finally { setLoading(false); }
+  }, [toast]);
+
+  useEffect(() => { fetchLeave(); }, [fetchLeave]);
+
+  const handleAction = async (id: string, action: 'approve' | 'reject', reason?: string) => {
+    setActionId(id);
+    try {
+      const res = await fetch('/api/v1/teacher-leave', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, leave_id: id, level: 'hr', ...(reason ? { reason } : {}) }),
+      });
+      const data = await res.json();
+      if (data.success) { toast.success(`Leave ${action}d`); fetchLeave(); setShowReject(null); setRejectReason(''); }
+      else toast.error(data.error || 'Action failed');
+    } catch { toast.error('Network error'); }
+    finally { setActionId(null); }
+  };
+
+  const filtered = filter === 'all' ? requests : requests.filter(r => {
+    if (filter === 'pending') return r.hr_status === 'pending';
+    if (filter === 'approved') return r.hr_status === 'approved';
+    return r.hr_status === 'rejected';
+  });
+
+  const pendingCount = requests.filter(r => r.hr_status === 'pending').length;
+  const statusIcon = (s: string) => s === 'approved' ? '✅' : s === 'rejected' ? '❌' : s === 'pending' ? '⏳' : '—';
+
+  if (loading) return <LoadingState />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Teacher Leave Requests</h2>
+          {pendingCount > 0 && <Badge label={`${pendingCount} pending`} variant="warning" />}
+        </div>
+        <div className="flex items-center gap-2">
+          <FilterSelect value={filter} onChange={(v) => setFilter(v as typeof filter)}
+            options={[{ value: 'all', label: 'All' }, { value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }]} />
+          <RefreshButton loading={loading} onClick={fetchLeave} />
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState icon={CalendarClock} message={filter === 'all' ? 'No leave requests' : `No ${filter} leave requests`} />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(lr => (
+            <div key={lr.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <Avatar name={lr.teacher_name || lr.teacher_email} size="md" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-sm font-semibold">{lr.teacher_name || lr.teacher_email}</span>
+                      <Badge label={lr.leave_type} variant="secondary" />
+                      <StatusBadge status={lr.status} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(lr.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(lr.end_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {lr.affected_sessions?.length > 0 && ` · ${lr.affected_sessions.length} sessions affected`}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">{lr.reason}</p>
+                    <div className="flex items-center gap-4 mt-1.5 text-[10px]">
+                      <span className={lr.ao_status === 'approved' ? 'text-green-500' : lr.ao_status === 'rejected' ? 'text-red-500' : 'text-yellow-500'}>
+                        {statusIcon(lr.ao_status)} AO: {lr.ao_status}{lr.ao_reviewed_by && ` (${lr.ao_reviewed_by})`}
+                      </span>
+                      <span className={lr.hr_status === 'approved' ? 'text-green-500' : lr.hr_status === 'rejected' ? 'text-red-500' : 'text-yellow-500'}>
+                        {statusIcon(lr.hr_status)} HR: {lr.hr_status}{lr.hr_reviewed_by && ` (${lr.hr_reviewed_by})`}
+                      </span>
+                      <span className={lr.owner_status === 'approved' ? 'text-green-500' : lr.owner_status === 'rejected' ? 'text-red-500' : 'text-yellow-500'}>
+                        {statusIcon(lr.owner_status)} Owner: {lr.owner_status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-1.5">
+                  <p className="text-[10px] text-muted-foreground">{new Date(lr.created_at).toLocaleDateString('en-IN')}</p>
+                  {lr.hr_status === 'pending' && (
+                    <div className="flex gap-1.5">
+                      <button disabled={actionId === lr.id} onClick={() => handleAction(lr.id, 'approve')}
+                        className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-[11px] text-white font-medium hover:bg-green-700 disabled:opacity-50 transition">
+                        <CheckCircle2 className="h-3 w-3" />Approve
+                      </button>
+                      {showReject === lr.id ? (
+                        <div className="flex items-center gap-1">
+                          <input placeholder="Reason…" value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                            className="w-32 rounded border border-border bg-background px-2 py-1 text-[11px]" />
+                          <button disabled={actionId === lr.id || !rejectReason} onClick={() => handleAction(lr.id, 'reject', rejectReason)}
+                            className="rounded bg-red-600 px-2 py-1 text-[11px] text-white font-medium hover:bg-red-700 disabled:opacity-50">Go</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowReject(lr.id)}
+                          className="flex items-center gap-1 rounded-lg border border-red-600/50 px-2.5 py-1 text-[11px] text-red-500 font-medium hover:bg-red-50 dark:hover:bg-red-950/20 transition">
+                          <XCircle className="h-3 w-3" />Reject
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

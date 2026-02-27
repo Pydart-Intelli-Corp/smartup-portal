@@ -17,6 +17,14 @@ import {
   roomCancelledTemplate,
   roomRescheduledTemplate,
   coordinatorSummaryTemplate,
+  batchCoordinatorNotifyTemplate,
+  batchTeacherNotifyTemplate,
+  batchStudentNotifyTemplate,
+  batchParentNotifyTemplate,
+  invoiceGeneratedTemplate,
+  paymentReceiptTemplate,
+  payslipNotificationTemplate,
+  paymentReminderTemplate,
   type TeacherInviteData,
   type StudentInviteData,
   type PaymentConfirmationData,
@@ -24,6 +32,14 @@ import {
   type RoomCancelledData,
   type RoomRescheduledData,
   type CoordinatorSummaryData,
+  type BatchCoordinatorNotifyData,
+  type BatchTeacherNotifyData,
+  type BatchStudentNotifyData,
+  type BatchParentNotifyData,
+  type InvoiceGeneratedData,
+  type PaymentReceiptData,
+  type PayslipNotificationData,
+  type PaymentReminderData,
 } from '@/lib/email-templates';
 
 // ── Singleton Transporter ───────────────────────────────────
@@ -118,7 +134,15 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   try {
     const info = await transporter.sendMail(mailOptions);
     return { success: true, messageId: info.messageId };
-  } catch (firstError) {
+  } catch (firstError: any) {
+    // Don't retry on authentication errors — password is wrong, retrying is pointless
+    // Also flush cached transporter so next call re-reads env vars
+    if (firstError?.code === 'EAUTH' || firstError?.responseCode === 535) {
+      const errMsg = firstError instanceof Error ? firstError.message : String(firstError);
+      console.error('[Email] Auth error (not retrying):', errMsg);
+      globalForEmail.emailTransporter = undefined; // flush stale transporter
+      return { success: false, error: errMsg };
+    }
     console.warn('[Email] First attempt failed, retrying in 30s...', firstError);
   }
 
@@ -272,5 +296,70 @@ export async function sendCoordinatorSummary(data: CoordinatorSummaryData & { ro
   } else {
     await logEmailFailed(logId, result.error || 'Unknown error');
   }
+  return result;
+}
+
+// ── Batch Creation Notification Senders ─────────────────────
+// These send directly via SMTP without email_log (no room_id context).
+
+export async function sendBatchCoordinatorNotify(data: BatchCoordinatorNotifyData): Promise<SendEmailResult> {
+  const { subject, html, text } = batchCoordinatorNotifyTemplate(data);
+  console.log(`[Email] Sending batch coordinator notify to ${data.recipientEmail}`);
+  return sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+}
+
+export async function sendBatchTeacherNotify(data: BatchTeacherNotifyData): Promise<SendEmailResult> {
+  const { subject, html, text } = batchTeacherNotifyTemplate(data);
+  console.log(`[Email] Sending batch teacher notify to ${data.recipientEmail}`);
+  return sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+}
+
+export async function sendBatchStudentNotify(data: BatchStudentNotifyData): Promise<SendEmailResult> {
+  const { subject, html, text } = batchStudentNotifyTemplate(data);
+  console.log(`[Email] Sending batch student notify to ${data.recipientEmail}`);
+  return sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+}
+
+export async function sendBatchParentNotify(data: BatchParentNotifyData): Promise<SendEmailResult> {
+  const { subject, html, text } = batchParentNotifyTemplate(data);
+  console.log(`[Email] Sending batch parent notify to ${data.recipientEmail}`);
+  return sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+}
+
+// ── Payment & Invoice Email Senders ─────────────────────────
+
+export async function sendInvoiceGenerated(data: InvoiceGeneratedData): Promise<SendEmailResult> {
+  const { subject, html, text } = invoiceGeneratedTemplate(data);
+  const logId = await logEmailQueued(null, data.recipientEmail, 'invoice_generated', subject);
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+  if (result.success) await logEmailSent(logId, result.messageId);
+  else await logEmailFailed(logId, result.error || 'Unknown error');
+  return result;
+}
+
+export async function sendPaymentReceipt(data: PaymentReceiptData): Promise<SendEmailResult> {
+  const { subject, html, text } = paymentReceiptTemplate(data);
+  const logId = await logEmailQueued(null, data.recipientEmail, 'payment_receipt', subject);
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'high' });
+  if (result.success) await logEmailSent(logId, result.messageId);
+  else await logEmailFailed(logId, result.error || 'Unknown error');
+  return result;
+}
+
+export async function sendPayslipNotification(data: PayslipNotificationData): Promise<SendEmailResult> {
+  const { subject, html, text } = payslipNotificationTemplate(data);
+  const logId = await logEmailQueued(null, data.recipientEmail, 'payslip_notification', subject);
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'normal' });
+  if (result.success) await logEmailSent(logId, result.messageId);
+  else await logEmailFailed(logId, result.error || 'Unknown error');
+  return result;
+}
+
+export async function sendPaymentReminder(data: PaymentReminderData): Promise<SendEmailResult> {
+  const { subject, html, text } = paymentReminderTemplate(data);
+  const logId = await logEmailQueued(null, data.recipientEmail, 'payment_reminder', subject);
+  const result = await sendEmail({ to: data.recipientEmail, subject, html, text, priority: 'high' });
+  if (result.success) await logEmailSent(logId, result.messageId);
+  else await logEmailFailed(logId, result.error || 'Unknown error');
   return result;
 }

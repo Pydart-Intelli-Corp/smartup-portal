@@ -22,6 +22,21 @@ import {
   UserCog,
   MessageSquare,
   ClipboardList,
+  Calendar,
+  CalendarClock,
+  Bell,
+  FileText,
+  Brain,
+  Activity,
+  User,
+  Star,
+  FolderOpen,
+  CheckCircle2,
+  Trophy,
+  ListChecks,
+  DollarSign,
+  Send,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,8 +52,10 @@ export interface NavItemConfig {
 
 const OWNER_NAV: NavItemConfig[] = [
   { label: 'Overview',        href: '/owner',          icon: LayoutDashboard },
+  { label: 'Teachers',        href: '/owner/teachers', icon: BookOpen },
   { label: 'Roles',           href: '/owner/roles',    icon: UserCog },
   { label: 'HR',              href: '/owner/hr',       icon: Briefcase },
+  { label: 'Academic Ops',    href: '/owner/academic-operator', icon: Calendar },
   { label: 'Batches',         href: '/owner/batches',  icon: Database },
   { label: 'Users & HR',      href: '/owner/users',    icon: Users },
   { label: 'Fees & Payments', href: '/owner/fees',     icon: CreditCard },
@@ -49,13 +66,23 @@ const OWNER_NAV: NavItemConfig[] = [
 ];
 
 const BATCH_COORDINATOR_NAV: NavItemConfig[] = [
-  { label: 'Monitor',        href: '/batch-coordinator',                icon: LayoutDashboard },
-  { label: 'Admissions',     href: '/batch-coordinator/admissions',     icon: GraduationCap, permissionKey: 'admissions_manage' },
-  { label: 'Cancellations',  href: '/batch-coordinator/cancellations',  icon: XCircle, permissionKey: 'cancellations_manage' },
+  { label: 'Overview',        href: '/batch-coordinator',                 icon: LayoutDashboard },
+  { label: 'Batches',         href: '/batch-coordinator#batches',         icon: BookOpen },
+  { label: 'Live Sessions',   href: '/batch-coordinator#sessions',        icon: Activity },
+  { label: 'AI Monitoring',   href: '/batch-coordinator#monitoring',      icon: Brain },
+  { label: 'Reports',         href: '/batch-coordinator#reports',         icon: FileText },
+  { label: 'Students',        href: '/batch-coordinator#students',        icon: Users },
+  { label: 'Admissions',      href: '/batch-coordinator/admissions',      icon: GraduationCap, permissionKey: 'admissions_manage' },
+  { label: 'Cancellations',   href: '/batch-coordinator/cancellations',   icon: XCircle, permissionKey: 'cancellations_manage' },
 ];
 
 const ACADEMIC_OPERATOR_NAV: NavItemConfig[] = [
-  { label: 'Rooms', href: '/academic-operator', icon: LayoutDashboard },
+  { label: 'Overview',    href: '/academic-operator',               icon: LayoutDashboard },
+  { label: 'Batches',     href: '/academic-operator#batches',      icon: BookOpen },
+  { label: 'Sessions',    href: '/academic-operator#sessions',     icon: Activity },
+  { label: 'Requests',    href: '/academic-operator#requests',     icon: ClipboardList },
+  { label: 'Monitoring',  href: '/academic-operator#monitoring',   icon: Brain },
+  { label: 'Materials',   href: '/academic-operator#materials',    icon: FolderOpen },
 ];
 
 const HR_NAV: NavItemConfig[] = [
@@ -69,32 +96,52 @@ const HR_NAV: NavItemConfig[] = [
   { label: 'Cancellations', href: '/hr#cancellations',  icon: XCircle,       permissionKey: 'cancellations_manage' },
   { label: 'Attendance',    href: '/hr#attendance',     icon: ClipboardList, permissionKey: 'attendance_view' },
   { label: 'Payroll',       href: '/hr#payroll',        icon: CreditCard,    permissionKey: 'payroll_manage' },
+  { label: 'Fee Rates',     href: '/hr#fee_rates',      icon: DollarSign },
+  { label: 'Leave Requests', href: '/hr#leave_requests', icon: CalendarClock },
 ];
 
 const TEACHER_NAV: NavItemConfig[] = [
-  { label: 'Dashboard',   href: '/teacher',        icon: LayoutDashboard },
-  { label: 'My Classes',  href: '/teacher#classes', icon: BookOpen, permissionKey: 'rooms_view' },
-  { label: 'Exams',       href: '/teacher/exams',   icon: Award, permissionKey: 'exams_create' },
-  { label: 'Salary',      href: '/teacher#salary',  icon: Briefcase, permissionKey: 'salary_view' },
+  { label: 'Overview',       href: '/teacher',             icon: LayoutDashboard },
+  { label: 'My Profile',     href: '/teacher#profile',     icon: User },
+  { label: 'My Batches',     href: '/teacher#batches',     icon: BookOpen },
+  { label: 'Schedule',       href: '/teacher#schedule',    icon: ClipboardList },
+  { label: 'Exams',          href: '/teacher/exams',       icon: Award,          permissionKey: 'exams_create' },
+  { label: 'Salary',         href: '/teacher#salary',      icon: CreditCard,     permissionKey: 'salary_view' },
+  { label: 'Ratings',        href: '/teacher#ratings',     icon: Star },
+  { label: 'Materials',      href: '/teacher#materials',   icon: FolderOpen },
+  { label: 'Leave',          href: '/teacher#leave',       icon: CalendarClock },
 ];
 
 const STUDENT_NAV: NavItemConfig[] = [
-  { label: 'Dashboard',   href: '/student',        icon: LayoutDashboard },
-  { label: 'My Classes',  href: '/student#classes', icon: BookOpen, permissionKey: 'rooms_view' },
-  { label: 'Exams',       href: '/student/exams',   icon: GraduationCap, permissionKey: 'exams_view' },
+  { label: 'Dashboard',   href: '/student',              icon: LayoutDashboard },
+  { label: 'Batches',     href: '/student#batches',      icon: BookOpen },
+  { label: 'Classes',     href: '/student#classes',      icon: Calendar,       permissionKey: 'rooms_view' },
+  { label: 'Sessions',    href: '/student#sessions',     icon: ListChecks },
+  { label: 'Attendance',  href: '/student#attendance',   icon: CheckCircle2 },
+  { label: 'Exams',       href: '/student#exams',        icon: Trophy,         permissionKey: 'exams_view' },
+  { label: 'Fees',        href: '/student#fees',         icon: CreditCard,     permissionKey: 'fees_view' },
+  { label: 'Materials',   href: '/student#materials',    icon: FolderOpen },
+  { label: 'Profile',     href: '/student#profile',      icon: User },
+  { label: 'Requests',   href: '/student#requests',     icon: Send },
 ];
 
 const PARENT_NAV: NavItemConfig[] = [
-  { label: 'Dashboard', href: '/parent',           icon: LayoutDashboard },
-  { label: 'Children',  href: '/parent',           icon: Users },
-  { label: 'Fees',      href: '/parent#fees',      icon: CreditCard, permissionKey: 'fees_view' },
-  { label: 'Complaints',href: '/parent#complaints', icon: MessageSquare, permissionKey: 'complaints_file' },
+  { label: 'Dashboard',    href: '/parent',               icon: LayoutDashboard },
+  { label: 'Attendance',   href: '/parent#attendance',    icon: ClipboardList, permissionKey: 'attendance_view' },
+  { label: 'Exams',        href: '/parent#exams',         icon: GraduationCap, permissionKey: 'exams_view' },
+  { label: 'Fee Ledger',   href: '/parent#fees',          icon: CreditCard,    permissionKey: 'fees_view' },
+  { label: 'Reports',      href: '/parent#reports',       icon: BarChart3,     permissionKey: 'reports_view' },
+  { label: 'AI Monitoring', href: '/parent#monitoring',   icon: Brain },
+  { label: 'Complaints',   href: '/parent#complaints',    icon: MessageSquare, permissionKey: 'complaints_file' },
+  { label: 'Requests',     href: '/parent#requests',      icon: CalendarClock },
 ];
 
 const GHOST_NAV: NavItemConfig[] = [
   { label: 'Dashboard', href: '/ghost',          icon: LayoutDashboard },
   { label: 'Observe',   href: '/ghost',          icon: Eye, permissionKey: 'ghost_observe' },
   { label: 'Oversight',  href: '/ghost/monitor',  icon: Monitor, permissionKey: 'ghost_observe' },
+  { label: 'By Batch',   href: '/ghost#batch',    icon: BookOpen, permissionKey: 'ghost_observe' },
+  { label: 'By Teacher',  href: '/ghost#teacher',  icon: User, permissionKey: 'ghost_observe' },
 ];
 
 const ROLE_NAV: Record<string, NavItemConfig[]> = {

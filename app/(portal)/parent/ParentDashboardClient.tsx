@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import { fmtDateBriefIST, fmtTimeIST } from '@/lib/utils';
+import Script from 'next/script';
 import {
   LayoutDashboard,
   Users,
@@ -26,6 +27,12 @@ import {
   ChevronUp,
   Send,
   X,
+  Brain,
+  Download,
+  Loader2,
+  Shield,
+  CalendarClock,
+  Ban,
 } from 'lucide-react';
 
 /* ─── Interfaces ──────────────────────────────────────────── */
@@ -114,6 +121,26 @@ interface Complaint {
   created_at: string;
 }
 
+interface ParentSessionRequest {
+  id: string;
+  request_type: 'reschedule' | 'cancel';
+  requester_email: string;
+  batch_session_id: string;
+  batch_id: string;
+  reason: string;
+  proposed_date: string | null;
+  proposed_time: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  batch_name?: string;
+  subject?: string;
+  session_date?: string;
+  requester_name?: string;
+}
+
 interface LedgerEntry {
   date: string;
   type: 'invoice' | 'payment';
@@ -133,12 +160,19 @@ interface Props {
   permissions?: Record<string, boolean>;
 }
 
-type TabId = 'overview' | 'attendance' | 'exams' | 'fees' | 'reports' | 'complaints';
+type TabId = 'overview' | 'attendance' | 'exams' | 'fees' | 'reports' | 'complaints' | 'monitoring' | 'requests';
+const VALID_TABS: TabId[] = ['overview', 'attendance', 'exams', 'fees', 'reports', 'complaints', 'monitoring', 'requests'];
 
 /* ─── Component ───────────────────────────────────────────── */
 
 export default function ParentDashboardClient({ userName, userEmail, userRole, permissions }: Props) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hash.replace('#', '') as TabId;
+      if (VALID_TABS.includes(h)) return h;
+    }
+    return 'overview';
+  });
   const [rooms, setRooms] = useState<ChildRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Record<string, unknown>[]>([]);
@@ -177,6 +211,21 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
   const [reports, setReports] = useState<Record<string, unknown>[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [expandedReport, setExpandedReport] = useState<string | null>(null);
+
+  // Monitoring state
+  const [monitorReports, setMonitorReports] = useState<Record<string, unknown>[]>([]);
+  const [monitorLoading, setMonitorLoading] = useState(false);
+
+  // Payment state
+  const [payingInvoice, setPayingInvoice] = useState<string | null>(null);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
+  // Session requests state
+  const [sessionRequests, setSessionRequests] = useState<ParentSessionRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestForm, setRequestForm] = useState({ sessionId: '', batchId: '', childEmail: '', requestType: 'reschedule' as 'reschedule' | 'cancel', reason: '', proposedDate: '', proposedTime: '' });
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
 
   /* ─── Fetchers ─────────────────────────────────────────── */
 
@@ -251,6 +300,124 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
     finally { setReportsLoading(false); }
   }, []);
 
+  const fetchMonitorReports = useCallback(async () => {
+    setMonitorLoading(true);
+    try {
+      const res = await fetch('/api/v1/monitoring/reports?role=parent');
+      const data = await res.json();
+      if (data.success) setMonitorReports(data.data?.reports || []);
+    } catch (err) { console.error('Monitor reports fetch failed:', err); }
+    finally { setMonitorLoading(false); }
+  }, []);
+
+  // Razorpay global type
+  const getRazorpay = () => (window as unknown as { Razorpay?: new (opts: Record<string, unknown>) => { open: () => void } }).Razorpay;
+
+  const handlePayInvoice = useCallback(async (invoiceId: string) => {
+    setPayingInvoice(invoiceId);
+    try {
+      const res = await fetch('/api/v1/payment/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_id: invoiceId }),
+      });
+      const data = await res.json();
+      if (!data.success) { alert(data.error || 'Payment initiation failed'); return; }
+
+      const order = data.data;
+
+      if (order.mode === 'test' || order.mode === 'mock') {
+        // Mock mode: auto-complete
+        const cbRes = await fetch('/api/v1/payment/callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mock: true, invoice_id: invoiceId }),
+        });
+        const cbData = await cbRes.json();
+        if (cbData.success) { fetchLedger(); fetchInvoices(); }
+        else { alert('Payment failed'); }
+      } else {
+        // Live Razorpay
+        const Razorpay = getRazorpay();
+        if (!Razorpay) { alert('Payment gateway loading...'); return; }
+        const rzp = new Razorpay({
+          key: order.gatewayKeyId,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'SmartUp Academy',
+          description: 'Fee Payment',
+          order_id: order.orderId,
+          prefill: order.prefill,
+          theme: { color: '#2563eb' },
+          handler: async (response: Record<string, string>) => {
+            await fetch('/api/v1/payment/callback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(response),
+            });
+            fetchLedger();
+            fetchInvoices();
+          },
+        });
+        rzp.open();
+      }
+    } catch { alert('Network error'); }
+    finally { setPayingInvoice(null); }
+  }, [fetchLedger, fetchInvoices]);
+
+  const fetchSessionRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    try {
+      const res = await fetch('/api/v1/session-requests');
+      const data = await res.json();
+      if (data.success) setSessionRequests(data.requests ?? []);
+    } catch (err) { console.error('[Parent] session-requests fetch failed:', err); }
+    finally { setRequestsLoading(false); }
+  }, []);
+
+  const submitSessionRequest = async () => {
+    if (!requestForm.sessionId || !requestForm.reason) return;
+    setRequestSubmitting(true);
+    try {
+      const body: Record<string, string> = {
+        batch_session_id: requestForm.sessionId,
+        batch_id: requestForm.batchId,
+        request_type: requestForm.requestType,
+        reason: requestForm.reason,
+      };
+      if (requestForm.requestType === 'reschedule') {
+        if (requestForm.proposedDate) body.proposed_date = requestForm.proposedDate;
+        if (requestForm.proposedTime) body.proposed_time = requestForm.proposedTime;
+      }
+      const res = await fetch('/api/v1/session-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data.success) { setShowRequestForm(false); setRequestForm({ sessionId: '', batchId: '', childEmail: '', requestType: 'reschedule', reason: '', proposedDate: '', proposedTime: '' }); fetchSessionRequests(); }
+    } catch { /* */ } finally { setRequestSubmitting(false); }
+  };
+
+  const withdrawSessionRequest = async (id: string) => {
+    try {
+      await fetch('/api/v1/session-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'withdraw', request_id: id }) });
+      fetchSessionRequests();
+    } catch { /* */ }
+  };
+
+  // Hash sync — keep URL hash in sync with active tab
+  useEffect(() => {
+    const hash = activeTab === 'overview' ? '' : `#${activeTab}`;
+    window.history.replaceState(null, '', window.location.pathname + hash);
+  }, [activeTab]);
+
+  useEffect(() => {
+    const onHash = () => {
+      const h = window.location.hash.replace('#', '') as TabId;
+      if (VALID_TABS.includes(h)) setActiveTab(h);
+      else if (!window.location.hash) setActiveTab('overview');
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   useEffect(() => {
     fetchRooms();
     fetchInvoices();
@@ -263,9 +430,13 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
     if (activeTab === 'complaints' && complaints.length === 0 && !complaintsLoading) fetchComplaints();
     if (activeTab === 'fees' && ledgerEntries.length === 0 && !ledgerLoading) fetchLedger();
     if (activeTab === 'reports' && reports.length === 0 && !reportsLoading) fetchReports();
+    if (activeTab === 'monitoring' && monitorReports.length === 0 && !monitorLoading) fetchMonitorReports();
+    if (activeTab === 'requests' && sessionRequests.length === 0 && !requestsLoading) fetchSessionRequests();
   }, [activeTab, attendanceChildren.length, attendanceLoading, examChildren.length, examLoading,
       complaints.length, complaintsLoading, ledgerEntries.length, ledgerLoading, reports.length,
-      reportsLoading, fetchAttendance, fetchExams, fetchComplaints, fetchLedger, fetchReports]);
+      reportsLoading, monitorReports.length, monitorLoading,
+      fetchAttendance, fetchExams, fetchComplaints, fetchLedger, fetchReports, fetchMonitorReports, fetchSessionRequests,
+      sessionRequests.length, requestsLoading]);
 
   const live = rooms.filter((r) => effectiveStatus(r) === 'live');
   const upcoming = rooms.filter((r) => effectiveStatus(r) === 'scheduled');
@@ -278,6 +449,8 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
     ...(permissions?.exams_view !== false ? [{ id: 'exams' as TabId, label: 'Exams', icon: GraduationCap }] : []),
     ...(permissions?.fees_view !== false ? [{ id: 'fees' as TabId, label: 'Fee Ledger', icon: CreditCard }] : []),
     ...(permissions?.reports_view !== false ? [{ id: 'reports' as TabId, label: 'Reports', icon: BarChart3 }] : []),
+    { id: 'monitoring' as TabId, label: 'AI Monitoring', icon: Brain },
+    { id: 'requests' as TabId, label: `Requests${sessionRequests.filter(r => r.status === 'pending').length > 0 ? ' · ' + sessionRequests.filter(r => r.status === 'pending').length : ''}`, icon: CalendarClock },
     ...(permissions?.complaints_file !== false ? [{ id: 'complaints' as TabId, label: 'Complaints', icon: MessageSquare }] : []),
   ];
 
@@ -325,6 +498,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
 
   return (
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="lazyOnload" />
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Parent Dashboard</h1>
         <p className="text-sm text-muted-foreground">Monitor your child&apos;s classes, progress, and fees</p>
@@ -616,6 +790,47 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
                   </div>
                 </div>
 
+                {/* Subject-wise Performance Matrix */}
+                {child.exams.length > 0 && (() => {
+                  const bySubject: Record<string, { total: number; sum: number; passed: number; count: number; best: number; worst: number }> = {};
+                  child.exams.forEach(e => {
+                    if (!bySubject[e.subject]) bySubject[e.subject] = { total: 0, sum: 0, passed: 0, count: 0, best: 0, worst: 100 };
+                    const s = bySubject[e.subject];
+                    s.count++; s.sum += e.percentage; s.total += e.total_marks;
+                    if (e.passed) s.passed++;
+                    if (e.percentage > s.best) s.best = e.percentage;
+                    if (e.percentage < s.worst) s.worst = e.percentage;
+                  });
+                  const subjects = Object.entries(bySubject);
+                  if (subjects.length < 1) return null;
+                  return (
+                    <div className="mb-4 rounded-xl border border-border bg-card p-4">
+                      <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                        <BarChart3 className="h-3 w-3" /> Subject Performance
+                      </h4>
+                      <div className="space-y-2.5">
+                        {subjects.map(([subject, data]) => {
+                          const avg = Math.round(data.sum / data.count);
+                          const barColor = avg >= 75 ? 'bg-green-500' : avg >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                          return (
+                            <div key={subject}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium">{subject}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {avg}% avg · {data.count} exam{data.count !== 1 ? 's' : ''} · {data.passed} passed
+                                </span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${avg}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Exam List */}
                 <div className="space-y-2">
                   {child.exams.map((exam) => (
@@ -647,7 +862,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
       {/* ─── FEES / LEDGER TAB ────────────────────────────── */}
       {activeTab === 'fees' && (
         <div>
-          <h2 className="mb-4 text-lg font-semibold">Fee Ledger</h2>
+          <h2 className="mb-4 text-lg font-semibold">Fees & Payments</h2>
 
           {ledgerLoading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
@@ -675,7 +890,75 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
                 </div>
               )}
 
-              {/* Ledger Table */}
+              {/* Pending Invoices — Pay Now */}
+              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').length > 0 && (
+                <div className="mb-6">
+                  <h3 className="mb-3 text-sm font-semibold text-red-400 uppercase tracking-wider flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" /> Pending Payments
+                  </h3>
+                  <div className="space-y-3">
+                    {invoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').map(inv => (
+                      <div key={inv.id as string} className="rounded-xl border border-amber-700/50 bg-amber-950/10 p-4 flex items-center gap-4">
+                        <CreditCard className="h-8 w-8 text-amber-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{inv.description as string || inv.invoice_number as string}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Invoice: {inv.invoice_number as string} &middot; Due: {new Date(inv.due_date as string).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-lg font-bold text-amber-300">{fmtCurrency(inv.amount_paise as number, inv.currency as string)}</p>
+                          <button
+                            onClick={() => handlePayInvoice(inv.id as string)}
+                            disabled={payingInvoice === inv.id}
+                            className="mt-1 flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                          >
+                            {payingInvoice === inv.id ? (
+                              <><Loader2 className="h-3 w-3 animate-spin" /> Processing...</>
+                            ) : (
+                              <><CreditCard className="h-3 w-3" /> Pay Now</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Paid Invoices with PDF download */}
+              {invoices.filter(inv => inv.status === 'paid').length > 0 && (
+                <div className="mb-6">
+                  <h3 className="mb-3 text-sm font-semibold text-green-400 uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> Payment Receipts
+                  </h3>
+                  <div className="space-y-2">
+                    {invoices.filter(inv => inv.status === 'paid').slice(0, 20).map(inv => (
+                      <div key={inv.id as string} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm truncate">{inv.description as string || inv.invoice_number as string}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {inv.invoice_number as string} &middot; Paid: {new Date(inv.paid_at as string).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                        <p className="text-sm font-bold text-green-400 shrink-0">{fmtCurrency(inv.amount_paise as number, inv.currency as string)}</p>
+                        <a
+                          href={`/api/v1/payment/invoice-pdf/${inv.id as string}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        >
+                          <Download className="h-3 w-3" /> PDF
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Full Ledger Table */}
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Transaction Ledger</h3>
               {ledgerEntries.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border py-12 text-center">
                   <CreditCard className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
@@ -815,6 +1098,194 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
         </div>
       )}
 
+      {/* ─── AI MONITORING TAB ─────────────────────────────── */}
+      {activeTab === 'monitoring' && (
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">AI Monitoring Reports</h2>
+            <button
+              onClick={fetchMonitorReports}
+              disabled={monitorLoading}
+              className="flex items-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-medium hover:bg-muted/80"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${monitorLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {monitorLoading && monitorReports.length === 0 ? (
+            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading monitoring data…
+            </div>
+          ) : monitorReports.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-12 text-center">
+              <Brain className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-muted-foreground">No monitoring reports yet</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">Reports will appear here after your children attend AI-monitored sessions</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Summary cards */}
+              {(() => {
+                const metrics = monitorReports.reduce<{ totalSessions: number; avgAttendance: number; avgAttention: number; totalAlerts: number }>(
+                  (acc, r) => {
+                    const m = (r.metrics || {}) as Record<string, number>;
+                    acc.totalSessions++;
+                    acc.avgAttendance += (m.attendance_rate || 0);
+                    acc.avgAttention += (m.avg_attention_score || 0);
+                    acc.totalAlerts += (m.alerts_count || 0);
+                    return acc;
+                  },
+                  { totalSessions: 0, avgAttendance: 0, avgAttention: 0, totalAlerts: 0 }
+                );
+                if (metrics.totalSessions > 0) {
+                  metrics.avgAttendance = Math.round(metrics.avgAttendance / metrics.totalSessions);
+                  metrics.avgAttention = Math.round(metrics.avgAttention / metrics.totalSessions);
+                }
+                return (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className="text-2xl font-bold text-primary">{metrics.totalSessions}</p>
+                      <p className="text-xs text-muted-foreground">Reports</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className="text-2xl font-bold text-green-600">{metrics.avgAttendance}%</p>
+                      <p className="text-xs text-muted-foreground">Avg Attendance</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className={`text-2xl font-bold ${metrics.avgAttention >= 70 ? 'text-green-600' : metrics.avgAttention >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {metrics.avgAttention}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Avg Attention</p>
+                    </div>
+                    <div className="rounded-lg border bg-card p-3 text-center">
+                      <p className={`text-2xl font-bold ${metrics.totalAlerts > 10 ? 'text-red-600' : 'text-yellow-600'}`}>
+                        {metrics.totalAlerts}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Total Alerts</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Reports grouped by child */}
+              {(() => {
+                const byChild: Record<string, Record<string, unknown>[]> = {};
+                monitorReports.forEach((r) => {
+                  const key = String(r.target_email || 'unknown');
+                  if (!byChild[key]) byChild[key] = [];
+                  byChild[key].push(r);
+                });
+                return Object.entries(byChild).map(([email, childReports]) => {
+                  const childName = String(childReports[0]?.target_name || email);
+                  return (
+                    <div key={email} className="rounded-lg border bg-card">
+                      <div className="border-b bg-muted/30 px-4 py-3">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold">
+                          <Users className="h-4 w-4 text-primary" />
+                          {childName}
+                          <span className="ml-auto rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            {childReports.length} report{childReports.length !== 1 ? 's' : ''}
+                          </span>
+                        </h3>
+                      </div>
+                      <div className="divide-y">
+                        {childReports.map((report) => {
+                          const m = (report.metrics || {}) as Record<string, unknown>;
+                          const rId = String(report.id);
+                          const isExpanded = expandedReport === rId;
+                          return (
+                            <div key={rId} className="px-4 py-3">
+                              <button
+                                onClick={() => setExpandedReport(isExpanded ? null : rId)}
+                                className="flex w-full items-center justify-between text-left"
+                              >
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {String(report.report_type || 'session').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Report
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {report.period_start ? fmtDateBriefIST(String(report.period_start)) : ''}
+                                    {report.period_end ? ` – ${fmtDateBriefIST(String(report.period_end))}` : ''}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  {m.avg_attention_score != null && (
+                                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${
+                                      Number(m.avg_attention_score) >= 70 ? 'bg-green-100 text-green-700' :
+                                      Number(m.avg_attention_score) >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>
+                                      Attention: {Number(m.avg_attention_score).toFixed(0)}%
+                                    </span>
+                                  )}
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="mt-3 space-y-3 border-t pt-3">
+                                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                    {m.attendance_rate != null && (
+                                      <div className="rounded bg-muted/50 p-2 text-center">
+                                        <p className="text-sm font-bold">{Number(m.attendance_rate).toFixed(0)}%</p>
+                                        <p className="text-[10px] text-muted-foreground">Attendance</p>
+                                      </div>
+                                    )}
+                                    {m.avg_attention_score != null && (
+                                      <div className="rounded bg-muted/50 p-2 text-center">
+                                        <p className="text-sm font-bold">{Number(m.avg_attention_score).toFixed(0)}%</p>
+                                        <p className="text-[10px] text-muted-foreground">Attention</p>
+                                      </div>
+                                    )}
+                                    {m.alerts_count != null && (
+                                      <div className="rounded bg-muted/50 p-2 text-center">
+                                        <p className="text-sm font-bold">{Number(m.alerts_count)}</p>
+                                        <p className="text-[10px] text-muted-foreground">Alerts</p>
+                                      </div>
+                                    )}
+                                    {m.sessions_monitored != null && (
+                                      <div className="rounded bg-muted/50 p-2 text-center">
+                                        <p className="text-sm font-bold">{Number(m.sessions_monitored)}</p>
+                                        <p className="text-[10px] text-muted-foreground">Sessions</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {m.overall_summary ? (
+                                    <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
+                                      <div className="mb-1 flex items-center gap-1 font-semibold">
+                                        <Shield className="h-3.5 w-3.5" /> AI Summary
+                                      </div>
+                                      {String(m.overall_summary)}
+                                    </div>
+                                  ) : null}
+                                  {Array.isArray(m.alert_breakdown) && (m.alert_breakdown as Array<Record<string, unknown>>).length > 0 && (
+                                    <div>
+                                      <p className="mb-1 text-xs font-medium text-muted-foreground">Alert Breakdown</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {(m.alert_breakdown as Array<Record<string, unknown>>).map((ab, i) => (
+                                          <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">
+                                            {String(ab.type || ab.alert_type || 'alert')}: {String(ab.count || 0)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── COMPLAINTS TAB ──────────────────────────────── */}
       {activeTab === 'complaints' && (
         <div>
@@ -932,6 +1403,109 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
           )}
         </div>
       )}
+
+      {/* ─── REQUESTS TAB ─────────────────────────────── */}
+      {activeTab === 'requests' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Session Requests</h2>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowRequestForm(!showRequestForm)}
+                className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition">
+                <Send className="h-3.5 w-3.5" />{showRequestForm ? 'Cancel' : 'New Request'}
+              </button>
+              <button onClick={fetchSessionRequests} className="p-1.5 rounded-lg hover:bg-muted/50 transition text-muted-foreground">
+                <RefreshCw className={`h-4 w-4 ${requestsLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {showRequestForm && (
+            <div className="rounded-xl border border-primary/30 bg-card p-4 space-y-3">
+              <h3 className="text-sm font-semibold">Submit Request on Behalf of Child</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Request Type</label>
+                  <select className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={requestForm.requestType}
+                    onChange={e => setRequestForm(f => ({ ...f, requestType: e.target.value as 'reschedule' | 'cancel' }))}>
+                    <option value="reschedule">🔄 Reschedule</option>
+                    <option value="cancel">❌ Cancel</option>
+                  </select>
+                </div>
+                {requestForm.requestType === 'reschedule' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Proposed Date</label>
+                      <input type="date" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={requestForm.proposedDate}
+                        onChange={e => setRequestForm(f => ({ ...f, proposedDate: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Proposed Time</label>
+                      <input type="time" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" value={requestForm.proposedTime}
+                        onChange={e => setRequestForm(f => ({ ...f, proposedTime: e.target.value }))} />
+                    </div>
+                  </>
+                )}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Reason</label>
+                  <textarea rows={3} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Explain why you need this change…"
+                    value={requestForm.reason} onChange={e => setRequestForm(f => ({ ...f, reason: e.target.value }))} />
+                </div>
+              </div>
+              <button disabled={requestSubmitting || !requestForm.reason} onClick={submitSessionRequest}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition">
+                {requestSubmitting ? 'Submitting…' : 'Submit Request'}
+              </button>
+            </div>
+          )}
+
+          {requestsLoading ? (
+            <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : sessionRequests.length === 0 ? (
+            <div className="text-center py-10">
+              <CalendarClock className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
+              <p className="text-muted-foreground text-sm">No session requests yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sessionRequests.map(r => (
+                <div key={r.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${r.request_type === 'cancel' ? 'bg-red-950/30 border border-red-700/50' : 'bg-blue-950/30 border border-blue-700/50'}`}>
+                        {r.request_type === 'cancel' ? <Ban className="h-4 w-4 text-red-400" /> : <CalendarClock className="h-4 w-4 text-blue-400" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-medium">{r.request_type === 'cancel' ? 'Cancel' : 'Reschedule'} — {r.subject || 'Session'}</span>
+                          <span className={`text-[10px] font-semibold uppercase border rounded px-1.5 py-0.5 ${statusBadge[r.status] || 'text-muted-foreground border-border'}`}>
+                            {r.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {r.batch_name && `${r.batch_name} · `}
+                          {r.session_date && fmtDateBriefIST(r.session_date)}
+                          {r.proposed_date && ` → ${fmtDateBriefIST(r.proposed_date)}`}
+                          {r.proposed_time && ` at ${r.proposed_time}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">{r.reason}</p>
+                        {r.rejection_reason && <p className="text-xs text-red-400 mt-1">Reason: {r.rejection_reason}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString('en-IN')}</p>
+                      {r.status === 'pending' && (
+                        <button onClick={() => withdrawSessionRequest(r.id)} className="text-[10px] text-red-400 hover:text-red-300">Withdraw</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
     </DashboardShell>
   );
 }

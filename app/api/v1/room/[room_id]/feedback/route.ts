@@ -16,7 +16,7 @@ export async function POST(
   try {
     const { room_id } = await params;
     const body = await req.json();
-    const { student_email, student_name, rating, feedback_text, tags } = body;
+    const { student_email, student_name, rating, feedback_text, tags, attendance_confirmed } = body;
 
     if (!student_email || !rating || rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Missing student_email and valid rating (1-5)' }, { status: 400 });
@@ -24,14 +24,15 @@ export async function POST(
 
     await db.query(
       `INSERT INTO student_feedback
-         (room_id, student_email, student_name, rating, feedback_text, tags)
-       VALUES ($1, $2, $3, $4, $5, $6)
+         (room_id, student_email, student_name, rating, feedback_text, tags, attendance_confirmed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (room_id, student_email) DO UPDATE SET
          rating = EXCLUDED.rating,
          feedback_text = EXCLUDED.feedback_text,
          tags = EXCLUDED.tags,
+         attendance_confirmed = EXCLUDED.attendance_confirmed,
          created_at = NOW()`,
-      [room_id, student_email, student_name || '', rating, feedback_text || '', tags || ''],
+      [room_id, student_email, student_name || '', rating, feedback_text || '', tags || '', attendance_confirmed ?? false],
     );
 
     return NextResponse.json({ ok: true });
@@ -55,7 +56,7 @@ export async function GET(
     const { room_id } = await params;
 
     const result = await db.query(
-      `SELECT student_email, student_name, rating, feedback_text, tags, created_at
+      `SELECT student_email, student_name, rating, feedback_text, tags, attendance_confirmed, created_at
        FROM student_feedback
        WHERE room_id = $1
        ORDER BY created_at DESC`,

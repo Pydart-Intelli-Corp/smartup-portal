@@ -37,15 +37,47 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ batc
   }
 
   const studentsRes = await db.query(
-    `SELECT bs.student_email, bs.parent_email, bs.added_at,
-            su.full_name AS student_name,
-            pu.full_name AS parent_name,
-            pp.phone AS parent_phone
+    `SELECT
+       bs.student_email,
+       bs.parent_email,
+       bs.added_at,
+       su.full_name AS student_name,
+       pu.full_name AS parent_name,
+       pp.phone     AS parent_phone,
+       -- Per-student attendance stats for this batch
+       COUNT(ra.room_id) FILTER (
+         WHERE r.status = 'ended'
+       ) AS total_classes,
+       COUNT(a.*) FILTER (
+         WHERE a.status = 'present'
+       ) AS present,
+       CASE
+         WHEN COUNT(ra.room_id) FILTER (WHERE r.status = 'ended') > 0
+         THEN ROUND(
+           (COUNT(a.*) FILTER (WHERE a.status = 'present')::numeric /
+            COUNT(ra.room_id) FILTER (WHERE r.status = 'ended')) * 100, 1
+         )
+         ELSE 0
+       END AS attendance_rate
      FROM batch_students bs
      LEFT JOIN portal_users su ON su.email = bs.student_email
      LEFT JOIN portal_users pu ON pu.email = bs.parent_email
      LEFT JOIN user_profiles pp ON pp.email = bs.parent_email
+     -- Join rooms only for this batch's sessions
+     LEFT JOIN batch_sessions bss ON bss.batch_id = bs.batch_id
+     LEFT JOIN rooms r ON r.room_id = bss.livekit_room_name
+     LEFT JOIN room_assignments ra
+       ON ra.room_id = r.room_id
+       AND ra.participant_email = bs.student_email
+       AND ra.participant_type = 'student'
+     LEFT JOIN attendance_sessions a
+       ON a.room_id = r.room_id
+       AND a.participant_email = bs.student_email
+       AND a.participant_type = 'student'
      WHERE bs.batch_id = $1
+     GROUP BY
+       bs.student_email, bs.parent_email, bs.added_at,
+       su.full_name, pu.full_name, pp.phone
      ORDER BY bs.added_at`,
     [batchId]
   );

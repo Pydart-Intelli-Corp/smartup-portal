@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
       duration_minutes,
       open_at,
       expires_at,
+      batch_id,
+      batch_session_id,
     } = body as {
       room_id: string;
       room_name: string;
@@ -63,6 +65,8 @@ export async function POST(request: NextRequest) {
       duration_minutes?: number;
       open_at?: string;
       expires_at?: string;
+      batch_id?: string;
+      batch_session_id?: string;
     };
 
     if (!room_id || !room_name) {
@@ -123,10 +127,10 @@ export async function POST(request: NextRequest) {
 
     // Insert room into database
     const result = await db.query(
-      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, max_participants, status, scheduled_start, duration_minutes, open_at, expires_at, created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10, $11, $12, $13, NOW(), NOW())
+      `INSERT INTO rooms (room_id, room_name, teacher_email, subject, grade, section, batch_type, max_participants, status, scheduled_start, duration_minutes, open_at, expires_at, batch_id, batch_session_id, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
        RETURNING *`,
-      [room_id, room_name, teacher_email || null, subject || null, grade || null, section || null, resolvedBatchType, batchMaxParticipants, scheduledDate.toISOString(), resolvedDuration, defaultOpenAt, defaultExpiresAt, user.id]
+      [room_id, room_name, teacher_email || null, subject || null, grade || null, section || null, resolvedBatchType, batchMaxParticipants, scheduledDate.toISOString(), resolvedDuration, defaultOpenAt, defaultExpiresAt, batch_id || null, batch_session_id || null, user.id]
     );
 
     // Ensure the room exists on LiveKit server

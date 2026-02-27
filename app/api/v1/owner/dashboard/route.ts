@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       gradeDistResult,
       recentUsersResult,
       cancelledResult,
+      paymentResult,
     ] = await Promise.all([
       // 1. Room status counts
       db.query(`
@@ -113,6 +114,21 @@ export async function GET(req: NextRequest) {
         WHERE status = 'cancelled'
           AND scheduled_start >= NOW() - INTERVAL '30 days'
       `),
+
+      // 9. Payment / revenue stats
+      db.query(`
+        SELECT
+          COUNT(*)::int                                                AS total_invoices,
+          COUNT(*) FILTER (WHERE status = 'paid')::int                AS paid_invoices,
+          COUNT(*) FILTER (WHERE status = 'pending')::int             AS pending_invoices,
+          COUNT(*) FILTER (WHERE status = 'overdue')::int             AS overdue_invoices,
+          COALESCE(SUM(amount_paise) FILTER (WHERE status = 'paid'), 0)::bigint    AS total_collected_paise,
+          COALESCE(SUM(amount_paise) FILTER (WHERE status = 'pending'), 0)::bigint AS total_pending_paise,
+          COALESCE(SUM(amount_paise) FILTER (WHERE status = 'overdue'), 0)::bigint AS total_overdue_paise,
+          COALESCE(SUM(amount_paise), 0)::bigint                                   AS total_invoiced_paise,
+          COALESCE(SUM(amount_paise) FILTER (WHERE status = 'paid' AND paid_at >= NOW() - INTERVAL '30 days'), 0)::bigint AS collected_last_30d_paise
+        FROM invoices
+      `),
     ]);
 
     // Process status counts into a map
@@ -163,6 +179,19 @@ export async function GET(req: NextRequest) {
 
         // Recent users
         recentUsers: recentUsersResult.rows,
+
+        // Payment / revenue stats
+        payment: {
+          totalInvoices: paymentResult.rows[0]?.total_invoices || 0,
+          paidInvoices: paymentResult.rows[0]?.paid_invoices || 0,
+          pendingInvoices: paymentResult.rows[0]?.pending_invoices || 0,
+          overdueInvoices: paymentResult.rows[0]?.overdue_invoices || 0,
+          totalCollectedPaise: Number(paymentResult.rows[0]?.total_collected_paise || 0),
+          totalPendingPaise: Number(paymentResult.rows[0]?.total_pending_paise || 0),
+          totalOverduePaise: Number(paymentResult.rows[0]?.total_overdue_paise || 0),
+          totalInvoicedPaise: Number(paymentResult.rows[0]?.total_invoiced_paise || 0),
+          collectedLast30dPaise: Number(paymentResult.rows[0]?.collected_last_30d_paise || 0),
+        },
       },
     });
   } catch (err) {

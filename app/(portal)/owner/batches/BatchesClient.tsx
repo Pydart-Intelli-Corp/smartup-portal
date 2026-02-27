@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import {
   PageHeader, RefreshButton, Button, IconButton,
@@ -119,6 +119,9 @@ interface BatchStudent {
   parent_name: string | null;
   parent_phone: string | null;
   added_at: string;
+  total_classes: number | null;
+  present: number | null;
+  attendance_rate: number | null;
 }
 
 interface Person {
@@ -1393,11 +1396,13 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
               <TH className="text-right">Actions</TH>
             </THead>
             <tbody>
-              {filtered.map(batch => (
+              {filtered.map(batch => {
+                const isExpanded = selectedBatch === batch.batch_id;
+                return (
+                <React.Fragment key={batch.batch_id}>
                 <TRow
-                  key={batch.batch_id}
-                  selected={selectedBatch === batch.batch_id}
-                  onClick={() => setSelectedBatch(selectedBatch === batch.batch_id ? null : batch.batch_id)}
+                  selected={isExpanded}
+                  onClick={() => setSelectedBatch(isExpanded ? null : batch.batch_id)}
                 >
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-800 truncate max-w-52">{batch.batch_name}</p>
@@ -1469,140 +1474,170 @@ export default function BatchesClient({ userName, userEmail, userRole }: Props) 
                     </div>
                   </td>
                 </TRow>
-              ))}
+                {/* Inline expanded detail row */}
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={10} className="bg-emerald-50/40 border-b border-emerald-100 px-6 py-5">
+                      {detailLoading ? (
+                        <div className="py-8 text-center text-sm text-gray-400">Loading batch details…</div>
+                      ) : !detail ? (
+                        <div className="py-8 text-center text-sm text-gray-400">Could not load batch details</div>
+                      ) : (
+                        <div className="space-y-5">
+                          {/* Header */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-bold text-gray-900">{detail.batch.batch_name}</h3>
+                              <p className="text-xs text-gray-400 font-mono">{detail.batch.batch_id}</p>
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); setSelectedBatch(null); }} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-white transition">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <InfoCard label="Status"><StatusBadge status={detail.batch.status} /></InfoCard>
+                            <InfoCard label="Type"><Badge label={batchTypeLabel(detail.batch.batch_type)} variant={batchTypeBadgeVariant(detail.batch.batch_type)} /></InfoCard>
+                            <InfoCard label="Grade / Section">
+                              <p className="text-sm font-medium text-gray-800">Grade {detail.batch.grade || '—'}{detail.batch.section ? ` ${detail.batch.section}` : ''}</p>
+                            </InfoCard>
+                            <InfoCard label="Board">
+                              <p className="text-sm font-medium text-gray-800">{detail.batch.board || '—'}</p>
+                            </InfoCard>
+                          </div>
+
+                          {/* Subjects */}
+                          <InfoCard label="Subjects">
+                            {(detail.batch.subjects && detail.batch.subjects.length > 0) ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {detail.batch.subjects.map(s => (
+                                  <span key={s} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{s}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400">No subjects assigned</p>
+                            )}
+                          </InfoCard>
+
+                          {/* Teachers — per-subject */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <BookOpen className="h-4 w-4 text-blue-400" /> Subject Teachers ({detail.teachers?.length || 0})
+                            </h4>
+                            {(!detail.teachers || detail.teachers.length === 0) ? (
+                              <EmptyState message="No teachers assigned yet" />
+                            ) : (
+                              <div className="space-y-2">
+                                {detail.teachers.map(t => (
+                                  <div key={`${t.subject}-${t.teacher_email}`} className="flex items-center gap-3 bg-white border rounded-lg px-4 py-2.5">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 min-w-25">{t.subject}</span>
+                                    <span className="text-gray-400">→</span>
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-800">{t.teacher_name || t.teacher_email}</p>
+                                      <p className="text-xs text-gray-400">{t.teacher_email}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <InfoCard label="Coordinator">
+                              <p className="text-sm font-medium text-gray-800">{detail.batch.coordinator_name || '—'}</p>
+                              {detail.batch.coordinator_email && <p className="text-xs text-gray-400">{detail.batch.coordinator_email}</p>}
+                            </InfoCard>
+                            <InfoCard label="Academic Operator">
+                              <p className="text-sm font-medium text-gray-800">{detail.batch.academic_operator_name || '—'}</p>
+                              {detail.batch.academic_operator_email && <p className="text-xs text-gray-400">{detail.batch.academic_operator_email}</p>}
+                            </InfoCard>
+                            <InfoCard label="Max Students">
+                              <p className="text-sm font-medium text-gray-800">{detail.batch.max_students}</p>
+                            </InfoCard>
+                          </div>
+
+                          {/* Students */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <Users className="h-4 w-4 text-gray-400" /> Students ({detail.students.length})
+                            </h4>
+                            {detail.students.length === 0 ? (
+                              <EmptyState message="No students enrolled yet" />
+                            ) : (
+                              <TableWrapper>
+                                <THead>
+                                  <TH>Student</TH>
+                                  <TH>Email</TH>
+                                  <TH>Attendance</TH>
+                                  <TH>Parent Name</TH>
+                                  <TH>Parent Email</TH>
+                                  <TH>Parent Phone</TH>
+                                  <TH>Added</TH>
+                                </THead>
+                                <tbody>
+                                  {detail.students.map(s => (
+                                    <TRow key={s.student_email}>
+                                      <td className="px-3 py-2 font-medium text-gray-800">{s.student_name || s.student_email}</td>
+                                      <td className="px-3 py-2 text-gray-500 text-xs">{s.student_email}</td>
+                                      <td className="px-3 py-2">
+                                        {(s.total_classes ?? 0) > 0 ? (
+                                          <div className="space-y-1">
+                                            <span className={`text-xs font-semibold ${
+                                              (s.attendance_rate ?? 0) >= 75 ? 'text-green-600' :
+                                              (s.attendance_rate ?? 0) >= 50 ? 'text-amber-500' : 'text-red-500'
+                                            }`}>{s.attendance_rate ?? 0}%</span>
+                                            <p className="text-xs text-gray-400">{s.present}/{s.total_classes} attended</p>
+                                          </div>
+                                        ) : (
+                                          <span className="text-xs text-gray-300">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {s.parent_name ? (
+                                          <span className="text-sm text-gray-800 font-medium">{s.parent_name}</span>
+                                        ) : (
+                                          <span className="text-xs text-amber-500">Not assigned</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {s.parent_email ? (
+                                          <span className="text-xs text-emerald-600">{s.parent_email}</span>
+                                        ) : (
+                                          <span className="text-xs text-gray-300">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {s.parent_phone ? (
+                                          <span className="text-xs text-gray-600">{s.parent_phone}</span>
+                                        ) : (
+                                          <span className="text-xs text-gray-300">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2 text-xs text-gray-400">
+                                        {new Date(s.added_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                      </td>
+                                    </TRow>
+                                  ))}
+                                </tbody>
+                              </TableWrapper>
+                            )}
+                          </div>
+
+                          {detail.batch.notes && (
+                            <InfoCard label="Notes">
+                              <p className="text-sm text-gray-600">{detail.batch.notes}</p>
+                            </InfoCard>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+                );
+              })}
             </tbody>
           </TableWrapper>
-        )}
-
-        {/* ── Detail panel ── */}
-        {selectedBatch && (
-          <DetailPanel loading={detailLoading} emptyMessage="Could not load batch details">
-            {detail && (
-              <>
-                <DetailHeader title={detail.batch.batch_name} subtitle={detail.batch.batch_id} onClose={() => setSelectedBatch(null)} />
-
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <InfoCard label="Status"><StatusBadge status={detail.batch.status} /></InfoCard>
-                  <InfoCard label="Type"><Badge label={batchTypeLabel(detail.batch.batch_type)} variant={batchTypeBadgeVariant(detail.batch.batch_type)} /></InfoCard>
-                  <InfoCard label="Grade / Section">
-                    <p className="text-sm font-medium text-gray-800">Grade {detail.batch.grade || '—'}{detail.batch.section ? ` ${detail.batch.section}` : ''}</p>
-                  </InfoCard>
-                  <InfoCard label="Board">
-                    <p className="text-sm font-medium text-gray-800">{detail.batch.board || '—'}</p>
-                  </InfoCard>
-                </div>
-
-                {/* Subjects */}
-                <InfoCard label="Subjects">
-                  {(detail.batch.subjects && detail.batch.subjects.length > 0) ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {detail.batch.subjects.map(s => (
-                        <span key={s} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{s}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-400">No subjects assigned</p>
-                  )}
-                </InfoCard>
-
-                {/* Teachers — per-subject */}
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-blue-400" /> Subject Teachers ({detail.teachers?.length || 0})
-                  </h4>
-                  {(!detail.teachers || detail.teachers.length === 0) ? (
-                    <EmptyState message="No teachers assigned yet" />
-                  ) : (
-                    <div className="space-y-2">
-                      {detail.teachers.map(t => (
-                        <div key={`${t.subject}-${t.teacher_email}`} className="flex items-center gap-3 bg-white border rounded-lg px-4 py-2.5">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 min-w-25">{t.subject}</span>
-                          <span className="text-gray-400">→</span>
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">{t.teacher_name || t.teacher_email}</p>
-                            <p className="text-xs text-gray-400">{t.teacher_email}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <InfoCard label="Coordinator">
-                    <p className="text-sm font-medium text-gray-800">{detail.batch.coordinator_name || '—'}</p>
-                    {detail.batch.coordinator_email && <p className="text-xs text-gray-400">{detail.batch.coordinator_email}</p>}
-                  </InfoCard>
-                  <InfoCard label="Academic Operator">
-                    <p className="text-sm font-medium text-gray-800">{detail.batch.academic_operator_name || '—'}</p>
-                    {detail.batch.academic_operator_email && <p className="text-xs text-gray-400">{detail.batch.academic_operator_email}</p>}
-                  </InfoCard>
-                  <InfoCard label="Max Students">
-                    <p className="text-sm font-medium text-gray-800">{detail.batch.max_students}</p>
-                  </InfoCard>
-                </div>
-
-                {/* Students */}
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" /> Students ({detail.students.length})
-                  </h4>
-                  {detail.students.length === 0 ? (
-                    <EmptyState message="No students enrolled yet" />
-                  ) : (
-                    <TableWrapper>
-                      <THead>
-                        <TH>Student</TH>
-                        <TH>Email</TH>
-                        <TH>Parent Name</TH>
-                        <TH>Parent Email</TH>
-                        <TH>Parent Phone</TH>
-                        <TH>Added</TH>
-                      </THead>
-                      <tbody>
-                        {detail.students.map(s => (
-                          <TRow key={s.student_email}>
-                            <td className="px-3 py-2 font-medium text-gray-800">{s.student_name || s.student_email}</td>
-                            <td className="px-3 py-2 text-gray-500 text-xs">{s.student_email}</td>
-                            <td className="px-3 py-2">
-                              {s.parent_name ? (
-                                <span className="text-sm text-gray-800 font-medium">{s.parent_name}</span>
-                              ) : (
-                                <span className="text-xs text-amber-500">Not assigned</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              {s.parent_email ? (
-                                <span className="text-xs text-emerald-600">{s.parent_email}</span>
-                              ) : (
-                                <span className="text-xs text-gray-300">—</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              {s.parent_phone ? (
-                                <span className="text-xs text-gray-600">{s.parent_phone}</span>
-                              ) : (
-                                <span className="text-xs text-gray-300">—</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-xs text-gray-400">
-                              {new Date(s.added_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </td>
-                          </TRow>
-                        ))}
-                      </tbody>
-                    </TableWrapper>
-                  )}
-                </div>
-
-                {detail.batch.notes && (
-                  <InfoCard label="Notes">
-                    <p className="text-sm text-gray-600">{detail.batch.notes}</p>
-                  </InfoCard>
-                )}
-              </>
-            )}
-          </DetailPanel>
         )}
 
         </>)}{/* end pageTab === 'batches' */}

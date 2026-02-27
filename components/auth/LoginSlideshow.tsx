@@ -34,7 +34,8 @@ export default function LoginSlideshow() {
 
   useEffect(() => {
     if (shuffled.length === 0) return;
-    const timer = setInterval(advance, 10000);
+    // 14s per slide: 12s animation (zoom-in 6s + zoom-out 6s) + 2s hold before crossfade
+    const timer = setInterval(advance, 14000);
     return () => clearInterval(timer);
   }, [shuffled, advance]);
 
@@ -54,7 +55,7 @@ export default function LoginSlideshow() {
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
             style={{
-              animation: i === current ? 'kenburns 12s ease-in-out forwards' : 'none',
+              animation: i === current ? 'kenburns 12s ease-in-out' : 'none',
             }}
           />
         </div>
@@ -110,14 +111,17 @@ export default function LoginSlideshow() {
         ))}
       </div>
 
-      {/* Ken-Burns keyframes */}
+      {/* Ken-Burns keyframes — zoom in then slowly return to original */}
       <style jsx>{`
         @keyframes kenburns {
           0% {
             transform: scale(1) translate(0, 0);
           }
-          100% {
+          50% {
             transform: scale(1.08) translate(-1%, -1%);
+          }
+          100% {
+            transform: scale(1) translate(0, 0);
           }
         }
       `}</style>

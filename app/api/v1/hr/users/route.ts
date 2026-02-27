@@ -27,7 +27,7 @@ async function getHR(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
   const user = await verifySession(token);
-  if (!user || !['hr', 'owner'].includes(user.role)) return null;
+  if (!user || !['hr', 'owner', 'academic_operator'].includes(user.role)) return null;
   return user;
 }
 

@@ -43,9 +43,11 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
 
 export const ALL_PERMISSIONS: PermissionDef[] = [
   // Room Management
-  { key: 'rooms_create',  label: 'Create Rooms',    description: 'Create new classroom rooms',   category: 'rooms' },
-  { key: 'rooms_manage',  label: 'Manage Rooms',    description: 'Start, end, cancel rooms',     category: 'rooms' },
-  { key: 'rooms_view',    label: 'View Rooms',      description: 'View scheduled and past rooms', category: 'rooms' },
+  { key: 'rooms_create',    label: 'Create Rooms',    description: 'Create new classroom rooms',      category: 'rooms' },
+  { key: 'rooms_manage',    label: 'Manage Rooms',    description: 'Start, end, cancel rooms',        category: 'rooms' },
+  { key: 'rooms_view',      label: 'View Rooms',      description: 'View scheduled and past rooms',   category: 'rooms' },
+  { key: 'batches_create',  label: 'Create Batches',  description: 'Create new student batches',      category: 'rooms' },
+  { key: 'batches_manage',  label: 'Manage Batches',  description: 'Edit, archive, delete batches',   category: 'rooms' },
 
   // User Management
   { key: 'users_create',          label: 'Create Users',      description: 'Create new user accounts',       category: 'users' },
@@ -94,6 +96,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, Record<string, boolean>> =
     rooms_create:          true,
     rooms_manage:          true,
     rooms_view:            true,
+    batches_create:        false,
+    batches_manage:        false,
     attendance_view:       true,
     attendance_mark:       true,
     admissions_manage:     true,
@@ -108,6 +112,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, Record<string, boolean>> =
     rooms_create:       true,
     rooms_manage:       true,
     rooms_view:         true,
+    batches_create:     false,
+    batches_manage:     false,
     attendance_view:    true,
     admissions_manage:  true,
     notifications_send: true,

@@ -10,6 +10,7 @@ import { Track, VideoQuality, type Participant, type RemoteParticipant, type Rem
 import HeaderBar from './HeaderBar';
 import ControlBar from './ControlBar';
 import VideoTile from './VideoTile';
+import TimeWarningDialog from './TimeWarningDialog';
 import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './VideoQualitySelector';
 import ChatPanel from './ChatPanel';
 import ParticipantList from './ParticipantList';
@@ -67,11 +68,32 @@ export default function TeacherView({
   onTimeExpired,
 }: TeacherViewProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'participants' | 'attendance'>('chat');
+  const [sidebarTab, setSidebarTab] = useState<'chat' | 'participants' | 'attendance' | 'monitoring'>('chat');
   const [whiteboardActive, setWhiteboardActive] = useState(false);
   const [isLive, setIsLive] = useState(roomStatus === 'live');
   const [goingLive, setGoingLive] = useState(false);
   const [goLiveError, setGoLiveError] = useState('');
+
+  // ── 5-minute warning dialog ──
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const timeWarningShown = useRef(false);
+  const [teacherNow, setTeacherNow] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setTeacherNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const teacherEndTime = useMemo(() => {
+    if (!scheduledStart) return null;
+    const s = new Date(scheduledStart).getTime();
+    return isNaN(s) ? null : s + durationMinutes * 60_000;
+  }, [scheduledStart, durationMinutes]);
+  const teacherRemaining = teacherEndTime ? Math.max(0, Math.floor((teacherEndTime - teacherNow) / 1000)) : null;
+  useEffect(() => {
+    if (teacherRemaining !== null && teacherRemaining <= 5 * 60 && teacherRemaining > 0 && !timeWarningShown.current) {
+      timeWarningShown.current = true;
+      setShowTimeWarning(true);
+    }
+  }, [teacherRemaining]);
 
   const { localParticipant } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
@@ -340,6 +362,81 @@ export default function TeacherView({
 
   // ── Student join/leave sound ──
   const prevStudentIds = useRef<Set<string>>(new Set());
+
+  // ── Student Attention Monitoring (receives data-channel from students) ──
+  interface StudentAttentionState {
+    email: string;
+    name: string;
+    attentionScore: number;
+    isAttentive: boolean;
+    faceDetected: boolean;
+    monitorState?: string;
+    lastUpdate: number;
+  }
+  const [studentAttention, setStudentAttention] = useState<Map<string, StudentAttentionState>>(new Map());
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onAttentionUpdate = useCallback((msg: any) => {
+    try {
+      const text = new TextDecoder().decode(msg?.payload);
+      const data = JSON.parse(text) as {
+        studentEmail: string;
+        studentName: string;
+        attentionScore: number;
+        isAttentive: boolean;
+        faceDetected: boolean;
+        monitorState?: string;
+      };
+      setStudentAttention((prev) => {
+        const next = new Map(prev);
+        next.set(data.studentEmail, {
+          email: data.studentEmail,
+          name: data.studentName,
+          attentionScore: data.attentionScore,
+          isAttentive: data.isAttentive,
+          faceDetected: data.faceDetected,
+          monitorState: data.monitorState,
+          lastUpdate: Date.now(),
+        });
+        return next;
+      });
+    } catch {}
+  }, []);
+
+  const { message: attentionMsg } = useDataChannel('attention_update', onAttentionUpdate);
+  useEffect(() => { if (attentionMsg) onAttentionUpdate(attentionMsg); }, [attentionMsg, onAttentionUpdate]);
+
+  // Clean up attention data for departed students
+  useEffect(() => {
+    const activeIds = new Set(remoteParticipants.map((p) => p.identity));
+    setStudentAttention((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const key of next.keys()) {
+        if (!activeIds.has(key)) { next.delete(key); changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [remoteParticipants]);
+
+  // Live monitoring alerts from server (polled every 15s)
+  const [monitoringAlerts, setMonitoringAlerts] = useState<Array<{ id: string; title: string; message: string; severity: string; alert_type: string; created_at: string }>>([]);
+  useEffect(() => {
+    if (!isLive) return;
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch(`/api/v1/monitoring/session/${roomId}`);
+        const data = await res.json();
+        if (data.success && data.data?.alerts) {
+          setMonitoringAlerts(data.data.alerts.slice(0, 5));
+        }
+      } catch {}
+    };
+    fetchAlerts();
+    const iv = setInterval(fetchAlerts, 15_000);
+    return () => clearInterval(iv);
+  }, [isLive, roomId]);
+
   useEffect(() => {
     const currentIds = new Set(remoteParticipants.filter((p) => {
       try { const m = JSON.parse(p.metadata || '{}'); return (m.effective_role || m.portal_role) === 'student'; }
@@ -469,6 +566,15 @@ export default function TeacherView({
   // ─── Render ─────────────────────────────────────────────
   return (
     <div className="flex h-dvh flex-col bg-[#202124] text-[#e8eaed]">
+
+      {/* ── 5-minute warning dialog ─── */}
+      {showTimeWarning && teacherRemaining !== null && (
+        <TimeWarningDialog
+          remainingSeconds={teacherRemaining}
+          role="teacher"
+          onDismiss={() => setShowTimeWarning(false)}
+        />
+      )}
 
       {/* ── Header ──────────────────────────────────────── */}
       <HeaderBar
@@ -605,10 +711,22 @@ export default function TeacherView({
                 </div>
                 {/* Grid */}
                 <div className={cn('grid flex-1 w-full gap-2 auto-rows-fr', gridCols)}>
-                  {students.map((s) => (
+                  {students.map((s) => {
+                    const att = studentAttention.get(s.identity);
+                    const attScore = att?.attentionScore ?? 100;
+                    const attState = att?.monitorState;
+                    const isLowAtt = attScore < 50;
+                    const isSleeping = attState === 'eyes_closed';
+                    const isNotLooking = attState === 'looking_away';
+
+                    return (
                     <div
                       key={s.identity}
-                      className="relative group min-h-0 min-w-0 overflow-hidden rounded-xl bg-[#292a2d]"
+                      className={cn(
+                        'relative group min-h-0 min-w-0 overflow-hidden rounded-xl bg-[#292a2d]',
+                        isSleeping && 'ring-2 ring-red-500/60',
+                        isNotLooking && !isSleeping && 'ring-2 ring-amber-500/60',
+                      )}
                     >
                       <VideoTile
                         participant={s}
@@ -619,8 +737,21 @@ export default function TeacherView({
                         handRaised={raisedHands.has(s.identity)}
                         className="rounded-xl!"
                       />
+                      {/* AI Attention indicator badge */}
+                      {att && (
+                        <div className={cn(
+                          'absolute top-1.5 right-1.5 z-10 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold backdrop-blur-sm shadow-sm',
+                          isSleeping ? 'bg-red-600/80 text-white' :
+                          isLowAtt ? 'bg-amber-500/80 text-white' :
+                          'bg-green-600/70 text-white'
+                        )}>
+                          {isSleeping ? '💤' : isNotLooking ? '👀' : attScore >= 75 ? '✓' : '⚠'}
+                          <span>{attScore}%</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -851,7 +982,7 @@ export default function TeacherView({
           <div className="flex w-[320px] flex-col border-l border-[#3c4043] bg-[#202124]">
             {/* Tab buttons */}
             <div className="flex border-b border-[#3c4043]">
-              {(['chat', 'participants', 'attendance'] as const).map((tab) => (
+              {(['chat', 'participants', 'attendance', 'monitoring'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSidebarTab(tab)}
@@ -862,7 +993,7 @@ export default function TeacherView({
                       : 'text-[#9aa0a6] hover:text-[#e8eaed] hover:bg-[#292a2d]',
                   )}
                 >
-                  {tab === 'chat' ? '💬 Chat' : tab === 'participants' ? '👥 People' : '📋 Attendance'}
+                  {tab === 'chat' ? '💬 Chat' : tab === 'participants' ? '👥 People' : tab === 'attendance' ? '📋 Attend.' : `🧠 AI${monitoringAlerts.length > 0 ? ` (${monitoringAlerts.length})` : ''}`}
                 </button>
               ))}
             </div>
@@ -882,8 +1013,95 @@ export default function TeacherView({
                   mutedStudents={mutedStudents}
                   onToggleMute={toggleStudentMute}
                 />
-              ) : (
+              ) : sidebarTab === 'attendance' ? (
                 <AttendancePanel roomId={roomId} />
+              ) : (
+                /* AI Monitoring Panel */
+                <div className="flex flex-col h-full p-3 space-y-3 overflow-y-auto">
+                  <div className="text-xs font-semibold text-[#8ab4f8]">
+                    🧠 AI Class Monitor
+                  </div>
+
+                  {/* Class engagement score */}
+                  <div className="rounded-lg bg-[#292a2d] p-3">
+                    <div className="text-[10px] text-[#9aa0a6] uppercase tracking-wide">Class Engagement</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      {(() => {
+                        const allScores = Array.from(studentAttention.values());
+                        const avg = allScores.length > 0
+                          ? Math.round(allScores.reduce((s, a) => s + a.attentionScore, 0) / allScores.length)
+                          : 0;
+                        return (
+                          <>
+                            <div className="flex-1 h-2 rounded-full bg-[#3c4043] overflow-hidden">
+                              <div
+                                className={cn('h-full rounded-full transition-all', avg >= 70 ? 'bg-green-500' : avg >= 40 ? 'bg-amber-500' : 'bg-red-500')}
+                                style={{ width: `${avg}%` }}
+                              />
+                            </div>
+                            <span className={cn('text-sm font-bold', avg >= 70 ? 'text-green-400' : avg >= 40 ? 'text-amber-400' : 'text-red-400')}>
+                              {avg}%
+                            </span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Per-student attention */}
+                  {Array.from(studentAttention.values())
+                    .sort((a, b) => a.attentionScore - b.attentionScore)
+                    .map((att) => (
+                    <div key={att.email} className={cn(
+                      'rounded-lg border p-2.5',
+                      att.monitorState === 'eyes_closed' ? 'border-red-600/50 bg-red-950/30' :
+                      att.attentionScore < 50 ? 'border-amber-600/50 bg-amber-950/30' :
+                      'border-[#3c4043] bg-[#292a2d]',
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-[#e8eaed] truncate">{att.name}</span>
+                        <span className={cn('text-xs font-bold',
+                          att.attentionScore >= 70 ? 'text-green-400' :
+                          att.attentionScore >= 40 ? 'text-amber-400' : 'text-red-400',
+                        )}>
+                          {att.attentionScore}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 text-[10px] text-[#9aa0a6]">
+                        {att.monitorState === 'eyes_closed' && <span className="text-red-400">😴 Sleeping</span>}
+                        {att.monitorState === 'looking_away' && <span className="text-amber-400">👀 Looking Away</span>}
+                        {att.monitorState === 'not_in_frame' && <span className="text-amber-400">🚫 Not in Frame</span>}
+                        {att.monitorState === 'distracted' && <span className="text-amber-400">😵 Distracted</span>}
+                        {att.monitorState === 'low_engagement' && <span className="text-amber-400">📉 Low Engagement</span>}
+                        {(att.monitorState === 'attentive' || !att.monitorState) && <span className="text-green-400">✅ Attentive</span>}
+                        {!att.faceDetected && <span className="text-red-400 ml-1">• No face</span>}
+                      </div>
+                    </div>
+                  ))}
+
+                  {studentAttention.size === 0 && (
+                    <div className="text-center py-8 text-xs text-[#9aa0a6]">
+                      Waiting for student attention data...
+                    </div>
+                  )}
+
+                  {/* Server alerts */}
+                  {monitoringAlerts.length > 0 && (
+                    <div className="space-y-1.5 mt-2">
+                      <div className="text-[10px] text-[#9aa0a6] uppercase tracking-wide">Alerts</div>
+                      {monitoringAlerts.map((alert) => (
+                        <div key={alert.id} className={cn(
+                          'rounded-lg border p-2 text-[11px]',
+                          alert.severity === 'critical' ? 'border-red-600/50 bg-red-950/30 text-red-300' :
+                          'border-amber-600/50 bg-amber-950/30 text-amber-300',
+                        )}>
+                          <div className="font-semibold">{alert.title}</div>
+                          <div className="text-[10px] mt-0.5 opacity-80">{alert.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

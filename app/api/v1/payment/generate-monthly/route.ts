@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
-import { generateInvoiceNumber } from '@/lib/payment';
+import { generateInvoiceNumber, formatAmount } from '@/lib/payment';
+import { sendInvoiceGenerated } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -155,6 +156,30 @@ export async function POST(req: NextRequest) {
         }
 
         generated++;
+
+        // Send invoice email to parent (or student if no parent) — fire-and-forget
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://smartuplearning.online';
+        const payLink = `${baseUrl}/parent`;
+        const parentEmail = String(batches[0].parent_email || '');
+        const studentName = String(batches[0].student_name || studentEmail);
+        const amount = formatAmount(totalPaise, currency);
+        const dueDateStr = dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const periodStr = `${periodStart.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`;
+
+        if (parentEmail && parentEmail !== 'null') {
+          const parentRes = await db.query(`SELECT full_name FROM portal_users WHERE email = $1`, [parentEmail]);
+          const parentName = parentRes.rows.length > 0 ? String((parentRes.rows[0] as Record<string, unknown>).full_name) : 'Parent';
+          sendInvoiceGenerated({
+            recipientName: parentName, recipientEmail: parentEmail, studentName,
+            invoiceNumber, description, amount, dueDate: dueDateStr, billingPeriod: periodStr, payLink,
+          }).catch(e => console.error('[generate-monthly] Email to parent failed:', e));
+        }
+        // Also send to student
+        sendInvoiceGenerated({
+          recipientName: studentName, recipientEmail: studentEmail, studentName,
+          invoiceNumber, description, amount, dueDate: dueDateStr, billingPeriod: periodStr,
+          payLink: `${baseUrl}/student`,
+        }).catch(e => console.error('[generate-monthly] Email to student failed:', e));
       } catch (e) {
         errors.push(`Failed to generate invoice for ${studentEmail}: ${(e as Error).message}`);
       }

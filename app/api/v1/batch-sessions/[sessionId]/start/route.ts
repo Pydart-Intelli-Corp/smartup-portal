@@ -1,0 +1,201 @@
+// ═══════════════════════════════════════════════════════════════
+// Batch Session Start API — Creates LiveKit room & generates tokens
+// POST /api/v1/batch-sessions/[sessionId]/start
+//
+// Creates the LiveKit room and returns join tokens for all
+// participants: teacher, students, parents, coordinator, AO
+// ═══════════════════════════════════════════════════════════════
+
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifySession, COOKIE_NAME } from '@/lib/session';
+import { ensureRoom, createLiveKitToken } from '@/lib/livekit';
+import type { PortalRole } from '@/types';
+
+async function getCaller(req: NextRequest) {
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  const user = await verifySession(token);
+  if (!user || !['owner', 'academic_operator', 'batch_coordinator', 'teacher'].includes(user.role)) return null;
+  return user;
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
+  const caller = await getCaller(req);
+  if (!caller) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+  const { sessionId } = await params;
+
+  // Fetch session + batch details
+  const sessionRes = await db.query(
+    `SELECT s.*, b.batch_name, b.coordinator_email, b.academic_operator_email
+     FROM batch_sessions s
+     JOIN batches b ON b.batch_id = s.batch_id
+     WHERE s.session_id = $1`,
+    [sessionId]
+  );
+
+  if (sessionRes.rows.length === 0) {
+    return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+  }
+
+  const session = sessionRes.rows[0] as Record<string, unknown>;
+
+  if (session.status !== 'scheduled' && session.status !== 'live') {
+    return NextResponse.json({
+      success: false,
+      error: `Cannot start session in '${session.status}' status`,
+    }, { status: 400 });
+  }
+
+  const roomName = session.livekit_room_name as string;
+
+  // 1. Create LiveKit room
+  try {
+    await ensureRoom(roomName, JSON.stringify({
+      session_id: sessionId,
+      batch_id: session.batch_id,
+      subject: session.subject,
+      batch_name: session.batch_name,
+    }));
+  } catch (err) {
+    return NextResponse.json({
+      success: false,
+      error: `Failed to create LiveKit room: ${String(err)}`,
+    }, { status: 500 });
+  }
+
+  // 2. Update session status to 'live'
+  if (session.status === 'scheduled') {
+    await db.query(
+      `UPDATE batch_sessions SET status = 'live', started_at = NOW() WHERE session_id = $1`,
+      [sessionId]
+    );
+  }
+
+  // 3. Generate tokens for ALL participants
+  const tokens: { email: string; name: string; role: string; token: string }[] = [];
+
+  // Teacher token
+  if (session.teacher_email) {
+    const teacherToken = await createLiveKitToken({
+      roomName,
+      participantIdentity: session.teacher_email as string,
+      participantName: (session.teacher_name as string) || 'Teacher',
+      role: 'teacher' as PortalRole,
+    });
+    tokens.push({
+      email: session.teacher_email as string,
+      name: (session.teacher_name as string) || 'Teacher',
+      role: 'teacher',
+      token: teacherToken,
+    });
+  }
+
+  // Student tokens
+  const students = await db.query(
+    `SELECT bs.student_email, bs.parent_email, u.full_name AS student_name,
+            pu.full_name AS parent_name
+     FROM batch_students bs
+     LEFT JOIN portal_users u ON u.email = bs.student_email
+     LEFT JOIN portal_users pu ON pu.email = bs.parent_email
+     WHERE bs.batch_id = $1`,
+    [session.batch_id]
+  );
+
+  for (const s of students.rows) {
+    const student = s as { student_email: string; student_name: string; parent_email: string | null; parent_name: string | null };
+
+    // Student token
+    const studentToken = await createLiveKitToken({
+      roomName,
+      participantIdentity: student.student_email,
+      participantName: student.student_name || student.student_email,
+      role: 'student' as PortalRole,
+    });
+    tokens.push({
+      email: student.student_email,
+      name: student.student_name || student.student_email,
+      role: 'student',
+      token: studentToken,
+    });
+
+    // Parent token (hidden observer)
+    if (student.parent_email) {
+      const parentToken = await createLiveKitToken({
+        roomName,
+        participantIdentity: student.parent_email,
+        participantName: student.parent_name || student.parent_email,
+        role: 'parent' as PortalRole,
+      });
+      tokens.push({
+        email: student.parent_email,
+        name: student.parent_name || student.parent_email,
+        role: 'parent',
+        token: parentToken,
+      });
+    }
+  }
+
+  // Coordinator token (hidden observer)
+  if (session.coordinator_email) {
+    const coordRes = await db.query(
+      `SELECT full_name FROM portal_users WHERE email = $1`,
+      [session.coordinator_email]
+    );
+    const coordName = coordRes.rows.length > 0 ? (coordRes.rows[0] as { full_name: string }).full_name : 'Coordinator';
+    const coordToken = await createLiveKitToken({
+      roomName,
+      participantIdentity: session.coordinator_email as string,
+      participantName: coordName,
+      role: 'batch_coordinator' as PortalRole,
+    });
+    tokens.push({
+      email: session.coordinator_email as string,
+      name: coordName,
+      role: 'batch_coordinator',
+      token: coordToken,
+    });
+  }
+
+  // Academic Operator token (hidden observer)
+  if (session.academic_operator_email) {
+    const aoRes = await db.query(
+      `SELECT full_name FROM portal_users WHERE email = $1`,
+      [session.academic_operator_email]
+    );
+    const aoName = aoRes.rows.length > 0 ? (aoRes.rows[0] as { full_name: string }).full_name : 'Academic Operator';
+    const aoToken = await createLiveKitToken({
+      roomName,
+      participantIdentity: session.academic_operator_email as string,
+      participantName: aoName,
+      role: 'academic_operator' as PortalRole,
+    });
+    tokens.push({
+      email: session.academic_operator_email as string,
+      name: aoName,
+      role: 'academic_operator',
+      token: aoToken,
+    });
+  }
+
+  // Build join URLs
+  const wsUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://smartuplearning.online';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://portal.smartuplearning.online';
+
+  const joinLinks = tokens.map((t) => ({
+    ...t,
+    join_url: `${baseUrl}/classroom/${sessionId}?token=${encodeURIComponent(t.token)}&ws=${encodeURIComponent(wsUrl)}`,
+  }));
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      session_id: sessionId,
+      livekit_room_name: roomName,
+      ws_url: wsUrl,
+      participants: joinLinks,
+    },
+    message: 'Session started — LiveKit room created & tokens generated',
+  });
+}

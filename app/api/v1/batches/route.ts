@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
+import {
+  sendBatchCoordinatorNotify,
+  sendBatchTeacherNotify,
+  sendBatchStudentNotify,
+  sendBatchParentNotify,
+} from '@/lib/email';
 
 async function getOwner(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -59,7 +65,37 @@ export async function GET(req: NextRequest) {
   }
   if (search) {
     params.push(`%${search}%`);
-    sql += ` AND (b.batch_name ILIKE $${params.length} OR b.batch_id ILIKE $${params.length} OR b.grade ILIKE $${params.length} OR b.section ILIKE $${params.length})`;
+    sql += ` AND (
+      b.batch_name ILIKE $${params.length}
+      OR b.batch_id ILIKE $${params.length}
+      OR b.grade ILIKE $${params.length}
+      OR b.section ILIKE $${params.length}
+      OR c.full_name ILIKE $${params.length}
+      OR c.email ILIKE $${params.length}
+      OR ao.full_name ILIKE $${params.length}
+      OR ao.email ILIKE $${params.length}
+      OR EXISTS (
+        SELECT 1 FROM batch_students bs
+        JOIN portal_users su ON su.email = bs.student_email
+        WHERE bs.batch_id = b.batch_id AND (su.full_name ILIKE $${params.length} OR su.email ILIKE $${params.length})
+      )
+      OR EXISTS (
+        SELECT 1 FROM batch_teachers bt
+        JOIN portal_users tu ON tu.email = bt.teacher_email
+        WHERE bt.batch_id = b.batch_id AND (tu.full_name ILIKE $${params.length} OR tu.email ILIKE $${params.length})
+      )
+      OR EXISTS (
+        SELECT 1 FROM batch_students bs2
+        JOIN portal_users pu ON pu.email = bs2.parent_email
+        WHERE bs2.batch_id = b.batch_id AND bs2.parent_email IS NOT NULL AND (pu.full_name ILIKE $${params.length} OR pu.email ILIKE $${params.length})
+      )
+    )`;
+  }
+
+  // AO sees only their assigned batches; owner sees all
+  if (caller.role === 'academic_operator') {
+    params.push(caller.id);
+    sql += ` AND b.academic_operator_email = $${params.length}`;
   }
 
   sql += ` ORDER BY b.created_at DESC`;
@@ -177,6 +213,124 @@ export async function POST(req: NextRequest) {
 
     return newBatchId;
   });
+
+  // ── Send batch creation notification emails (fire-and-forget) ──
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000';
+  const batchTypeLabels: Record<string, string> = {
+    one_to_one: 'One-to-One', one_to_three: 'One-to-Three',
+    one_to_many: 'One-to-Many', custom: 'Custom',
+  };
+
+  // Fire-and-forget: don't await
+  (async () => {
+    try {
+      // 1. Look up all relevant user names from portal_users
+      const allEmails = new Set<string>();
+      if (coordinator_email) allEmails.add((coordinator_email as string).toLowerCase());
+      for (const t of teacherList) allEmails.add(t.email.toLowerCase());
+      for (const s of studentList) {
+        allEmails.add(s.email.toLowerCase());
+        if (s.parent_email) allEmails.add(s.parent_email.toLowerCase());
+      }
+
+      const namesMap: Record<string, string> = {};
+      if (allEmails.size > 0) {
+        const namesRes = await db.query<{ email: string; full_name: string }>(
+          `SELECT email, full_name FROM portal_users WHERE email = ANY($1)`,
+          [Array.from(allEmails)]
+        );
+        for (const row of namesRes.rows) {
+          namesMap[row.email.toLowerCase()] = row.full_name;
+        }
+      }
+
+      const getName = (email: string) => namesMap[email.toLowerCase()] || email.split('@')[0];
+      const batchBase = {
+        batchName: (batch_name as string).trim(),
+        batchType: batchTypeLabels[batch_type as string] || (batch_type as string),
+        subjects: subjectsList,
+        grade: (grade as string) || '',
+        section: (section as string) || undefined,
+        board: (board as string) || undefined,
+      };
+
+      const coordinatorName = coordinator_email ? getName(coordinator_email as string) : 'Coordinator';
+      const coordinatorEmailStr = (coordinator_email as string) || '';
+
+      // 2. Email the Batch Coordinator
+      if (coordinator_email) {
+        await sendBatchCoordinatorNotify({
+          ...batchBase,
+          coordinatorName,
+          studentCount: studentList.length,
+          teacherCount: teacherList.length,
+          teachers: teacherList.map(t => ({ name: getName(t.email), email: t.email, subject: t.subject })),
+          students: studentList.map(s => ({ name: getName(s.email), email: s.email })),
+          loginUrl: portalUrl,
+          recipientEmail: coordinator_email as string,
+        });
+      }
+
+      // 3. Email each Teacher
+      for (const t of teacherList) {
+        await sendBatchTeacherNotify({
+          ...batchBase,
+          teacherName: getName(t.email),
+          assignedSubject: t.subject,
+          coordinatorName,
+          coordinatorEmail: coordinatorEmailStr,
+          studentCount: studentList.length,
+          loginUrl: portalUrl,
+          recipientEmail: t.email,
+        });
+      }
+
+      // 4. Email each Student
+      for (const s of studentList) {
+        await sendBatchStudentNotify({
+          ...batchBase,
+          studentName: getName(s.email),
+          teachers: teacherList.map(t => ({ name: getName(t.email), subject: t.subject })),
+          coordinatorName,
+          coordinatorEmail: coordinatorEmailStr,
+          loginUrl: portalUrl,
+          recipientEmail: s.email,
+        });
+      }
+
+      // 5. Email each Parent (deduplicated — one parent may have multiple children)
+      const parentChildren = new Map<string, { parentName: string; children: { name: string; email: string }[] }>();
+      for (const s of studentList) {
+        if (s.parent_email) {
+          const pKey = s.parent_email.toLowerCase();
+          if (!parentChildren.has(pKey)) {
+            parentChildren.set(pKey, { parentName: getName(s.parent_email), children: [] });
+          }
+          parentChildren.get(pKey)!.children.push({ name: getName(s.email), email: s.email });
+        }
+      }
+      for (const [parentEmail, info] of parentChildren) {
+        // Send one email per child enrollment
+        for (const child of info.children) {
+          await sendBatchParentNotify({
+            ...batchBase,
+            parentName: info.parentName,
+            childName: child.name,
+            childEmail: child.email,
+            teachers: teacherList.map(t => ({ name: getName(t.email), subject: t.subject })),
+            coordinatorName,
+            coordinatorEmail: coordinatorEmailStr,
+            loginUrl: portalUrl,
+            recipientEmail: parentEmail,
+          });
+        }
+      }
+
+      console.log(`[Batch Emails] All notifications sent for batch ${batchId}`);
+    } catch (emailErr) {
+      console.error('[Batch Emails] Error sending notifications:', emailErr);
+    }
+  })();
 
   return NextResponse.json({
     success: true,

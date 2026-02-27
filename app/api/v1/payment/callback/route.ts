@@ -5,7 +5,55 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyRazorpaySignature, completePayment } from '@/lib/payment';
+import { verifyRazorpaySignature, completePayment, formatAmount } from '@/lib/payment';
+import { sendPaymentReceipt } from '@/lib/email';
+
+// Helper: send receipt email after successful payment (fire-and-forget)
+async function sendReceiptEmail(invoiceId: string, receiptNumber: string) {
+  try {
+    const inv = await db.query(
+      `SELECT i.*, pu.full_name AS student_name, up.parent_email
+       FROM invoices i
+       LEFT JOIN portal_users pu ON pu.email = i.student_email
+       LEFT JOIN user_profiles up ON up.user_email = i.student_email
+       WHERE i.id = $1`,
+      [invoiceId]
+    );
+    if (inv.rows.length === 0) return;
+    const invoice = inv.rows[0] as Record<string, unknown>;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://smartuplearning.online';
+    const receiptLink = `${baseUrl}/api/v1/payment/invoice-pdf/${invoiceId}`;
+    const amount = formatAmount(Number(invoice.amount_paise), String(invoice.currency || 'INR'));
+    const studentName = String(invoice.student_name || invoice.student_email);
+    const payDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const emailData = {
+      recipientName: studentName,
+      recipientEmail: String(invoice.student_email),
+      studentName,
+      receiptNumber,
+      invoiceNumber: String(invoice.invoice_number),
+      amount,
+      transactionId: String(invoice.transaction_id || 'N/A'),
+      paymentMethod: String(invoice.payment_method || 'online'),
+      paymentDate: payDate,
+      receiptLink,
+    };
+
+    // Send to student
+    await sendPaymentReceipt(emailData);
+
+    // Also send to parent if available
+    const parentEmail = String(invoice.parent_email || '');
+    if (parentEmail && parentEmail !== 'null' && parentEmail !== '') {
+      const parentRes = await db.query(`SELECT full_name FROM portal_users WHERE email = $1`, [parentEmail]);
+      const parentName = parentRes.rows.length > 0 ? String((parentRes.rows[0] as Record<string, unknown>).full_name) : 'Parent';
+      await sendPaymentReceipt({ ...emailData, recipientName: parentName, recipientEmail: parentEmail });
+    }
+  } catch (e) {
+    console.error('[payment/callback] Failed to send receipt email:', e);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +67,8 @@ export async function POST(req: NextRequest) {
       }
       const mockPaymentId = `mock_pay_${Date.now()}`;
       const result = await completePayment(invoice_id, mockPaymentId, 'mock_gateway', { mock: true });
+      // Send receipt email (fire-and-forget)
+      sendReceiptEmail(invoice_id, result.receiptNumber);
       return NextResponse.json({ success: true, data: result });
     }
 
@@ -50,7 +100,8 @@ export async function POST(req: NextRequest) {
 
     const invId = (inv.rows[0] as Record<string, unknown>).id as string;
     const result = await completePayment(invId, razorpay_payment_id, 'razorpay', body);
-
+    // Send receipt email (fire-and-forget)
+    sendReceiptEmail(invId, result.receiptNumber);
     return NextResponse.json({ success: true, data: result });
   } catch (err) {
     console.error('[payment/callback] POST error:', err);

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
-import { getStudentInvoices, getParentInvoices, createInvoice } from '@/lib/payment';
+import { getStudentInvoices, getParentInvoices, createInvoice, updateOverdueInvoices } from '@/lib/payment';
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,9 +35,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: { invoices } });
     }
 
-    // Coordinators / academic ops see all
-    if (['batch_coordinator', 'academic_operator', 'hr'].includes(user.role)) {
+    // Coordinators / academic ops / owner see all
+    if (['owner', 'batch_coordinator', 'academic_operator', 'hr'].includes(user.role)) {
       const { db } = await import('@/lib/db');
+      await updateOverdueInvoices();
       const result = await db.query(
         `SELECT i.*, u.full_name AS student_name
          FROM invoices i

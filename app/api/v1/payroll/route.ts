@@ -10,6 +10,8 @@ import {
   generatePayslips, getPayslipsForPeriod, finalizePayroll, markPayrollPaid,
   getTeacherPayslips, getTeacherPayConfig,
 } from '@/lib/payroll';
+import { formatAmount } from '@/lib/payment';
+import { sendPayslipNotification } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   try {
@@ -93,6 +95,25 @@ export async function POST(req: NextRequest) {
       const { periodId } = body;
       if (!periodId) return NextResponse.json({ success: false, error: 'periodId required' }, { status: 400 });
       const payslips = await generatePayslips(periodId);
+
+      // Send payslip notification emails (fire-and-forget)
+      // Fetch period + full payslips with teacher names for email
+      const fullSlips = await getPayslipsForPeriod(periodId);
+      for (const ps of fullSlips) {
+        const slip = ps as Record<string, unknown>;
+        sendPayslipNotification({
+          teacherName: String(slip.teacher_name || slip.teacher_email),
+          recipientEmail: String(slip.teacher_email),
+          periodLabel: String(slip.period_label || ''),
+          classesConducted: Number(slip.classes_conducted || 0),
+          basePay: formatAmount(Number(slip.base_pay_paise || 0)),
+          incentive: formatAmount(Number(slip.incentive_paise || 0)),
+          deductions: formatAmount(Number(slip.lop_paise || 0)),
+          totalPay: formatAmount(Number(slip.total_paise || 0)),
+          status: 'generated',
+        }).catch(e => console.error('[payroll] Email failed for', slip.teacher_email, e));
+      }
+
       return NextResponse.json({ success: true, data: { payslips, count: payslips.length } });
     }
 
@@ -109,6 +130,24 @@ export async function POST(req: NextRequest) {
       const { periodId } = body;
       if (!periodId) return NextResponse.json({ success: false, error: 'periodId required' }, { status: 400 });
       const result = await markPayrollPaid(periodId);
+
+      // Notify teachers that salary has been paid
+      const paidSlips = await getPayslipsForPeriod(periodId);
+      for (const ps of paidSlips) {
+        const slip = ps as Record<string, unknown>;
+        sendPayslipNotification({
+          teacherName: String(slip.teacher_name || slip.teacher_email),
+          recipientEmail: String(slip.teacher_email),
+          periodLabel: String(slip.period_label || ''),
+          classesConducted: Number(slip.classes_conducted || 0),
+          basePay: formatAmount(Number(slip.base_pay_paise || 0)),
+          incentive: formatAmount(Number(slip.incentive_paise || 0)),
+          deductions: formatAmount(Number(slip.lop_paise || 0)),
+          totalPay: formatAmount(Number(slip.total_paise || 0)),
+          status: 'paid',
+        }).catch(e => console.error('[payroll] Paid email failed for', slip.teacher_email, e));
+      }
+
       return NextResponse.json({ success: true, data: result });
     }
 

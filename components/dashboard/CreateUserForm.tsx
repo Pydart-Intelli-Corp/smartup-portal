@@ -35,7 +35,6 @@ export const ROLE_LABELS: Record<string, string> = {
   student: 'Student',
   parent: 'Parent',
   batch_coordinator: 'Batch Coordinator',
-  coordinator: 'Batch Coordinator',
   academic_operator: 'Academic Operator',
   hr: 'HR Associate',
   ghost: 'Ghost Observer',
@@ -46,7 +45,6 @@ const ROLE_ICONS: Record<string, React.ElementType> = {
   student: BookOpen,
   parent: Users,
   batch_coordinator: Shield,
-  coordinator: Shield,
   academic_operator: Shield,
   hr: User,
   ghost: Ghost,
@@ -57,7 +55,6 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   student: 'Enroll in batches, attend classes, view grades',
   parent: 'Monitor student progress, receive notifications',
   batch_coordinator: 'Manage batches, coordinate teachers & students',
-  coordinator: 'Manage batches, coordinate teachers & students',
   academic_operator: 'Oversee academic operations and quality',
   hr: 'Manage users, onboarding, accounts',
   ghost: 'Silent observer, audit & monitoring access',
@@ -276,7 +273,7 @@ export function CreateUserModal({
   const formRef = useRef<HTMLFormElement>(null);
 
   // ── Dynamic step definitions (per role) ──
-  type StepKey = 'basic' | 'teaching' | 'academic' | 'guardian' | 'coordinator' | 'operator' | 'notes' | 'review';
+  type StepKey = 'basic' | 'teaching' | 'academic' | 'guardian' | 'notes' | 'review';
 
   const STEPS: { key: StepKey; label: string; icon: React.ElementType; desc: string }[] = (() => {
     const s: { key: StepKey; label: string; icon: React.ElementType; desc: string }[] = [
@@ -288,10 +285,6 @@ export function CreateUserModal({
       s.push({ key: 'academic', label: 'Academic Details', icon: BookOpen, desc: 'Grade, board & admission' });
       s.push({ key: 'guardian', label: 'Guardian Details', icon: Users, desc: 'Parent / guardian account' });
     }
-    if (role === 'coordinator' || role === 'batch_coordinator')
-      s.push({ key: 'coordinator', label: 'Coordinator Details', icon: Shield, desc: 'Region & qualification' });
-    if (role === 'academic_operator')
-      s.push({ key: 'operator', label: 'Operator Details', icon: Shield, desc: 'Region, experience & qualification' });
     s.push({ key: 'notes', label: 'Internal Notes', icon: FileText, desc: 'HR notes & remarks' });
     s.push({ key: 'review', label: 'Review', icon: CheckCircle, desc: 'Confirm & create' });
     return s;
@@ -359,8 +352,6 @@ export function CreateUserModal({
       case 'teaching': return true;
       case 'academic': return true;
       case 'guardian': return true;
-      case 'coordinator': return true;
-      case 'operator': return true;
       case 'notes': return true;
       case 'review': return isStepValid('basic');
       default: return true;
@@ -404,12 +395,8 @@ export function CreateUserModal({
       }
       if (form.admission_date) payload.admission_date = form.admission_date;
     }
-    if (role === 'coordinator' || role === 'batch_coordinator') {
-      if (form.assigned_region) payload.assigned_region = form.assigned_region;
-    }
     if (role === 'academic_operator') {
-      if (form.assigned_region) payload.assigned_region = form.assigned_region;
-      if (form.experience_years) payload.experience_years = Number(form.experience_years);
+      if (form.qualification.trim()) payload.qualification = form.qualification.trim();
     }
 
     setSubmitting(true);
@@ -482,6 +469,11 @@ export function CreateUserModal({
       <FormField label="Address">
         <Textarea rows={2} value={form.address} onChange={(e) => f('address', e.target.value)} placeholder="Full address..." />
       </FormField>
+      {(role === 'batch_coordinator' || role === 'academic_operator') && (
+        <FormField label="Qualification">
+          <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
+        </FormField>
+      )}
     </div>
   );
 
@@ -561,46 +553,7 @@ export function CreateUserModal({
     </div>
   );
 
-  // ── Coordinator Details step ──
-  const renderCoordinatorStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Coordinator Details</h2>
-        <p className="text-sm text-gray-500 mt-1">Region and qualification</p>
-      </div>
-      <FormGrid cols={2}>
-        <FormField label="Assigned Region (GCC)">
-          <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
-            options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
-        </FormField>
-        <FormField label="Qualification">
-          <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
-        </FormField>
-      </FormGrid>
-    </div>
-  );
 
-  // ── Operator Details step (academic_operator) ──
-  const renderOperatorStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Operator Details</h2>
-        <p className="text-sm text-gray-500 mt-1">Region, experience, and qualification</p>
-      </div>
-      <FormGrid cols={2}>
-        <FormField label="Assigned Region (GCC)">
-          <Select value={form.assigned_region} onChange={(v) => f('assigned_region', v)}
-            options={GCC_REGIONS.map(r => ({ value: r, label: r }))} placeholder="— Select —" />
-        </FormField>
-        <FormField label="Experience (years)">
-          <Input type="number" min={0} max={50} value={form.experience_years} onChange={(e) => f('experience_years', e.target.value)} />
-        </FormField>
-      </FormGrid>
-      <FormField label="Qualification">
-        <QualificationSelector value={form.qualification} onChange={(v) => f('qualification', v)} />
-      </FormField>
-    </div>
-  );
 
   const renderNotesStep = () => (
     <div className="space-y-4">
@@ -641,14 +594,11 @@ export function CreateUserModal({
       }
       if (form.admission_date) rows.push({ label: 'Admission Date', value: form.admission_date });
     }
-    if ((role === 'coordinator' || role === 'batch_coordinator') && form.assigned_region) {
-      rows.push({ label: 'Region', value: form.assigned_region });
-      if (form.qualification) rows.push({ label: 'Qualification', value: form.qualification });
+    if (role === 'batch_coordinator' && form.qualification) {
+      rows.push({ label: 'Qualification', value: form.qualification });
     }
-    if (role === 'academic_operator') {
-      if (form.assigned_region) rows.push({ label: 'Region', value: form.assigned_region });
-      if (form.experience_years) rows.push({ label: 'Experience', value: `${form.experience_years} years` });
-      if (form.qualification) rows.push({ label: 'Qualification', value: form.qualification });
+    if (role === 'academic_operator' && form.qualification) {
+      rows.push({ label: 'Qualification', value: form.qualification });
     }
     if (form.address) rows.push({ label: 'Address', value: form.address });
     if (form.notes) rows.push({ label: 'Notes', value: form.notes });
@@ -720,8 +670,6 @@ export function CreateUserModal({
         {role === 'teacher' && renderTeachingStep()}
         {role === 'student' && renderAcademicStep()}
         {role === 'student' && renderGuardianStep()}
-        {(role === 'coordinator' || role === 'batch_coordinator') && renderCoordinatorStep()}
-        {role === 'academic_operator' && renderOperatorStep()}
         {renderNotesStep()}
       </form>
     );
@@ -784,8 +732,6 @@ export function CreateUserModal({
             {currentStep === 'teaching' && renderTeachingStep()}
             {currentStep === 'academic' && renderAcademicStep()}
             {currentStep === 'guardian' && renderGuardianStep()}
-            {currentStep === 'coordinator' && renderCoordinatorStep()}
-            {currentStep === 'operator' && renderOperatorStep()}
             {currentStep === 'notes' && renderNotesStep()}
             {currentStep === 'review' && renderReviewStep()}
           </div>

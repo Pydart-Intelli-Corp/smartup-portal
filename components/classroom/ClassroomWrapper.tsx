@@ -119,6 +119,17 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
         return;
       }
 
+      // ── Invalidate link after session time is over ──
+      const parsedStart = new Date(storedScheduledStart || '').getTime();
+      const parsedDuration = parseInt(storedDuration || '60', 10) || 60;
+      if (!isNaN(parsedStart)) {
+        const sessionEndTime = parsedStart + parsedDuration * 60 * 1000;
+        if (Date.now() > sessionEndTime) {
+          setError('This class session has ended. The join link is no longer valid.');
+          return;
+        }
+      }
+
       setToken(lkToken);
       setLivekitUrl(lkUrl);
       setRoomName(storedRoomName || roomId);

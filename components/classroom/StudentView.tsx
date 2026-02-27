@@ -17,6 +17,7 @@ import VideoQualitySelector, { type VideoQualityOption, QUALITY_MAP } from './Vi
 import WhiteboardComposite from './WhiteboardComposite';
 import ChatPanel from './ChatPanel';
 import FeedbackDialog from './FeedbackDialog';
+import TimeWarningDialog from './TimeWarningDialog';
 import { cn } from '@/lib/utils';
 import {
   MicOnIcon, MicOffIcon,
@@ -84,6 +85,7 @@ const HIDE_DELAY = 3500;          // ms before overlays auto-hide
 const WARNING_THRESHOLD = 5 * 60; // 5 min warning
 
 import { sfxHandRaise, sfxHandLower, sfxParticipantJoin, sfxParticipantLeave, sfxWarning, sfxExpired, sfxMediaControl, hapticTap, hapticToggle } from '@/lib/sounds';
+import { useAttentionMonitor, ATTENTION_TOPIC, type AttentionMessage, type AttentionData, type MonitorConfig } from '@/hooks/useAttentionMonitor';
 
 // ─── component ────────────────────────────────────────────
 export default function StudentView({
@@ -114,6 +116,10 @@ export default function StudentView({
 
   // ── Student feedback ──
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // ── 5-minute warning dialog ──
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const timeWarningShown = useRef(false);
 
   // ── attendance badge (computed once on mount) ──
   const joinedAt = useRef(new Date());
@@ -427,6 +433,56 @@ export default function StudentView({
   const isMicOn = localParticipant.isMicrophoneEnabled;
   const isCamOn = localParticipant.isCameraEnabled;
 
+  // ── AI Attention Monitoring (MediaPipe) ──
+  // Get the student's local video element for face detection
+  const [localVideoEl, setLocalVideoEl] = useState<HTMLVideoElement | null>(null);
+  const selfVideoContainerRef = useRef<HTMLDivElement>(null);
+
+  // Resolve the <video> element from the self-cam container
+  useEffect(() => {
+    if (!isCamOn) { setLocalVideoEl(null); return; }
+    // Short delay to allow VideoTrack to mount
+    const timer = setTimeout(() => {
+      const container = selfVideoContainerRef.current;
+      if (container) {
+        const video = container.querySelector('video');
+        if (video) setLocalVideoEl(video);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [isCamOn]);
+
+  // Monitor config — sends batched events to server every 30s
+  const monitorConfig: MonitorConfig | undefined = useMemo(() => ({
+    roomId: roomId,
+  }), [roomId]);
+
+  // Attention monitoring — broadcasts via data channel + sends to server API
+  const { attentionScore: selfAttentionScore, isAttentive: selfIsAttentive } = useAttentionMonitor(
+    localVideoEl,
+    useCallback((data: AttentionData) => {
+      // Broadcast attention data via LiveKit data channel for teacher view
+      try {
+        const msg: AttentionMessage = {
+          type: 'attention_update',
+          studentEmail: localParticipant.identity,
+          studentName: localParticipant.name || localParticipant.identity,
+          attentionScore: data.attentionScore,
+          isAttentive: data.isAttentive,
+          faceDetected: data.faceDetected,
+          monitorState: data.monitorState,
+          timestamp: Date.now(),
+        };
+        localParticipant.publishData(
+          new TextEncoder().encode(JSON.stringify(msg)),
+          { topic: ATTENTION_TOPIC, reliable: false },
+        ).catch(() => {});
+      } catch {}
+    }, [localParticipant]),
+    isCamOn,
+    monitorConfig,
+  );
+
   // Auto-enable mic + camera on mount
   const autoEnabled = useRef(false);
   useEffect(() => {
@@ -641,7 +697,15 @@ export default function StudentView({
   const warningSounded = useRef(false);
   const expiredSounded = useRef(false);
   useEffect(() => {
-    if (isWarning && !warningSounded.current) { warningSounded.current = true; sfxWarning(); }
+    if (isWarning && !warningSounded.current) {
+      warningSounded.current = true;
+      sfxWarning();
+      // Show the warning dialog once
+      if (!timeWarningShown.current) {
+        timeWarningShown.current = true;
+        setShowTimeWarning(true);
+      }
+    }
   }, [isWarning]);
   useEffect(() => {
     if (isExpired && !expiredSounded.current) { expiredSounded.current = true; sfxExpired(); }
@@ -746,8 +810,8 @@ export default function StudentView({
                   </div>
                 </div>
               )}
-              {/* Self camera */}
-              <div className={cn(
+              {/* Self camera — monitored by AI attention tracker */}
+              <div ref={selfVideoContainerRef} className={cn(
                 'relative overflow-hidden rounded-xl ring-1 ring-white/10',
                 compact ? 'h-15 rounded-lg' : 'flex-1 min-h-0',
               )}>
@@ -760,6 +824,13 @@ export default function StudentView({
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5f6368] text-sm font-semibold text-white">
                       {(participantName || 'S').charAt(0).toUpperCase()}
                     </div>
+                  </div>
+                )}
+                {/* Attention score indicator */}
+                {isCamOn && selfAttentionScore < 60 && (
+                  <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-amber-500/80 px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                    {selfAttentionScore}%
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-2 py-1">
@@ -820,6 +891,13 @@ export default function StudentView({
       )}
 
       {/* === LAYER 1 — Warning / expired banner (always visible) === */}
+      {showTimeWarning && remaining !== null && (
+        <TimeWarningDialog
+          remainingSeconds={remaining}
+          role="student"
+          onDismiss={() => setShowTimeWarning(false)}
+        />
+      )}
       {isWarning && !warningDismissed && (
         <div className="absolute top-0 inset-x-0 z-60 flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5">
           <span className="text-xs font-bold text-[#202124]">

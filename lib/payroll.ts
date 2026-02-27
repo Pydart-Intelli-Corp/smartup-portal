@@ -183,9 +183,10 @@ export async function generatePayslips(periodId: string) {
 
 export async function getPayslipsForPeriod(periodId: string) {
   const result = await db.query(
-    `SELECT ps.*, pu.full_name AS teacher_name
+    `SELECT ps.*, pu.full_name AS teacher_name, pp.period_label
      FROM payslips ps
      LEFT JOIN portal_users pu ON pu.email = ps.teacher_email
+     LEFT JOIN payroll_periods pp ON pp.id = ps.payroll_period_id
      WHERE ps.payroll_period_id = $1
      ORDER BY pu.full_name`,
     [periodId]

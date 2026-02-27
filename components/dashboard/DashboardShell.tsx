@@ -134,7 +134,7 @@ function SidebarNavItem({
       )}
 
       <item.icon
-        className={`h-[18px] w-[18px] shrink-0 transition-transform duration-200
+        className={`h-4.5 w-4.5 shrink-0 transition-transform duration-200
           ${item.active ? 'text-emerald-600 scale-110' : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-110'}
         `}
       />
@@ -194,15 +194,15 @@ export default function DashboardShell({
         className={`
           fixed inset-y-0 left-0 z-40 flex flex-col
           bg-white border-r border-gray-200/80
-          transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+          transition-all duration-300 ease-in-out
           lg:static
-          ${collapsed ? 'w-[72px]' : 'w-64'}
+          ${collapsed ? 'w-18' : 'w-64'}
           ${sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* ── Brand ── */}
         <div className={`flex h-16 items-center border-b border-gray-100 ${collapsed ? 'justify-center px-2' : 'gap-3 px-4'}`}>
-          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 ring-1 ring-emerald-200/60 shadow-sm">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-50 to-green-50 ring-1 ring-emerald-200/60 shadow-sm">
             <img src="/logo/main.png" alt="SmartUp" className="h-5 w-5 object-contain" />
             <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white animate-pulse" />
           </div>
@@ -249,8 +249,8 @@ export default function DashboardShell({
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
             {/* Animated avatar */}
             <div className="relative group cursor-default" title={collapsed ? `${userName}\n${userEmail}` : undefined}>
-              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[2px]" />
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-500 text-xs font-bold text-white shadow-sm">
+              <div className="absolute -inset-0.5 rounded-full bg-linear-to-r from-emerald-400 to-green-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[2px]" />
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-linear-to-br from-emerald-500 to-green-500 text-xs font-bold text-white shadow-sm">
                 {initials}
               </div>
             </div>

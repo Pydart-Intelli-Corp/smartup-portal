@@ -123,7 +123,7 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
       const res = await fetch('/api/v1/payroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_period', label: newLabel, periodStart: newStart, periodEnd: newEnd }),
+        body: JSON.stringify({ action: 'create_period', periodLabel: newLabel, startDate: newStart, endDate: newEnd }),
       });
       const json = await res.json();
       if (json.success) {
@@ -167,10 +167,11 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
         body: JSON.stringify({
           action: 'set_config',
           teacherEmail: cfgEmail,
-          currency: 'INR',
-          perClassRatePaise: Number(cfgRate) * 100,
-          bonusPerClassPaise: Number(cfgBonus) * 100,
-          bonusThresholdClasses: Number(cfgThreshold),
+          ratePerClass: Number(cfgRate) * 100,
+          incentiveRules: {
+            bonusPerClassPaise: Number(cfgBonus) * 100,
+            bonusThresholdClasses: Number(cfgThreshold),
+          },
         }),
       });
       const json = await res.json();

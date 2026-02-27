@@ -19,7 +19,8 @@ import {
   LayoutDashboard, Users, Shield, Calendar, Clock, Radio,
   Activity, Database, Eye, CreditCard, Briefcase, BarChart3,
   BookOpen, GraduationCap, UserCheck, ChevronRight,
-  XCircle, CheckCircle2, Bell,
+  XCircle, CheckCircle2, Bell, IndianRupee, TrendingUp,
+  AlertTriangle, CircleDollarSign, CalendarClock, Loader2,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -45,6 +46,18 @@ interface DailyClass { date: string; total: number; conducted: number; cancelled
 interface SubjectDist { subject: string; count: number; }
 interface RecentUser { email: string; display_name: string; portal_role: string; created_at: string; }
 
+interface PaymentStats {
+  totalInvoices: number;
+  paidInvoices: number;
+  pendingInvoices: number;
+  overdueInvoices: number;
+  totalCollectedPaise: number;
+  totalPendingPaise: number;
+  totalOverduePaise: number;
+  totalInvoicedPaise: number;
+  collectedLast30dPaise: number;
+}
+
 interface DashboardData {
   summary: {
     totalBatches: number;
@@ -61,12 +74,29 @@ interface DashboardData {
   subjectDistribution: SubjectDist[];
   gradeDistribution: { grade: string; count: number }[];
   recentUsers: RecentUser[];
+  payment?: PaymentStats;
 }
 
 interface Props {
   userName: string;
   userEmail: string;
   userRole: string;
+}
+
+interface OwnerLeaveReq {
+  id: string;
+  teacher_email: string;
+  teacher_name?: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: string;
+  ao_status: string;
+  hr_status: string;
+  owner_status: string;
+  affected_sessions: string[];
+  created_at: string;
 }
 
 /* ─── Chart palette ─── */
@@ -121,6 +151,9 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [leaveRequests, setLeaveRequests] = useState<OwnerLeaveReq[]>([]);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveActionId, setLeaveActionId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -136,6 +169,31 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const fetchLeave = useCallback(async () => {
+    setLeaveLoading(true);
+    try {
+      const res = await fetch('/api/v1/teacher-leave');
+      const json = await res.json();
+      if (json.success) setLeaveRequests(json.requests ?? []);
+    } catch { /* */ }
+    finally { setLeaveLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchLeave(); }, [fetchLeave]);
+
+  const handleLeaveAction = async (id: string, action: 'approve' | 'reject', reason?: string) => {
+    setLeaveActionId(id);
+    try {
+      const res = await fetch('/api/v1/teacher-leave', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, leave_id: id, level: 'owner', ...(reason ? { reason } : {}) }),
+      });
+      const json = await res.json();
+      if (json.success) fetchLeave();
+    } catch { /* */ }
+    finally { setLeaveActionId(null); }
+  };
 
   const summary = data?.summary;
   const rooms = data?.rooms || [];
@@ -204,6 +262,32 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
         <KpiCard label="Total Users" value={summary?.totalUsers || 0} icon={Users} variant="info" pulse={false} />
         <KpiCard label="Cancelled (30d)" value={summary?.cancelledLast30 || 0} icon={XCircle} variant="danger" pulse={false} />
       </div>
+
+      {/* Revenue Overview */}
+      {data?.payment && (() => {
+        const p = data.payment;
+        const fmtAmt = (paise: number) => `₹ ${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+        return (
+          <div className="mb-6">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <IndianRupee className="h-4 w-4" /> Revenue Overview
+            </h2>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+              <KpiCard label="Total Invoiced" value={fmtAmt(p.totalInvoicedPaise)} icon={CreditCard} variant="primary" pulse={false} />
+              <KpiCard label="Collected" value={fmtAmt(p.totalCollectedPaise)} icon={CircleDollarSign} variant="success" pulse={false} />
+              <KpiCard label="Pending" value={fmtAmt(p.totalPendingPaise)} icon={Clock} variant="warning" pulse={p.pendingInvoices > 0} />
+              <KpiCard label="Overdue" value={fmtAmt(p.totalOverduePaise)} icon={AlertTriangle} variant="danger" pulse={p.overdueInvoices > 0} />
+              <KpiCard label="Last 30 Days" value={fmtAmt(p.collectedLast30dPaise)} icon={TrendingUp} variant="info" pulse={false} />
+            </div>
+            <div className="mt-2 grid grid-cols-4 gap-3">
+              <StatCardSmall icon={CreditCard} label="Total Invoices" value={p.totalInvoices} variant="info" />
+              <StatCardSmall icon={CheckCircle2} label="Paid" value={p.paidInvoices} variant="success" />
+              <StatCardSmall icon={Clock} label="Pending" value={p.pendingInvoices} variant="warning" />
+              <StatCardSmall icon={AlertTriangle} label="Overdue" value={p.overdueInvoices} variant="danger" />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Status Mini-Cards */}
       <div className="mb-6 grid grid-cols-4 gap-3">
@@ -447,6 +531,65 @@ export default function OwnerDashboardClient({ userName, userEmail, userRole }: 
         </div>
       )}
 
+      {/* Leave Requests (Owner-level approval) */}
+      {leaveRequests.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-amber-500" />
+              <h3 className="text-sm font-semibold text-gray-800">Leave Requests</h3>
+              {leaveRequests.filter(r => r.owner_status === 'pending').length > 0 && (
+                <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">
+                  {leaveRequests.filter(r => r.owner_status === 'pending').length} pending
+                </span>
+              )}
+            </div>
+            <button onClick={fetchLeave} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+              {leaveLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CalendarClock className="h-3 w-3" />} Refresh
+            </button>
+          </div>
+          <div className="space-y-3">
+            {leaveRequests.slice(0, 10).map(lr => (
+              <div key={lr.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-gray-800">{lr.teacher_name || lr.teacher_email}</span>
+                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded capitalize">{lr.leave_type}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      lr.status === 'approved' ? 'bg-green-100 text-green-700' :
+                      lr.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>{lr.status}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {new Date(lr.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(lr.end_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    {lr.affected_sessions?.length > 0 && ` · ${lr.affected_sessions.length} sessions`}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">{lr.reason}</p>
+                  <div className="flex gap-3 mt-1 text-[10px] text-gray-400">
+                    <span>AO: {lr.ao_status}</span>
+                    <span>HR: {lr.hr_status}</span>
+                    <span>Owner: {lr.owner_status}</span>
+                  </div>
+                </div>
+                {lr.owner_status === 'pending' && (
+                  <div className="flex gap-1.5 shrink-0">
+                    <button disabled={leaveActionId === lr.id} onClick={() => handleLeaveAction(lr.id, 'approve')}
+                      className="rounded-lg bg-green-600 px-2.5 py-1 text-[11px] text-white font-medium hover:bg-green-700 disabled:opacity-50">
+                      <CheckCircle2 className="inline h-3 w-3 mr-0.5" />Approve
+                    </button>
+                    <button disabled={leaveActionId === lr.id} onClick={() => handleLeaveAction(lr.id, 'reject', 'Owner rejected')}
+                      className="rounded-lg border border-red-300 px-2.5 py-1 text-[11px] text-red-600 font-medium hover:bg-red-50 disabled:opacity-50">
+                      <XCircle className="inline h-3 w-3 mr-0.5" />Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quick Access */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 mb-6">
         <h3 className="text-sm font-semibold text-gray-800 mb-4">Quick Access</h3>
@@ -472,7 +615,7 @@ const KPI_VARIANTS: Record<string, { icon: string; light: string }> = {
 };
 
 function KpiCard({ label, value, icon: Icon, variant = 'primary', pulse }: {
-  label: string; value: number; icon: React.ElementType; variant?: string; pulse: boolean;
+  label: string; value: number | string; icon: React.ElementType; variant?: string; pulse: boolean;
 }) {
   const v = KPI_VARIANTS[variant] || KPI_VARIANTS.primary;
   return (
@@ -488,7 +631,7 @@ function KpiCard({ label, value, icon: Icon, variant = 'primary', pulse }: {
           </span>
         )}
       </div>
-      <p className="mt-3 text-2xl font-bold text-gray-900">{value.toLocaleString()}</p>
+      <p className="mt-3 text-2xl font-bold text-gray-900">{typeof value === 'number' ? value.toLocaleString() : value}</p>
       <p className="text-xs text-gray-500 mt-0.5">{label}</p>
     </div>
   );

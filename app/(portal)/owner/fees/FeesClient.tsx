@@ -19,34 +19,34 @@ import {
 import {
   CreditCard, Receipt, FileText, Plus, Calendar,
   IndianRupee, Clock, AlertCircle, Download, ExternalLink,
-  Zap, CheckCircle,
+  Zap, CheckCircle, Send, Loader2,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────
 
 interface FeeStructure {
   id: string;
-  name: string;
-  description: string;
+  batch_type: string;
   amount_paise: number;
   currency: string;
-  frequency: string;
+  billing_period: string;
   grade: string;
   subject: string;
-  active: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
 interface Invoice {
   id: string;
+  invoice_number: string;
   student_email: string;
-  fee_structure_id: string;
+  student_name: string | null;
+  description: string | null;
   amount_paise: number;
   currency: string;
   status: string;
   due_date: string;
   paid_at: string | null;
-  payment_id: string | null;
   created_at: string;
 }
 
@@ -70,10 +70,10 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
   });
   const [genResult, setGenResult] = useState<{ generated: number; skipped: number; errors: string[] } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
   // Create fee form
-  const [fName, setFName] = useState('');
-  const [fDesc, setFDesc] = useState('');
+  const [fName, setFName] = useState('one_to_one');
   const [fAmount, setFAmount] = useState('');
   const [fFreq, setFFreq] = useState('monthly');
   const [fGrade, setFGrade] = useState('');
@@ -95,7 +95,7 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
     try {
       const res = await fetch('/api/v1/payment/fee-structures');
       const json = await res.json();
-      if (json.success) setStructures(json.data?.structures || json.data?.feeStructures || []);
+      if (json.success) setStructures(json.data?.structures || json.data?.feeStructures || json.data?.fee_structures || []);
     } catch (e) { console.error(e); }
   }, []);
 
@@ -135,15 +135,15 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: fName, description: fDesc,
-          amountPaise: Math.round(Number(fAmount) * 100),
-          currency: 'INR', frequency: fFreq,
+          batch_type: fName,
+          amount_paise: Math.round(Number(fAmount) * 100),
+          currency: 'INR', billing_period: fFreq,
           grade: fGrade || null, subject: fSubject || null,
         }),
       });
       const json = await res.json();
       if (json.success) {
-        setFName(''); setFDesc(''); setFAmount(''); setFGrade(''); setFSubject('');
+        setFName('one_to_one'); setFAmount(''); setFGrade(''); setFSubject('');
         setTab('structures');
         toast.success('Fee structure created');
         fetchStructures();
@@ -152,6 +152,24 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
       }
     } catch (e) { console.error(e); }
     setActing(false);
+  };
+
+  const sendReminder = async (invoiceId: string) => {
+    setSendingReminder(invoiceId);
+    try {
+      const res = await fetch('/api/v1/payment/send-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_id: invoiceId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(`Reminder sent to ${json.data.count} recipient(s)`);
+      } else {
+        toast.error(json.error || 'Failed to send reminder');
+      }
+    } catch { toast.error('Network error'); }
+    setSendingReminder(null);
   };
 
   // Stats
@@ -230,19 +248,21 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
         {tab === 'create' && (
           <FormPanel title="Create Fee Structure" icon={Plus} onClose={() => setTab('structures')}>
             <FormGrid cols={3}>
-              <FormField label="Name">
-                <Input value={fName} onChange={e => setFName(e.target.value)} placeholder="e.g. Monthly Tuition" />
+              <FormField label="Batch Type">
+                <Select value={fName} onChange={setFName} options={[
+                  { value: 'one_to_one', label: '1-to-1' },
+                  { value: 'one_to_three', label: '1-to-3' },
+                  { value: 'one_to_many', label: '1-to-Many' },
+                ]} />
               </FormField>
               <FormField label="Amount (₹)">
                 <Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="5000" />
               </FormField>
-              <FormField label="Frequency">
+              <FormField label="Billing Period">
                 <Select value={fFreq} onChange={setFFreq} options={[
                   { value: 'monthly', label: 'Monthly' },
                   { value: 'quarterly', label: 'Quarterly' },
-                  { value: 'half_yearly', label: 'Half Yearly' },
                   { value: 'yearly', label: 'Yearly' },
-                  { value: 'one_time', label: 'One Time' },
                 ]} />
               </FormField>
               <FormField label="Grade (optional)">
@@ -251,11 +271,8 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
               <FormField label="Subject (optional)">
                 <Input value={fSubject} onChange={e => setFSubject(e.target.value)} placeholder="Mathematics" />
               </FormField>
-              <FormField label="Description">
-                <Input value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Description…" />
-              </FormField>
             </FormGrid>
-            <FormActions onCancel={() => setTab('structures')} onSubmit={createStructure} submitLabel="Create Structure" submitDisabled={!fName || !fAmount} submitting={acting} />
+            <FormActions onCancel={() => setTab('structures')} onSubmit={createStructure} submitLabel="Create Structure" submitDisabled={!fAmount} submitting={acting} />
           </FormPanel>
         )}
 
@@ -268,13 +285,13 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
               {structures.map(s => (
                 <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900 text-sm">{s.name}</h4>
-                    <Badge label={s.active ? 'Active' : 'Inactive'} variant={s.active ? 'success' : 'default'} />
+                    <h4 className="font-medium text-gray-900 text-sm">{s.batch_type}</h4>
+                    <Badge label={s.is_active ? 'Active' : 'Inactive'} variant={s.is_active ? 'success' : 'default'} />
                   </div>
-                  {s.description && <p className="text-xs text-gray-500 mb-2">{s.description}</p>}
+                  {s.batch_type && <p className="text-xs text-gray-500 mb-2 capitalize">{s.batch_type.replace(/_/g, '-')}</p>}
                   <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                     <span className="text-green-700 font-semibold text-sm">{money(s.amount_paise, s.currency)}</span>
-                    <span className="capitalize">{s.frequency.replace('_', ' ')}</span>
+                    <span className="capitalize">{s.billing_period.replace('_', ' ')}</span>
                     {s.grade && <span>Grade: {s.grade}</span>}
                     {s.subject && <span>Subject: {s.subject}</span>}
                   </div>
@@ -303,21 +320,34 @@ export default function FeesClient({ userName, userEmail, userRole }: Props) {
               <tbody>
                 {invoices.map(inv => (
                   <TRow key={inv.id}>
-                    <td className="px-4 py-3 text-gray-800 text-xs">{inv.student_email}</td>
+                    <td className="px-4 py-3 text-gray-800 text-xs">
+                      <span className="font-medium">{inv.student_name || inv.student_email}</span>
+                      {inv.student_name && <span className="block text-gray-400">{inv.student_email}</span>}
+                    </td>
                     <td className="px-4 py-3 text-right text-green-700 font-medium">{money(inv.amount_paise, inv.currency)}</td>
                     <td className="px-4 py-3 text-center"><StatusBadge status={inv.status} icon={inv.status === 'paid' ? CheckCircle : inv.status === 'overdue' ? AlertCircle : Clock} /></td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(inv.due_date).toLocaleDateString('en-IN')}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{inv.paid_at ? new Date(inv.paid_at).toLocaleDateString('en-IN') : '—'}</td>
                     <td className="px-4 py-3 text-center">
-                      <a href={`/api/v1/payment/receipt/${inv.id}?type=invoice`} target="_blank" rel="noopener noreferrer"
+                      <a href={`/api/v1/payment/invoice-pdf/${inv.id}`} target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 mr-2">
                         <Download className="h-3 w-3" /> Invoice
                       </a>
-                      {inv.status === 'paid' && inv.payment_id && (
-                        <a href={`/api/v1/payment/receipt/${inv.payment_id}?type=receipt`} target="_blank" rel="noopener noreferrer"
+                      {inv.status === 'paid' && (
+                        <a href={`/api/v1/payment/receipt/${inv.id}?type=invoice`} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700">
                           <ExternalLink className="h-3 w-3" /> Receipt
                         </a>
+                      )}
+                      {(inv.status === 'pending' || inv.status === 'overdue') && (
+                        <button
+                          onClick={() => sendReminder(inv.id)}
+                          disabled={sendingReminder === inv.id}
+                          className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 disabled:opacity-50 ml-2"
+                        >
+                          {sendingReminder === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                          Remind
+                        </button>
                       )}
                     </td>
                   </TRow>
