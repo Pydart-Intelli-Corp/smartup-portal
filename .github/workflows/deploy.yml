@@ -1,0 +1,65 @@
+# ═══════════════════════════════════════════════════════════════
+# SmartUp Portal — CI / Deploy
+# Builds the Next.js app using secrets from .env.local,
+# then deploys to the production server via SSH.
+# ═══════════════════════════════════════════════════════════════
+
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env.local from GitHub Secrets
+        run: |
+          echo "NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}"         >> .env.local
+          echo "PORTAL_BASE_URL=${{ secrets.PORTAL_BASE_URL }}"                 >> .env.local
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"                           >> .env.local
+          echo "NEXT_PUBLIC_LIVEKIT_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}" >> .env.local
+          echo "LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }}"                 >> .env.local
+          echo "LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}"           >> .env.local
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}"                       >> .env.local
+          echo "REDIS_URL=${{ secrets.REDIS_URL }}"                             >> .env.local
+          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}"                             >> .env.local
+          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}"                             >> .env.local
+          echo "SMTP_USER=${{ secrets.SMTP_USER }}"                             >> .env.local
+          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"                             >> .env.local
+          echo "EMAIL_FROM_NAME=${{ secrets.EMAIL_FROM_NAME }}"                 >> .env.local
+          echo "EMAIL_FROM_ADDRESS=${{ secrets.EMAIL_FROM_ADDRESS }}"           >> .env.local
+          echo "EMAIL_MODE=${{ secrets.EMAIL_MODE }}"                           >> .env.local
+          echo "OWNER_EMAIL=${{ secrets.OWNER_EMAIL }}"                         >> .env.local
+          echo "OWNER_PASSWORD=${{ secrets.OWNER_PASSWORD }}"                   >> .env.local
+
+      - name: Build Next.js
+        run: npm run build
+
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/smartup-portal
+            git pull origin master
+            npm ci
+            npm run build
+            pm2 restart smartup-portal

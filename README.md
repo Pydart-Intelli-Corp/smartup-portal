@@ -141,6 +141,39 @@ npm run db:migrate   # Run migrations
 npm run db:seed      # Seed test users
 ```
 
+## CI / CD
+
+Pushing to `master` triggers the **Deploy** workflow (`.github/workflows/deploy.yml`).
+The workflow reconstructs `.env.local` from GitHub Secrets, builds the app, then
+deploys to the production server via SSH.
+
+### Required GitHub Secrets
+
+Add the following secrets in **Settings → Secrets and variables → Actions**:
+
+| Secret | Description |
+|--------|-------------|
+| `NEXT_PUBLIC_APP_URL` | Public app URL (e.g. `https://smartuplearning.online`) |
+| `PORTAL_BASE_URL` | Portal base URL |
+| `JWT_SECRET` | 64-char random string for JWT signing |
+| `NEXT_PUBLIC_LIVEKIT_URL` | LiveKit WebSocket URL |
+| `LIVEKIT_API_KEY` | LiveKit API key |
+| `LIVEKIT_API_SECRET` | LiveKit API secret |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `SMTP_HOST` | SMTP server host |
+| `SMTP_PORT` | SMTP server port |
+| `SMTP_USER` | SMTP username |
+| `SMTP_PASS` | SMTP password / app password |
+| `EMAIL_FROM_NAME` | Sender display name |
+| `EMAIL_FROM_ADDRESS` | Sender email address |
+| `EMAIL_MODE` | Email mode (`smtp`) |
+| `OWNER_EMAIL` | Owner seed account email |
+| `OWNER_PASSWORD` | Owner seed account password |
+| `SSH_HOST` | Production server IP / hostname |
+| `SSH_USERNAME` | SSH login username |
+| `SSH_PRIVATE_KEY` | SSH private key for deployment |
+
 ## Documentation
 
 - [DEV_FLOW.md](DEV_FLOW.md) — Build progress, file inventory, known issues
