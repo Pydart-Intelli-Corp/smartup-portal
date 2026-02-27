@@ -229,6 +229,21 @@ export async function completePayment(invoiceId: string, paymentId: string, paym
       [invoice.student_email]
     );
 
+    // Also mark session_payments as paid (if this invoice belongs to a session)
+    await client.query(
+      `UPDATE session_payments
+       SET status = 'paid', paid_at = NOW(), payment_method = $1, transaction_id = $2
+       WHERE invoice_id = $3`,
+      [paymentMethod || 'online', paymentId, invoiceId]
+    );
+
+    // Mark payment_verified on the specific room_assignment linked to this invoice
+    await client.query(
+      `UPDATE room_assignments SET payment_verified = true, payment_status = 'paid'
+       WHERE session_invoice_id = $1`,
+      [invoiceId]
+    );
+
     // Log payment event
     await client.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
@@ -423,8 +438,9 @@ export async function checkSessionPayment(roomId: string, studentEmail: string):
   status?: string;
 } > {
   const result = await db.query(
-    `SELECT sp.status, sp.invoice_id
+    `SELECT sp.status, sp.invoice_id, i.status AS invoice_status
      FROM session_payments sp
+     LEFT JOIN invoices i ON i.id = sp.invoice_id
      WHERE sp.room_id = $1 AND sp.student_email = $2
      LIMIT 1`,
     [roomId, studentEmail]
@@ -433,10 +449,12 @@ export async function checkSessionPayment(roomId: string, studentEmail: string):
   if (result.rows.length === 0) return { paid: false };
 
   const row = result.rows[0] as Record<string, unknown>;
+  // Consider paid if either session_payments or the underlying invoice is paid
+  const isPaid = row.status === 'paid' || row.invoice_status === 'paid';
   return {
-    paid: row.status === 'paid',
+    paid: isPaid,
     invoiceId: row.invoice_id as string | undefined,
-    status: row.status as string,
+    status: isPaid ? 'paid' : (row.status as string),
   };
 }
 
