@@ -3,7 +3,9 @@
  *
  * Reads all .sql files from migrations/ in alphabetical order.
  * Skips files already recorded in the _migrations table.
- * Run: npm run db:migrate
+ *
+ * Run:   npm run db:migrate          (apply pending migrations)
+ *        npm run db:reset            (drop ALL tables, re-run all migrations)
  */
 
 import { readdir, readFile } from 'fs/promises';
@@ -21,11 +23,22 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+const isReset = process.argv.includes('--reset');
+
 async function run() {
   const pool = new Pool({ connectionString: DATABASE_URL });
   const client = await pool.connect();
 
   try {
+    // ── Reset mode: drop everything and start fresh ──────────
+    if (isReset) {
+      console.log('⚠️  RESET MODE — dropping all tables...\n');
+      await client.query('DROP SCHEMA public CASCADE');
+      await client.query('CREATE SCHEMA public');
+      await client.query('GRANT ALL ON SCHEMA public TO public');
+      console.log('  ✅ Schema reset complete.\n');
+    }
+
     // Ensure _migrations table exists
     await client.query(`
       CREATE TABLE IF NOT EXISTS _migrations (
@@ -71,6 +84,10 @@ async function run() {
 
       try {
         await client.query(sql);
+        await client.query(
+          'INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING',
+          [file]
+        );
         appliedCount++;
         console.log(`  ✅ ${file} — applied`);
       } catch (err: unknown) {

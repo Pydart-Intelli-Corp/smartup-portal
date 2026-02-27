@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // SmartUp Portal — Seed Script
-// Seeds portal_users with test accounts and hashed passwords.
-// All accounts default to password: Test@1234
+// Seeds portal_users with the owner account.
+// Default password: Test@1234
 //
 // Run: npx tsx scripts/seed-users.ts
 // ═══════════════════════════════════════════════════════════════
@@ -17,14 +17,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const DEFAULT_PASSWORD = 'Test@1234';
 
 const users: [string, string, string][] = [
-  ['abcdqrst404@gmail.com',     'Priya Sharma',  'teacher'],
-  ['official.tishnu@gmail.com', 'Rahul Nair',    'student'],
-  ['official4tishnu@gmail.com', 'Seema Verma',   'batch_coordinator'],
-  ['dev.poornasree@gmail.com',  'Dr. Mehta',     'academic_operator'],
-  ['tech.poornasree@gmail.com',  'Ayesha Khan',   'hr'],
-  ['idukki.karan404@gmail.com', 'Nair P.',        'parent'],
-  ['smartuplearningventures@gmail.com', 'Admin Owner',   'owner'],
-  ['info.pydart@gmail.com',     'Nour Observer', 'ghost'],
+  ['smartuplearningventures@gmail.com', 'Admin Owner', 'owner'],
 ];
 
 async function seed() {
@@ -57,7 +50,7 @@ async function seed() {
   );
   console.table(res.rows);
 
-  console.log(`\n✅ All users seeded. Default password: ${DEFAULT_PASSWORD}`);
+  console.log(`\n✅ Owner account seeded. Default password: ${DEFAULT_PASSWORD}`);
   await pool.end();
 }
 
