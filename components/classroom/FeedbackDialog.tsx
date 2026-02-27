@@ -100,7 +100,7 @@ export default function FeedbackDialog({
       <div className="mx-4 w-full max-w-sm rounded-3xl bg-[#2d2e30] p-6 shadow-2xl ring-1 ring-white/6">
         {/* Header */}
         <div className="text-center mb-5">
-          <h3 className="text-lg font-semibold text-white">How was your class?</h3>
+          <h3 className="text-lg font-semibold text-white">How was your session?</h3>
           <p className="mt-1 text-sm text-muted-foreground">Rate your experience</p>
         </div>
 

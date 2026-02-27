@@ -39,7 +39,7 @@ const DEFAULT_BOARDS = ['CBSE', 'ICSE', 'State Board'];
 const BATCH_TEMPLATES = [
   { type: 'one_to_one' as const,   label: 'One-to-One',   description: '1 Student — Personal tuition.',   maxStudents: 1,   icon: User,          color: 'bg-blue-50 border-blue-200 text-blue-700',    selectedColor: 'bg-blue-100 border-blue-500 ring-2 ring-blue-300' },
   { type: 'one_to_three' as const, label: 'One-to-Three', description: 'Up to 3 Students — Small group.', maxStudents: 3,   icon: Users,         color: 'bg-emerald-50 border-emerald-200 text-emerald-700', selectedColor: 'bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300' },
-  { type: 'one_to_many' as const,  label: 'Classroom',    description: 'Full class batch — Multiple students.', maxStudents: 15, icon: GraduationCap, color: 'bg-purple-50 border-purple-200 text-purple-700', selectedColor: 'bg-purple-100 border-purple-500 ring-2 ring-purple-300' },
+  { type: 'one_to_many' as const,  label: 'Classroom',    description: 'Full session batch — Multiple students.', maxStudents: 15, icon: GraduationCap, color: 'bg-purple-50 border-purple-200 text-purple-700', selectedColor: 'bg-purple-100 border-purple-500 ring-2 ring-purple-300' },
   { type: 'custom' as const,       label: 'Custom',       description: 'Custom configuration.', maxStudents: 999, icon: Layers,        color: 'bg-amber-50 border-amber-200 text-amber-700',  selectedColor: 'bg-amber-100 border-amber-500 ring-2 ring-amber-300' },
 ];
 
@@ -417,7 +417,7 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
         const data = await res.json();
         if (!mounted) return;
         if (data.success && data.data?.sent > 0) {
-          toast.success(`Sent ${data.data.sent} class reminder${data.data.sent > 1 ? 's' : ''} (30 min before)`);
+          toast.success(`Sent ${data.data.sent} session reminder${data.data.sent > 1 ? 's' : ''} (30 min before)`);
         }
       } catch { /* silent */ }
     };
@@ -980,7 +980,7 @@ function WeeklyTimetableModal({ batch, onClose }: { batch: Batch; onClose: () =>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <BookOpen className="h-4 w-4 text-emerald-600" />
-              <span className="text-gray-500">Classes/Week:</span>
+              <span className="text-gray-500">Sessions/Week:</span>
               <span className="font-semibold text-gray-800">{slots.length}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
@@ -1001,7 +1001,7 @@ function WeeklyTimetableModal({ batch, onClose }: { batch: Batch; onClose: () =>
           ) : slots.length === 0 ? (
             <div className="text-center py-16">
               <Calendar className="h-12 w-12 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-gray-400 font-medium">No classes scheduled for this batch</p>
+              <p className="text-sm text-gray-400 font-medium">No sessions scheduled for this batch</p>
               <p className="text-xs text-gray-300 mt-1">Schedule sessions to see the timetable here.</p>
             </div>
           ) : (
@@ -1018,8 +1018,8 @@ function WeeklyTimetableModal({ batch, onClose }: { batch: Batch; onClose: () =>
                         {day.slice(0, 2).toUpperCase()}
                       </span>
                       <span className={`text-sm font-bold ${hasClasses ? dc.text : 'text-gray-400'}`}>{day}</span>
-                      {!hasClasses && <span className="text-xs text-gray-300 italic ml-1">— No class</span>}
-                      {hasClasses && <span className="text-xs text-gray-400 ml-auto">{daySlots.length} class{daySlots.length > 1 ? 'es' : ''}</span>}
+                      {!hasClasses && <span className="text-xs text-gray-300 italic ml-1">— No session</span>}
+                      {hasClasses && <span className="text-xs text-gray-400 ml-auto">{daySlots.length} session{daySlots.length > 1 ? 's' : ''}</span>}
                     </div>
                     {/* Session rows */}
                     {hasClasses && (
@@ -2338,7 +2338,7 @@ function BatchDetailInline({ batch, sessions, onRefresh }: {
           };
 
           const handleSingleStart = async (s: Session) => {
-            const ok = await confirm({ title: 'Start Class', message: `Start ${s.subject} now?`, confirmLabel: 'Start', variant: 'info' });
+            const ok = await confirm({ title: 'Start Session', message: `Start ${s.subject} now?`, confirmLabel: 'Start', variant: 'info' });
             if (!ok) return;
             try {
               const res = await fetch(`/api/v1/batch-sessions/${s.session_id}/start`, { method: 'POST' });
@@ -2364,7 +2364,7 @@ function BatchDetailInline({ batch, sessions, onRefresh }: {
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <Video className="h-4 w-4 text-emerald-600" /> Class Sessions
+                    <Video className="h-4 w-4 text-emerald-600" /> Sessions
                   </h4>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {scheduledCount > 0 && <span className="text-teal-600 font-medium">{scheduledCount} upcoming</span>}
@@ -2392,7 +2392,7 @@ function BatchDetailInline({ batch, sessions, onRefresh }: {
                   )}
                   {batch.status === 'active' && (
                     <Button icon={PlusCircle} onClick={() => setShowSchedule(true)} size="sm" variant="primary">
-                      Schedule Class
+                      Schedule Session
                     </Button>
                   )}
                 </div>
@@ -2404,10 +2404,10 @@ function BatchDetailInline({ batch, sessions, onRefresh }: {
                     <Calendar className="h-7 w-7 text-gray-300" />
                   </div>
                   <p className="text-sm font-medium text-gray-500">No sessions scheduled yet</p>
-                  <p className="text-xs text-gray-400 mt-1 mb-4">Schedule the first class for this batch</p>
+                  <p className="text-xs text-gray-400 mt-1 mb-4">Schedule the first session for this batch</p>
                   {batch.status === 'active' && (
                     <Button icon={PlusCircle} onClick={() => setShowSchedule(true)} size="sm" variant="primary">
-                      Schedule First Class
+                      Schedule First Session
                     </Button>
                   )}
                 </div>
@@ -2582,9 +2582,9 @@ function SessionCard({ session, batch, onRefresh }: {
 
   const handleStart = async () => {
     const ok = await confirm({
-      title: 'Start Class Session',
-      message: `Start the ${session.subject} class now? This will create the LiveKit room and generate join links for all participants.`,
-      confirmLabel: 'Start Class',
+      title: 'Start Session',
+      message: `Start the ${session.subject} session now? This will create the LiveKit room and generate join links for all participants.`,
+      confirmLabel: 'Start Session',
       variant: 'info',
     });
     if (!ok) return;
@@ -2936,9 +2936,9 @@ function SessionsTab({ sessions, batches, loading, onRefresh }: {
   // Individual start
   const handleStart = async (session: Session) => {
     const ok = await confirm({
-      title: 'Start Class Session',
-      message: `Start the ${session.subject} class now?`,
-      confirmLabel: 'Start Class',
+      title: 'Start Session',
+      message: `Start the ${session.subject} session now?`,
+      confirmLabel: 'Start Session',
       variant: 'info',
     });
     if (!ok) return;
@@ -2995,7 +2995,7 @@ function SessionsTab({ sessions, batches, loading, onRefresh }: {
           )}
           {activeBatches.length > 0 && (
             <Button icon={PlusCircle} onClick={() => setShowSchedule(true)} size="sm">
-              Schedule Class
+              Schedule Session
             </Button>
           )}
         </div>
@@ -3376,14 +3376,14 @@ type ScheduleStep = 'batch' | 'class' | 'schedule' | 'details' | 'review';
 
 const SCHEDULE_STEPS_WITH_BATCH: { key: ScheduleStep; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'batch', label: 'Select Batch', desc: 'Choose a batch', icon: Layers },
-  { key: 'class', label: 'Class Details', desc: 'Subject & teacher', icon: BookOpen },
+  { key: 'class', label: 'Session Details', desc: 'Subject & teacher', icon: BookOpen },
   { key: 'schedule', label: 'Schedule', desc: 'Date, time & days', icon: Calendar },
   { key: 'details', label: 'Details', desc: 'Topic & notes', icon: FileText },
   { key: 'review', label: 'Review', desc: 'Confirm & schedule', icon: CheckCircle2 },
 ];
 
 const SCHEDULE_STEPS_NO_BATCH: { key: ScheduleStep; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: 'class', label: 'Class Details', desc: 'Subject & teacher', icon: BookOpen },
+  { key: 'class', label: 'Session Details', desc: 'Subject & teacher', icon: BookOpen },
   { key: 'schedule', label: 'Schedule', desc: 'Date, time & days', icon: Calendar },
   { key: 'details', label: 'Details', desc: 'Topic & notes', icon: FileText },
   { key: 'review', label: 'Review', desc: 'Confirm & schedule', icon: CheckCircle2 },
@@ -3619,7 +3619,7 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
         });
         const data = await res.json();
         if (!res.ok || !data.success) { setError(data.error || 'Failed to schedule session'); return; }
-        toast.success('Class scheduled successfully');
+        toast.success('Session scheduled successfully');
         onCreated();
       }
     } catch { setError('Network error'); }
@@ -3633,12 +3633,12 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
     return (
       <>
         <h2 className="text-xl font-bold text-gray-900">Select Batch</h2>
-        <p className="text-sm text-gray-500 mt-1 mb-6">Choose which batch to schedule a class for</p>
+        <p className="text-sm text-gray-500 mt-1 mb-6">Choose which batch to schedule a session for</p>
 
         {batchList.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-10 text-center">
             <p className="text-sm font-medium text-gray-500">No active batches available</p>
-            <p className="text-xs text-gray-400 mt-1">Create a batch first before scheduling classes</p>
+            <p className="text-xs text-gray-400 mt-1">Create a batch first before scheduling sessions</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -3688,8 +3688,8 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
 
   const renderClassStep = () => (
     <>
-      <h2 className="text-xl font-bold text-gray-900">Class Details</h2>
-      <p className="text-sm text-gray-500 mt-1 mb-6">Select the subject and teacher for this class session</p>
+      <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
+      <p className="text-sm text-gray-500 mt-1 mb-6">Select the subject and teacher for this session</p>
 
       <FormGrid cols={1}>
         <FormField label="Subject" required>
@@ -3892,7 +3892,7 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
         {form.recurring && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-4">
             <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 block">Class Days</label>
+              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 block">Session Days</label>
               <div className="flex gap-2">
                 {DAY_NAMES.map(day => (
                   <button key={day} type="button" onClick={() => toggleDay(day)}
@@ -4025,7 +4025,7 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
           {form.recurring && (
             <>
               <div className="px-5 py-3 flex items-center justify-between">
-                <span className="text-sm text-gray-500">Class Days</span>
+                <span className="text-sm text-gray-500">Session Days</span>
                 <div className="flex gap-1">
                   {form.class_days.map(d => (
                     <span key={d} className="rounded bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-medium">{d}</span>
@@ -4095,7 +4095,7 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
               <Video className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-white font-bold text-lg">Schedule Class</h2>
+            <h2 className="text-white font-bold text-lg">Schedule Session</h2>
             <p className="text-emerald-200 text-xs mt-1">Step {stepIdx + 1} of {SCHEDULE_STEPS.length}</p>
           </div>
           <div className="space-y-1 flex-1">
@@ -4143,7 +4143,7 @@ function ScheduleSessionModal({ batch: initialBatch, batches: availableBatches, 
                 <Button variant="primary" iconRight={ChevronRight} onClick={goNext} disabled={!canGoNext()} size="lg">Continue</Button>
               ) : (
                 <Button variant="primary" icon={PlusCircle} loading={submitting} disabled={submitting} onClick={handleSubmit} size="lg">
-                  {form.recurring && recurringDates.length > 1 ? `Schedule ${recurringDates.length} Classes` : 'Schedule Class'}
+                  {form.recurring && recurringDates.length > 1 ? `Schedule ${recurringDates.length} Sessions` : 'Schedule Session'}
                 </Button>
               )}
             </div>

@@ -153,7 +153,7 @@ export default function ClassEndedPage() {
           {/* Header */}
           <div className="text-center mb-6">
             <div className="text-4xl mb-3">{isExpired ? '⏰' : '📝'}</div>
-            <h1 className="text-2xl font-bold text-white mb-1">Class Ended</h1>
+            <h1 className="text-2xl font-bold text-white mb-1">Session Ended</h1>
             {roomName && <p className="text-sm text-muted-foreground">{roomName}</p>}
           </div>
 
@@ -166,7 +166,7 @@ export default function ClassEndedPage() {
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-white mb-1">Confirm Your Attendance</h3>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Please confirm that you attended this class session. This is mandatory.
+                    Please confirm that you attended this session. This is mandatory.
                   </p>
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div
@@ -184,7 +184,7 @@ export default function ClassEndedPage() {
                       )}
                     </div>
                     <span className="text-sm text-[#e8eaed] font-medium">
-                      I confirm that I attended this class session
+                      I confirm that I attended this session
                     </span>
                   </label>
                 </div>
@@ -312,15 +312,15 @@ export default function ClassEndedPage() {
       <div className="max-w-md text-center">
         <div className="mb-5 text-5xl">{isExpired ? '⏰' : '✅'}</div>
         <h1 className="mb-2 text-2xl font-bold text-white">
-          {isExpired ? 'Class Time Ended' : 'Class Ended'}
+          {isExpired ? 'Session Time Ended' : 'Session Ended'}
         </h1>
         {roomName && (
           <p className="mb-1 text-muted-foreground">{roomName}</p>
         )}
         <p className="mb-6 text-sm text-muted-foreground">
           {isExpired
-            ? 'The scheduled class time has ended. All participants have been automatically disconnected.'
-            : 'The class session has ended. All participants have been disconnected.'}
+            ? 'The scheduled session time has ended. All participants have been automatically disconnected.'
+            : 'The session has ended. All participants have been disconnected.'}
         </p>
 
         <div className="flex flex-col gap-3 items-center">

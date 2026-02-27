@@ -125,7 +125,7 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       if (!isNaN(parsedStart)) {
         const sessionEndTime = parsedStart + parsedDuration * 60 * 1000;
         if (Date.now() > sessionEndTime) {
-          setError('This class session has ended. The join link is no longer valid.');
+          setError('This session has ended. The join link is no longer valid.');
           return;
         }
       }

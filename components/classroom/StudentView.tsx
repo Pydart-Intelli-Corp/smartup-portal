@@ -545,7 +545,7 @@ export default function StudentView({
       sfxMediaControl();
       hapticToggle();
       if (data.approved) {
-        showToast('Teacher approved — please rate your class');
+        showToast('Teacher approved — please rate your session');
         setShowLeaveDialog(false);
         setLeaveRequestPending(false);
         setShowFeedback(true); // Show feedback dialog before leaving
@@ -862,12 +862,12 @@ export default function StudentView({
                 </svg>
               </div>
               <h2 className="text-lg font-medium text-[#e8eaed]">
-                {teacher ? 'Class in progress' : 'Waiting for teacher\u2026'}
+                {teacher ? 'Session in progress' : 'Waiting for teacher\u2026'}
               </h2>
               <p className="mt-2 text-sm text-[#9aa0a6]">
                 {teacher
                   ? `${teacher.name || teacher.identity} \u2014 audio only`
-                  : 'The class will begin when the teacher starts sharing'}
+                  : 'The session will begin when the teacher starts sharing'}
               </p>
             </div>
           </div>
@@ -901,7 +901,7 @@ export default function StudentView({
       {isWarning && !warningDismissed && (
         <div className="absolute top-0 inset-x-0 z-60 flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5">
           <span className="text-xs font-bold text-[#202124]">
-            {'\u26A0'} Class ends in {Math.ceil((remaining ?? 0) / 60)} min
+            {'\u26A0'} Session ends in {Math.ceil((remaining ?? 0) / 60)} min
           </span>
           <button onClick={() => setWarningDismissed(true)} className="rounded bg-black/15 px-2 py-0.5 text-[10px] font-medium text-[#202124] hover:bg-black/25">
             Dismiss
@@ -910,7 +910,7 @@ export default function StudentView({
       )}
       {isExpired && (
         <div className="absolute top-0 inset-x-0 z-60 flex items-center justify-center bg-[#ea4335] px-4 py-1.5 animate-pulse">
-          <span className="text-xs font-bold text-white">{'\u23F0'} Class ended — disconnecting\u2026</span>
+          <span className="text-xs font-bold text-white">{'\u23F0'} Session ended — disconnecting\u2026</span>
         </div>
       )}
 
@@ -1132,7 +1132,7 @@ export default function StudentView({
                 </div>
                 <h3 className="text-lg font-semibold text-white">Waiting for Teacher Approval</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  You left the class earlier. Your rejoin request has been sent to the teacher.
+                  You left the session earlier. Your rejoin request has been sent to the teacher.
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">Please wait…</p>
                 <button
@@ -1161,7 +1161,7 @@ export default function StudentView({
               )}
             </div>
             <h3 className="text-lg font-semibold text-[#e8eaed]">
-              {leaveRequestPending ? 'Waiting for teacher…' : leaveDenied ? 'Request denied' : 'Leave this class?'}
+              {leaveRequestPending ? 'Waiting for teacher…' : leaveDenied ? 'Request denied' : 'Leave this session?'}
             </h3>
             <p className="mt-1 text-sm text-[#9aa0a6]">
               {leaveRequestPending

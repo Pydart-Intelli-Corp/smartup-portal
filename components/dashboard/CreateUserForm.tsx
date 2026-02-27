@@ -51,8 +51,8 @@ const ROLE_ICONS: Record<string, React.ElementType> = {
 };
 
 const ROLE_DESCRIPTIONS: Record<string, string> = {
-  teacher: 'Teach subjects, conduct classes, grade students',
-  student: 'Enroll in batches, attend classes, view grades',
+  teacher: 'Teach subjects, conduct sessions, grade students',
+  student: 'Enroll in batches, attend sessions, view grades',
   parent: 'Monitor student progress, receive notifications',
   batch_coordinator: 'Manage batches, coordinate teachers & students',
   academic_operator: 'Oversee academic operations and quality',

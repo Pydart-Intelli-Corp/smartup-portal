@@ -1019,12 +1019,12 @@ export default function TeacherView({
                 /* AI Monitoring Panel */
                 <div className="flex flex-col h-full p-3 space-y-3 overflow-y-auto">
                   <div className="text-xs font-semibold text-[#8ab4f8]">
-                    🧠 AI Class Monitor
+                    🧠 AI Session Monitor
                   </div>
 
                   {/* Class engagement score */}
                   <div className="rounded-lg bg-[#292a2d] p-3">
-                    <div className="text-[10px] text-[#9aa0a6] uppercase tracking-wide">Class Engagement</div>
+                    <div className="text-[10px] text-[#9aa0a6] uppercase tracking-wide">Session Engagement</div>
                     <div className="flex items-center gap-2 mt-1">
                       {(() => {
                         const allScores = Array.from(studentAttention.values());

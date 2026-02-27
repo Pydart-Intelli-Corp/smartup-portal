@@ -636,7 +636,7 @@ function UserDetailPanel({ user }: { user: UserRow }) {
                 </div>
                 <div className="rounded-lg bg-gray-50 p-3 text-center">
                   <p className="text-lg font-bold text-gray-800">{perf.attendance.total_classes}</p>
-                  <p className="text-[10px] text-gray-400">Classes</p>
+                  <p className="text-[10px] text-gray-400">Sessions</p>
                 </div>
                 <div className="rounded-lg bg-gray-50 p-3 text-center">
                   <p className="text-lg font-bold text-green-700">{perf.attendance.present}</p>
@@ -957,7 +957,7 @@ function CancellationsTab() {
   const handleApprove = async (id: string) => {
     const ok = await confirm({
       title: 'Approve Cancellation',
-      message: 'This is the final approval. The class will be cancelled permanently.',
+      message: 'This is the final approval. The session will be cancelled permanently.',
       confirmLabel: 'Approve',
       variant: 'warning',
     });
@@ -1012,7 +1012,7 @@ function CancellationsTab() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-red-500" /> Class Cancellations
+            <XCircle className="h-5 w-5 text-red-500" /> Session Cancellations
           </h2>
           <p className="text-xs text-gray-500">HR is the final approver for teacher-initiated cancellations</p>
         </div>
@@ -1284,7 +1284,7 @@ function AttendanceTab() {
           >
             <THead>
               <TH>Teacher</TH>
-              <TH className="text-center">Classes</TH>
+              <TH className="text-center">Sessions</TH>
               <TH className="text-center">Attended</TH>
               <TH className="text-center">Missed</TH>
               <TH className="text-center">Late</TH>
@@ -1336,7 +1336,7 @@ function AttendanceTab() {
           >
             <THead>
               <TH>Student</TH>
-              <TH className="text-center">Classes</TH>
+              <TH className="text-center">Sessions</TH>
               <TH className="text-center">Present</TH>
               <TH className="text-center">Late</TH>
               <TH className="text-center">Absent</TH>
@@ -1594,7 +1594,7 @@ function PayrollTab() {
             >
               <THead>
                 <TH>Teacher</TH>
-                <TH className="text-center">Classes</TH>
+                <TH className="text-center">Sessions</TH>
                 <TH className="text-center">Cancelled</TH>
                 <TH className="text-center">Missed</TH>
                 <TH className="text-right">Base</TH>
@@ -1641,7 +1641,7 @@ function PayrollTab() {
                   onChange={(e) => setConfigForm(f => ({ ...f, teacherEmail: e.target.value }))}
                   placeholder="teacher@email.com" />
               </FormField>
-              <FormField label="Rate Per Class (₹)">
+              <FormField label="Rate Per Session (₹)">
                 <Input type="number" min={0} step={0.01} value={configForm.ratePerClass}
                   onChange={(e) => setConfigForm(f => ({ ...f, ratePerClass: e.target.value }))}
                   placeholder="e.g. 500" />
@@ -1663,8 +1663,8 @@ function PayrollTab() {
             <TableWrapper footer={<span>{configs.length} configuration{configs.length !== 1 ? 's' : ''}</span>}>
               <THead>
                 <TH>Teacher</TH>
-                <TH className="text-right">Per Class</TH>
-                <TH className="text-right">Bonus/Class</TH>
+                <TH className="text-right">Per Session</TH>
+                <TH className="text-right">Bonus/Session</TH>
                 <TH className="text-center">Threshold</TH>
                 <TH className="text-right">Set On</TH>
               </THead>
@@ -1682,7 +1682,7 @@ function PayrollTab() {
                     </td>
                     <td className="px-4 py-3 text-right text-emerald-700 font-semibold">{money(c.per_class_rate_paise)}</td>
                     <td className="px-4 py-3 text-right text-teal-600">{money(c.bonus_per_class_paise)}</td>
-                    <td className="px-4 py-3 text-center text-gray-500">{c.bonus_threshold_classes} classes</td>
+                    <td className="px-4 py-3 text-center text-gray-500">{c.bonus_threshold_classes} sessions</td>
                     <td className="px-4 py-3 text-right text-xs text-gray-400">{fmtDateLongIST(c.created_at)}</td>
                   </TRow>
                 ))}

@@ -488,7 +488,7 @@ export default function TeacherDashboardClient({ userName, userEmail, userRole, 
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-red-100">You are live</p>
                 <h2 className="text-lg font-extrabold text-white leading-tight">
-                  {liveSessions.length === 1 ? 'Class In Progress' : `${liveSessions.length} Classes In Progress`}
+                  {liveSessions.length === 1 ? 'Session In Progress' : `${liveSessions.length} Sessions In Progress`}
                 </h2>
               </div>
             </div>
@@ -649,7 +649,7 @@ function OverviewTab({
             <div className="flex flex-col gap-2 shrink-0">
               {canStartSession(nextSession) && (
                 <Button size="sm" icon={Play} onClick={() => onStartSession(nextSession.session_id, nextSession)} disabled={starting === nextSession.session_id} loading={starting === nextSession.session_id}>
-                  Start Class
+                  Start Session
                 </Button>
               )}
             </div>
@@ -791,23 +791,23 @@ const SETUP_SECTIONS = [
     items: [
       'Each session is 1 hour 30 minutes (75 min teaching + 15 min prep buffer)',
       'Maximum 4 sessions per day per teacher',
-      'Class types: One-to-One, One-to-Three (max 3 students), One-to-Many',
+      'Session types: One-to-One, One-to-Three (max 3 students), One-to-Many',
       'One-to-One students may request preferred timings, subject to approval',
     ],
   },
   {
     id: 'pre_class',
     icon: ListChecks,
-    label: 'Before & During Class',
+    label: 'Before & During Session',
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
     items: [
-      'Enter the class 15 minutes before the scheduled start time',
+      'Enter the session 15 minutes before the scheduled start time',
       'Students join after you (the teacher) have entered',
       'Mark student attendance at the start of every session',
       'Conduct the full scheduled lesson portion',
-      'After class: update the topic covered and add remarks in the system',
+      'After session: update the topic covered and add remarks in the system',
     ],
   },
   {
@@ -818,11 +818,11 @@ const SETUP_SECTIONS = [
     bg: 'bg-purple-50',
     border: 'border-purple-200',
     items: [
-      'Conduct classes as per the assigned schedule',
-      'Always enter the class on time (15 min early)',
+      'Conduct sessions as per the assigned schedule',
+      'Always enter the session on time (15 min early)',
       'Mark attendance for every student in every session',
-      'Complete the scheduled academic portion each class',
-      'Update class details, topic covered, and remarks after each session',
+      'Complete the scheduled academic portion each session',
+      'Update session details, topic covered, and remarks after each session',
       'Evaluate student performance and update exam marks promptly',
     ],
   },
@@ -834,10 +834,10 @@ const SETUP_SECTIONS = [
     bg: 'bg-amber-50',
     border: 'border-amber-200',
     items: [
-      'Teachers cannot directly cancel any scheduled class',
+      'Teachers cannot directly cancel any scheduled session',
       'Submit a cancellation request to your Batch Coordinator with a valid reason',
       'Approval chain: Batch Coordinator → Admin → Academic Operator → HR',
-      'Class is cancelled only after HR final approval',
+      'Session is cancelled only after HR final approval',
       'Unauthorized cancellation is considered a policy violation',
       'All cancellation actions are logged and audited',
     ],
@@ -1515,8 +1515,8 @@ function SalaryTab({
             {[
               { label: 'Total Earned',    value: money(totalPaid),    color: 'text-emerald-700' },
               { label: 'Pending / Draft', value: money(totalPending), color: 'text-amber-600'   },
-              { label: 'Classes Done',    value: String(totalDone),   color: 'text-blue-700'    },
-              { label: 'Classes Missed',  value: String(totalMissed), color: 'text-red-600'     },
+              { label: 'Sessions Done',    value: String(totalDone),   color: 'text-blue-700'    },
+              { label: 'Sessions Missed',  value: String(totalMissed), color: 'text-red-600'     },
             ].map(c => (
               <div key={c.label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
                 <p className="text-xs text-gray-400 mb-1">{c.label}</p>
@@ -1532,7 +1532,7 @@ function SalaryTab({
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-emerald-700">{money(config.rate_per_class * 100)}</p>
-                  <p className="text-xs text-gray-400 mt-1">Rate per class</p>
+                  <p className="text-xs text-gray-400 mt-1">Rate per session</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-blue-700">
@@ -1546,7 +1546,7 @@ function SalaryTab({
                       ? money(config.incentive_rules.bonus_per_class * 100)
                       : '—'}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Bonus per class</p>
+                  <p className="text-xs text-gray-400 mt-1">Bonus per session</p>
                 </div>
               </div>
             </div>
@@ -1572,7 +1572,7 @@ function SalaryTab({
               <THead>
                 <tr>
                   <TH>Period</TH>
-                  <TH>Classes</TH>
+                  <TH>Sessions</TH>
                   <TH>Base Pay</TH>
                   <TH>Incentive</TH>
                   <TH>LOP</TH>
@@ -1621,15 +1621,15 @@ function SalaryTab({
                 <p className="text-sm font-semibold text-gray-700">Pay Schedule Details</p>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Rate per class</span>
+                    <span className="text-gray-500">Rate per session</span>
                     <span className="font-semibold text-gray-800">{money(config.rate_per_class * 100)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Bonus threshold (classes)</span>
+                    <span className="text-gray-500">Bonus threshold (sessions)</span>
                     <span className="font-semibold text-gray-800">{config.incentive_rules?.bonus_threshold ?? 'Not set'}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Bonus per extra class</span>
+                    <span className="text-gray-500">Bonus per extra session</span>
                     <span className="font-semibold text-gray-800">
                       {config.incentive_rules?.bonus_per_class ? money(config.incentive_rules.bonus_per_class * 100) : 'Not set'}
                     </span>
@@ -1637,7 +1637,7 @@ function SalaryTab({
                 </div>
               </div>
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-700">
-                <strong>LOP Policy:</strong> Loss of pay is applied for missed classes not cancelled 24 hours in advance.
+                <strong>LOP Policy:</strong> Loss of pay is applied for missed sessions not cancelled 24 hours in advance.
                 Contact your coordinator if you believe a deduction is incorrect.
               </div>
             </>

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // Owner Dashboard — Command Center
 // Comprehensive monitoring, control & approval hub for system owner
-// Tabs: Overview │ Classes │ Finance │ Approvals │ People
+// Tabs: Overview │ Sessions │ Finance │ Approvals │ People
 // ═══════════════════════════════════════════════════════════════
 
 'use client';
@@ -152,7 +152,7 @@ type TabKey = 'overview' | 'classes' | 'finance' | 'approvals' | 'people';
 
 const TAB_DEF: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'overview',  label: 'Overview',  icon: LayoutDashboard },
-  { key: 'classes',   label: 'Classes',   icon: BookOpen },
+  { key: 'classes',   label: 'Sessions',  icon: BookOpen },
   { key: 'finance',   label: 'Finance',   icon: IndianRupee },
   { key: 'approvals', label: 'Approvals', icon: CheckCircle2 },
   { key: 'people',    label: 'People',    icon: Users },
@@ -396,7 +396,7 @@ function OverviewTab({ data, live, onSwitchTab }: {
           <div className="flex items-center gap-2 mb-3">
             <Activity className="h-4 w-4 text-green-600" />
             <h3 className="text-sm font-semibold text-green-800">
-              {live.length} Live {live.length === 1 ? 'Class' : 'Classes'} in Progress
+              {live.length} Live {live.length === 1 ? 'Session' : 'Sessions'} in Progress
             </h3>
           </div>
           <div className="space-y-2">
@@ -424,7 +424,7 @@ function OverviewTab({ data, live, onSwitchTab }: {
       {/* ── Charts Row 1: Daily Trend + Revenue Trend ── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
-          <SectionHeader icon={Activity} title="30-Day Class Activity" />
+          <SectionHeader icon={Activity} title="30-Day Session Activity" />
           <div className="h-56 mt-3">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailyClasses}>
@@ -550,7 +550,7 @@ function OverviewTab({ data, live, onSwitchTab }: {
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
-/*  TAB: CLASSES                                                   */
+/*  TAB: SESSIONS                                                  */
 /* ═══════════════════════════════════════════════════════════════ */
 
 function ClassesTab({ data, live, rooms, filteredRooms, searchTerm, setSearchTerm, statusFilter, setStatusFilter }: {
@@ -581,13 +581,13 @@ function ClassesTab({ data, live, rooms, filteredRooms, searchTerm, setSearchTer
         <StatMini label="Cancelled" value={summary.cancelledBatches} color="text-red-600" />
       </div>
 
-      {/* ── Live Classes ── */}
+      {/* ── Live Sessions ── */}
       {live.length > 0 && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="h-4 w-4 text-green-600" />
             <h3 className="text-sm font-semibold text-green-800">
-              {live.length} Live {live.length === 1 ? 'Class' : 'Classes'} in Progress
+              {live.length} Live {live.length === 1 ? 'Session' : 'Sessions'} in Progress
             </h3>
           </div>
           <div className="space-y-2">
@@ -684,7 +684,7 @@ function ClassesTab({ data, live, rooms, filteredRooms, searchTerm, setSearchTer
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <QuickLink href="/academic-operator" icon={BookOpen} label="Academic Ops" desc="Full batch & session management" variant="primary" />
         <QuickLink href="/coordinator" icon={Users} label="Coordinator" desc="Batch coordination panel" variant="info" />
-        <QuickLink href="/ghost" icon={Eye} label="Ghost Mode" desc="Silent class observation" variant="default" />
+        <QuickLink href="/ghost" icon={Eye} label="Ghost Mode" desc="Silent session observation" variant="default" />
         <QuickLink href="/owner/reports" icon={BarChart3} label="Reports" desc="Attendance & analytics" variant="success" />
       </div>
     </div>
@@ -952,7 +952,7 @@ function ApprovalsTab({ data, leaveRequests, leaveLoading, leaveActionId, fetchL
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">Cancellation Requests</p>
-              <p className="text-xs text-gray-400">Class cancellation approvals</p>
+              <p className="text-xs text-gray-400">Session cancellation approvals</p>
             </div>
             {pending.cancellations > 0 && (
               <span className="ml-auto text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">{pending.cancellations}</span>
@@ -988,7 +988,7 @@ function ApprovalsTab({ data, leaveRequests, leaveLoading, leaveActionId, fetchL
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">Monitoring Alerts</p>
-              <p className="text-xs text-gray-400">System &amp; class alerts</p>
+              <p className="text-xs text-gray-400">System &amp; session alerts</p>
             </div>
             {pending.alerts > 0 && (
               <span className="ml-auto text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">{pending.alerts}</span>

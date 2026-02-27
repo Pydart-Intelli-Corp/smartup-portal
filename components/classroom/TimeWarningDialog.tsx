@@ -61,7 +61,7 @@ export default function TimeWarningDialog({
           <h2 className="text-xl font-bold text-white">
             {mins} Minute{mins !== 1 ? 's' : ''} Remaining
           </h2>
-          <p className="text-sm text-white/80 mt-1">Class is about to end</p>
+          <p className="text-sm text-white/80 mt-1">Session is about to end</p>
         </div>
 
         {/* Body */}
@@ -91,7 +91,7 @@ export default function TimeWarningDialog({
                 <div>
                   <p className="text-sm font-semibold text-white">Homework / Next Steps</p>
                   <p className="text-xs text-[#9aa0a6] mt-1">
-                    Share any homework assignments or topics for the next class.
+                    Share any homework assignments or topics for the next session.
                   </p>
                 </div>
               </div>
@@ -103,7 +103,7 @@ export default function TimeWarningDialog({
                 <div>
                   <p className="text-sm font-semibold text-white">Ask Your Doubts Now!</p>
                   <p className="text-xs text-[#9aa0a6] mt-1">
-                    The class is ending soon. If you have any questions or need clarification on any topic, please ask your teacher now.
+                    The session is ending soon. If you have any questions or need clarification on any topic, please ask your teacher now.
                   </p>
                 </div>
               </div>
@@ -112,13 +112,13 @@ export default function TimeWarningDialog({
                 <div>
                   <p className="text-sm font-semibold text-white">Review Key Points</p>
                   <p className="text-xs text-[#9aa0a6] mt-1">
-                    Make sure you&apos;ve noted down the important points from today&apos;s class.
+                    Make sure you&apos;ve noted down the important points from today&apos;s session.
                   </p>
                 </div>
               </div>
               <div className="bg-amber-500/10 rounded-xl px-4 py-3 border border-amber-500/20">
                 <p className="text-xs text-amber-300 font-medium">
-                  💡 After the class ends, you&apos;ll be asked to mark your attendance and rate today&apos;s session.
+                  💡 After the session ends, you&apos;ll be asked to mark your attendance and rate today&apos;s session.
                 </p>
               </div>
             </>
@@ -131,7 +131,7 @@ export default function TimeWarningDialog({
             onClick={handleDismiss}
             className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-3 text-sm font-bold text-white transition-colors"
           >
-            Got it, Continue Class
+            Got it, Continue Session
           </button>
         </div>
       </div>

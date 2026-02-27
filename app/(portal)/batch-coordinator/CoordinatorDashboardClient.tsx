@@ -325,7 +325,7 @@ export default function CoordinatorDashboardClient({
     <DashboardShell role={userRole} userName={userName} userEmail={userEmail} permissions={permissions}>
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-foreground">Batch Coordinator Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Monitor batches, track attendance, AI class monitoring, generate reports</p>
+        <p className="text-sm text-muted-foreground">Monitor batches, track attendance, AI session monitoring, generate reports</p>
       </div>
 
       {/* Tab Navigation */}
@@ -389,7 +389,7 @@ function OverviewTab({ stats, rooms, alerts, loading, onRefresh, onTab, router }
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: 'Total Classes', value: stats.total, icon: Calendar, color: 'border-border text-foreground' },
+          { label: 'Total Sessions', value: stats.total, icon: Calendar, color: 'border-border text-foreground' },
           { label: 'Live Now', value: stats.live, icon: Radio, color: 'border-green-700 text-green-400' },
           { label: 'Scheduled', value: stats.scheduled, icon: Clock, color: 'border-cyan-700 text-cyan-400' },
           { label: 'Ended', value: stats.ended, icon: CheckCircle2, color: 'border-border text-muted-foreground' },
@@ -606,7 +606,7 @@ function LiveSessionsTab({ rooms, loading, onRefresh, router }: {
                 {/* Engagement score */}
                 <div className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground">Class Engagement</span>
+                    <span className="text-xs text-muted-foreground">Session Engagement</span>
                     <button onClick={() => router.push(`/classroom/${selectedRoom}?mode=observe`)}
                       className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-green-700">
                       <Eye className="h-3 w-3" /> Observe Live

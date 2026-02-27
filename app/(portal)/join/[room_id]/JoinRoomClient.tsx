@@ -204,7 +204,7 @@ export default function JoinRoomClient({
     if (!waitingForTeacher) return;
     if (pollCount >= MAX_POLL) {
       setWaitingForTeacher(false);
-      setError('Teacher has not started the class yet. Please try again later.');
+      setError('Teacher has not started the session yet. Please try again later.');
       return;
     }
     const id = setInterval(() => {
@@ -347,7 +347,7 @@ export default function JoinRoomClient({
                         <div className="flex-1">
                           <p className="text-sm font-semibold text-amber-300">Payment Required</p>
                           <p className="text-xs text-amber-400/80 mt-1">
-                            Session fee must be paid before joining this class
+                            Session fee must be paid before joining this session
                           </p>
                         </div>
                       </div>
@@ -408,7 +408,7 @@ export default function JoinRoomClient({
                 <div>
                   <p className="text-sm font-medium text-green-300">Payment Successful!</p>
                   <p className="text-xs text-green-400/70">
-                    {canJoin ? 'Joining class automatically...' : 'You can now join when the lobby opens'}
+                    {canJoin ? 'Joining session automatically...' : 'You can now join when the lobby opens'}
                   </p>
                 </div>
                 {canJoin && <Loader2 className="h-4 w-4 text-green-400 animate-spin ml-auto" />}
@@ -418,7 +418,7 @@ export default function JoinRoomClient({
             {isLive && !isEnded && paymentResolved && (
               <div className="flex items-center gap-2 rounded-lg border border-green-800 bg-green-950/30 p-3 text-green-400">
                 <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-sm font-medium">Class is Live &mdash; Join Now!</span>
+                <span className="text-sm font-medium">Session is Live &mdash; Join Now!</span>
               </div>
             )}
 
@@ -440,7 +440,7 @@ export default function JoinRoomClient({
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-amber-300">You&apos;re early!</p>
                       <p className="mt-1 text-xs text-amber-400/80">
-                        This class is scheduled for{' '}
+                        This session is scheduled for{' '}
                         <span className="font-medium text-amber-300">{fmtTimeIST(startDate)}, {fmtDateShortIST(startDate)}</span>
                       </p>
                     </div>
@@ -457,7 +457,7 @@ export default function JoinRoomClient({
                       <p className="font-medium text-foreground/80">{fmtTimeIST(lobbyOpenTime)}</p>
                     </div>
                     <div className="rounded bg-muted/50 px-2 py-1.5 text-center">
-                      <span className="text-muted-foreground">Class starts</span>
+                      <span className="text-muted-foreground">Session starts</span>
                       <p className="font-medium text-foreground/80">{fmtTimeIST(startDate)}</p>
                     </div>
                   </div>
@@ -474,7 +474,7 @@ export default function JoinRoomClient({
             {isEnded && (
               <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-3 text-muted-foreground">
                 <AlertCircle className="h-4 w-4" />
-                <span className="text-sm font-medium">This class has already ended</span>
+                <span className="text-sm font-medium">This session has already ended</span>
               </div>
             )}
 
@@ -487,8 +487,8 @@ export default function JoinRoomClient({
                       <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-blue-300">Waiting for teacher to start the class</p>
-                      <p className="mt-1 text-xs text-blue-400/80">You&apos;ll be connected automatically once the class goes live.</p>
+                      <p className="text-sm font-semibold text-blue-300">Waiting for teacher to start the session</p>
+                      <p className="mt-1 text-xs text-blue-400/80">You&apos;ll be connected automatically once the session goes live.</p>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-center gap-1.5 py-2">
@@ -520,15 +520,15 @@ export default function JoinRoomClient({
               ) : joining ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Connecting...</>
               ) : isEnded ? (
-                'Class Ended'
+                'Session Ended'
               ) : needsPaymentCheck && !paymentResolved ? (
                 <><CreditCard className="h-4 w-4" /> Pay to Join</>
               ) : !canJoin && mounted ? (
-                <><Timer className="h-4 w-4" /> {msUntilStart > 86400000 ? `Class starts on ${fmtDateShortIST(startDate)}` : `Opens in ${fmtCountdown(msUntilLobby)}`}</>
+                <><Timer className="h-4 w-4" /> {msUntilStart > 86400000 ? `Session starts on ${fmtDateShortIST(startDate)}` : `Opens in ${fmtCountdown(msUntilLobby)}`}</>
               ) : !canJoin ? (
                 'Lobby Not Open Yet'
               ) : (
-                <><Video className="h-4 w-4" /> {isLive ? 'Join Live Class' : 'Enter Lobby'}</>
+                <><Video className="h-4 w-4" /> {isLive ? 'Join Live Session' : 'Enter Lobby'}</>
               )}
             </button>
           </div>

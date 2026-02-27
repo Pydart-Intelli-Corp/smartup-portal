@@ -84,11 +84,11 @@ export default function SystemClient({ userName, userEmail, userRole }: Props) {
     setConfigLoading(true);
     try {
       setConfigs([
-        { key: 'default_class_fee_paise', value: '50000', description: 'Default fee per class in paise (₹500.00)' },
-        { key: 'early_join_minutes', value: '15', description: 'Minutes before class start when joins are allowed' },
-        { key: 'grace_period_minutes', value: '10', description: 'Grace period for late joins after class start' },
+        { key: 'default_class_fee_paise', value: '50000', description: 'Default fee per session in paise (₹500.00)' },
+        { key: 'early_join_minutes', value: '15', description: 'Minutes before session start when joins are allowed' },
+        { key: 'grace_period_minutes', value: '10', description: 'Grace period for late joins after session start' },
         { key: 'max_students_per_room', value: '30', description: 'Maximum students allowed per batch' },
-        { key: 'email_reminder_minutes', value: '30', description: 'Minutes before class to send email reminder' },
+        { key: 'email_reminder_minutes', value: '30', description: 'Minutes before session to send email reminder' },
         { key: 'smtp_provider', value: 'resend', description: 'Email service provider' },
         { key: 'session_duration_minutes', value: '90', description: 'Total session duration (75 teaching + 15 prep)' },
         { key: 'teacher_max_sessions_per_day', value: '4', description: 'Maximum sessions per teacher per day' },
@@ -222,7 +222,7 @@ export default function SystemClient({ userName, userEmail, userRole }: Props) {
                 {[
                   { label: 'Grade Range', value: 'Grade 1 — Grade 12', desc: '12 grades supported' },
                   { label: 'Subjects', value: 'Physics, Chemistry, Mathematics, Social Science, Languages', desc: '5 subjects offered' },
-                  { label: 'Class Types', value: '1:1, 1:3, 1:Many', desc: 'Three class category types' },
+                  { label: 'Session Types', value: '1:1, 1:3, 1:Many', desc: 'Three session category types' },
                   { label: 'Session Duration', value: '90 minutes', desc: '75 min teaching + 15 min prep' },
                   { label: 'Max Sessions/Day', value: '4 per teacher', desc: 'Teacher daily limit' },
                   { label: 'Exam Types', value: 'Online MCQ + Offline Descriptive', desc: 'Auto & manual evaluation' },
@@ -252,8 +252,8 @@ export default function SystemClient({ userName, userEmail, userRole }: Props) {
                   { role: 'HR',                level: 'Senior Management', desc: 'User management, payroll, teacher cancellation final approval',                      color: 'border-teal-200 bg-teal-50' },
                   { role: 'Academic Operator', level: 'Management',        desc: 'Academic monitoring, room management, join logs, cancellation approval',            color: 'border-green-200 bg-green-50' },
                   { role: 'Batch Coordinator', level: 'Operational',       desc: 'Batch management, scheduling, admissions, attendance, teacher oversight',           color: 'border-teal-200 bg-teal-50' },
-                  { role: 'Teacher',           level: 'Academic Staff',    desc: 'Conduct classes, mark attendance, update portions, manage exams, rejoin control',  color: 'border-emerald-200 bg-emerald-50' },
-                  { role: 'Student',           level: 'End User',          desc: 'Attend classes, take exams, view results, submit feedback',                          color: 'border-green-200 bg-green-50' },
+                  { role: 'Teacher',           level: 'Academic Staff',    desc: 'Conduct sessions, mark attendance, update portions, manage exams, rejoin control',  color: 'border-emerald-200 bg-emerald-50' },
+                  { role: 'Student',           level: 'End User',          desc: 'Attend sessions, take exams, view results, submit feedback',                          color: 'border-green-200 bg-green-50' },
                   { role: 'Parent',            level: 'Guardian',          desc: 'View attendance, fees, exam results, academic progress, submit complaints',         color: 'border-teal-200 bg-teal-50' },
                   { role: 'Ghost',             level: 'Observer',          desc: 'Invisible classroom observation, monitoring live sessions',                          color: 'border-gray-200 bg-gray-50' },
                 ].map((r) => (

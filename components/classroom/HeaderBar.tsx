@@ -98,7 +98,7 @@ export default function HeaderBar({
       {/* 5-minute warning banner */}
       {isWarning && !warningDismissed && (
         <div className="flex items-center justify-center gap-3 bg-[#f9ab00] px-4 py-1.5 text-xs font-semibold text-[#202124]">
-          <span>⚠ Class ends in {Math.ceil((remainingSeconds ?? 0) / 60)} minute{Math.ceil((remainingSeconds ?? 0) / 60) !== 1 ? 's' : ''}</span>
+          <span>⚠ Session ends in {Math.ceil((remainingSeconds ?? 0) / 60)} minute{Math.ceil((remainingSeconds ?? 0) / 60) !== 1 ? 's' : ''}</span>
           <button
             onClick={() => setWarningDismissed(true)}
             className="rounded bg-black/15 px-2 py-0.5 text-[10px] hover:bg-black/25 transition-colors"
@@ -111,7 +111,7 @@ export default function HeaderBar({
       {/* Time expired banner */}
       {isExpired && (
         <div className="flex items-center justify-center bg-[#ea4335] px-4 py-1.5 text-xs font-semibold text-white animate-pulse">
-          ⏰ Class time has ended — disconnecting...
+          ⏰ Session time has ended — disconnecting...
         </div>
       )}
 

@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // Student Dashboard — Client Component
-// Tabs: Overview · Batches · Classes · Sessions · Attendance · Exams · Fees · Materials · Profile
+// Tabs: Overview · Batches · Sessions · Sessions · Attendance · Exams · Fees · Materials · Profile
 // Theme: light / emerald primary — uses shared UI components
 // ═══════════════════════════════════════════════════════════════
 
@@ -334,7 +334,7 @@ function Countdown({ scheduledStart, durationMinutes }: { scheduledStart: string
         const s = Math.floor((diff % 60_000) / 1_000);
         setLabel(`${m}m ${s}s remaining`);
       } else {
-        setLabel('Class ended');
+        setLabel('Session ended');
       }
     };
     tick();
@@ -383,7 +383,7 @@ function OverviewTab({
             </div>
             <div className="flex-1">
               <p className="font-semibold text-green-800">
-                {liveAssignments.length} Class{liveAssignments.length > 1 ? 'es' : ''} Live Now
+                {liveAssignments.length} Session{liveAssignments.length > 1 ? 's' : ''} Live Now
               </p>
               <p className="text-sm text-green-700">
                 {liveAssignments.map((a) => a.room_name).join(', ')}
@@ -393,7 +393,7 @@ function OverviewTab({
               href={`/join/${liveAssignments[0].room_id}`}
               className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 transition-colors"
             >
-              Join Class
+              Join Session
             </a>
           </div>
         </div>
@@ -403,7 +403,7 @@ function OverviewTab({
       {pendingPayments.length > 0 && (
         <Alert
           variant="warning"
-          message={`${pendingPayments.length} class${pendingPayments.length > 1 ? 'es have' : ' has'} pending payment. Contact your coordinator.`}
+          message={`${pendingPayments.length} session${pendingPayments.length > 1 ? 's have' : ' has'} pending payment. Contact your coordinator.`}
         />
       )}
 
@@ -471,12 +471,12 @@ function OverviewTab({
         />
       )}
 
-      {/* Next Class */}
+      {/* Next Session */}
       {nextClass && (
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="h-4 w-4 text-emerald-600" />
-            <h3 className="text-sm font-semibold text-gray-800">Next Class</h3>
+            <h3 className="text-sm font-semibold text-gray-800">Next Session</h3>
           </div>
           <div className="flex items-center justify-between">
             <div>
@@ -507,11 +507,11 @@ function OverviewTab({
         <div className="flex items-center gap-2 mb-4">
           <Clock className="h-4 w-4 text-emerald-600" />
           <h3 className="text-sm font-semibold text-gray-800">Today&apos;s Schedule</h3>
-          <Badge label={`${todayClasses.length} class${todayClasses.length !== 1 ? 'es' : ''}`} variant="default" />
+          <Badge label={`${todayClasses.length} session${todayClasses.length !== 1 ? 's' : ''}`} variant="default" />
         </div>
 
         {todayClasses.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">No classes scheduled for today</p>
+          <p className="py-8 text-center text-sm text-gray-400">No sessions scheduled for today</p>
         ) : (
           <div className="space-y-2">
             {todayClasses
@@ -651,7 +651,7 @@ function OverviewTab({
   );
 }
 
-// ── My Classes Tab ─────────────────────────────────────────────
+// ── My Sessions Tab ─────────────────────────────────────────────
 
 type FilterKey = 'all' | 'live' | 'scheduled' | 'ended' | 'cancelled';
 
@@ -681,7 +681,7 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
     <div className="space-y-4">
       {/* Search + Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search classes…" className="w-64" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search sessions…" className="w-64" />
         <div className="flex flex-wrap gap-2">
           {(['all', 'live', 'scheduled', 'ended', 'cancelled'] as FilterKey[]).map((f) => (
             <button
@@ -707,7 +707,7 @@ function MyClassesTab({ assignments }: { assignments: Assignment[] }) {
 
       {/* Class list */}
       {filtered.length === 0 ? (
-        <EmptyState icon={BookOpen} message={search ? 'No classes match your search' : 'No classes in this category'} />
+        <EmptyState icon={BookOpen} message={search ? 'No sessions match your search' : 'No sessions in this category'} />
       ) : (
         <div className="space-y-2">
           {filtered.map((a) => {
@@ -939,7 +939,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
 
   // Sync tab with URL hash (sidebar nav clicks)
   useEffect(() => {
-    const validTabs = ['overview', 'batches', 'classes', 'sessions', 'attendance', 'exams', 'fees', 'materials', 'requests', 'profile'];
+    const validTabs = ['overview', 'batches', 'sessions', 'sessions', 'attendance', 'exams', 'fees', 'materials', 'requests', 'profile'];
     const syncHash = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash && validTabs.includes(hash)) setActiveTab(hash);
@@ -1202,7 +1202,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
   const tabs = [
     { key: 'overview',   label: 'Overview',   icon: LayoutDashboard },
     { key: 'batches',    label: `Batches${batches.length > 0 ? ` · ${batches.length}` : ''}`, icon: BookOpen },
-    { key: 'classes',    label: liveCount > 0 ? `Classes · ${liveCount} Live` : 'Classes', icon: Calendar },
+    { key: 'sessions',   label: liveCount > 0 ? `Sessions · ${liveCount} Live` : 'Sessions', icon: Calendar },
     { key: 'sessions',   label: sessionTodayStats ? `Sessions · ${sessionTodayStats.total} Today` : 'Sessions', icon: ListChecks },
     { key: 'attendance', label: attendanceSummary ? `Attendance · ${attendanceSummary.attendance_rate}%` : 'Attendance', icon: CheckCircle2 },
     { key: 'exams',      label: `Exams${completedExams.length > 0 ? ` · ${completedExams.length} Done` : ''}`, icon: Trophy },
@@ -1246,7 +1246,7 @@ export default function StudentDashboardClient({ userName, userEmail, userRole, 
             {activeTab === 'batches' && (
               <BatchesTab batches={batches} loading={loadingBatches} onRefresh={fetchBatches} />
             )}
-            {activeTab === 'classes' && <MyClassesTab assignments={assignments} />}
+            {activeTab === 'sessions' && <MyClassesTab assignments={assignments} />}
             {activeTab === 'sessions' && (
               <SessionsTab
                 sessions={sessions}
@@ -1514,9 +1514,9 @@ function AttendanceTab({
             <div className="mt-2 h-1.5 rounded-full bg-gray-100">
               <div className={`h-full rounded-full ${attBar(summary.attendance_rate)}`} style={{ width: `${summary.attendance_rate}%` }} />
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">{summary.present}/{summary.total_sessions} classes attended</p>
+            <p className="text-[10px] text-gray-400 mt-1">{summary.present}/{summary.total_sessions} sessions attended</p>
           </div>
-          <StatCard icon={BookOpen}      label="Total Classes" value={summary.total_sessions} />
+          <StatCard icon={BookOpen}      label="Total Sessions" value={summary.total_sessions} />
           <StatCard icon={CheckCircle2}  label="Present"       value={summary.present}         variant="success" />
           <StatCard icon={XCircle}       label="Absent"        value={summary.absent}           variant="danger" />
         </div>
@@ -1629,7 +1629,7 @@ function AttendanceTab({
       {loading && records.length === 0 ? (
         <LoadingState />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={CheckCircle2} message="No attendance records yet. Records appear once classes have been held." />
+        <EmptyState icon={CheckCircle2} message="No attendance records yet. Records appear once sessions have been held." />
       ) : (
         <div className="space-y-2">
           {filtered.map(r => {
@@ -2012,7 +2012,7 @@ function SessionsTab({
                     {s.time_in_class_seconds != null && s.time_in_class_seconds > 0 && (
                       <div className="flex items-center gap-4 rounded-lg bg-white border border-gray-100 px-3 py-2">
                         <div>
-                          <p className="text-[10px] text-gray-400">Time in Class</p>
+                          <p className="text-[10px] text-gray-400">Time in Session</p>
                           <p className="text-sm font-bold text-gray-800">{Math.round(s.time_in_class_seconds / 60)}m</p>
                         </div>
                         {s.join_count != null && (
@@ -2035,7 +2035,7 @@ function SessionsTab({
                       <div className="space-y-2">
                         {s.class_portion && (
                           <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
-                            <p className="text-[10px] text-emerald-600 font-semibold uppercase">Class Portion Covered</p>
+                            <p className="text-[10px] text-emerald-600 font-semibold uppercase">Session Portion Covered</p>
                             <p className="text-sm text-emerald-800 mt-0.5">{s.class_portion}</p>
                           </div>
                         )}

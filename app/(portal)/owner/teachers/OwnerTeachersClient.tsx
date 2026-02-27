@@ -373,7 +373,7 @@ export default function OwnerTeachersClient({ userName, userEmail, userRole }: P
                           }`}
                         >
                           <span className="flex items-center gap-1.5">
-                            <Calendar className="h-3 w-3" /> Classes ({rooms.length})
+                            <Calendar className="h-3 w-3" /> Sessions ({rooms.length})
                           </span>
                         </button>
                         <button
@@ -442,7 +442,7 @@ function ProfileField({ icon: Icon, label, value }: {
 
 function TeacherClassesPanel({ rooms }: { rooms: Room[] }) {
   if (rooms.length === 0) {
-    return <EmptyState icon={Calendar} message="No classes found for this teacher" />;
+    return <EmptyState icon={Calendar} message="No sessions found for this teacher" />;
   }
 
   // Sort: live first, then scheduled, then ended
@@ -505,7 +505,7 @@ function TeacherClassesPanel({ rooms }: { rooms: Room[] }) {
       })}
       {rooms.length > 20 && (
         <p className="text-center text-xs text-gray-400 py-2">
-          Showing 20 of {rooms.length} classes
+          Showing 20 of {rooms.length} sessions
         </p>
       )}
     </div>

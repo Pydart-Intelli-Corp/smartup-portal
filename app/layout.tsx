@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SmartUp Portal",
-  description: "SmartUp Online Classroom Portal — Live classes, whiteboard, and real-time collaboration",
+  description: "SmartUp Online Classroom Portal — Live sessions, whiteboard, and real-time collaboration",
   icons: {
     icon: '/logo/main.png',
     apple: '/logo/main.png',

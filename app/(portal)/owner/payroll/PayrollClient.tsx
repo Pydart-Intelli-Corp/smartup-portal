@@ -233,10 +233,10 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
                 <FormField label="Teacher Email">
                   <Input value={cfgEmail} onChange={e => setCfgEmail(e.target.value)} placeholder="teacher@example.com" />
                 </FormField>
-                <FormField label="Per Class (₹)">
+                <FormField label="Per Session (₹)">
                   <Input type="number" value={cfgRate} onChange={e => setCfgRate(e.target.value)} />
                 </FormField>
-                <FormField label="Bonus / Class (₹)">
+                <FormField label="Bonus / Session (₹)">
                   <Input type="number" value={cfgBonus} onChange={e => setCfgBonus(e.target.value)} />
                 </FormField>
                 <FormField label="Bonus Threshold">
@@ -256,8 +256,8 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
               <TableWrapper>
                 <THead>
                   <TH>Teacher</TH>
-                  <TH>Per Class</TH>
-                  <TH>Bonus / Class</TH>
+                  <TH>Per Session</TH>
+                  <TH>Bonus / Session</TH>
                   <TH>Threshold</TH>
                 </THead>
                 <tbody>
@@ -266,7 +266,7 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
                       <td className="px-4 py-3 text-gray-800 text-sm">{c.teacher_email}</td>
                       <td className="px-4 py-3 text-green-700 font-medium">{money(c.per_class_rate_paise)}</td>
                       <td className="px-4 py-3 text-teal-700 font-medium">{money(c.bonus_per_class_paise)}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.bonus_threshold_classes} classes</td>
+                      <td className="px-4 py-3 text-gray-600">{c.bonus_threshold_classes} sessions</td>
                     </TRow>
                   ))}
                 </tbody>
@@ -338,7 +338,7 @@ export default function PayrollClient({ userName, userEmail, userRole }: Props) 
                   <TableWrapper>
                     <THead>
                       <TH>Teacher</TH>
-                      <TH className="text-center">Classes</TH>
+                      <TH className="text-center">Sessions</TH>
                       <TH className="text-center">Cancelled</TH>
                       <TH className="text-center">Missed</TH>
                       <TH className="text-right">Base</TH>

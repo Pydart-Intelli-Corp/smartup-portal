@@ -169,7 +169,7 @@ export default function ParticipantList({
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                   <div className="rounded-xl bg-muted p-5 text-center shadow-xl">
                     <p className="mb-4 text-sm text-foreground">
-                      Remove <strong>{displayName}</strong> from the class?
+                      Remove <strong>{displayName}</strong> from the session?
                     </p>
                     <div className="flex gap-3 justify-center">
                       <button

@@ -54,7 +54,7 @@ const BATCH_TEMPLATES = [
   {
     type: 'one_to_many' as const,
     label: 'Classroom',
-    description: 'Full class batch — Multiple students.',
+    description: 'Full session batch — Multiple students.',
     maxStudents: 15,
     icon: GraduationCap,
     color: 'bg-purple-50 border-purple-200 text-purple-700',

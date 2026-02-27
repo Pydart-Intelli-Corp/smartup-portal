@@ -148,7 +148,7 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
             </h1>
           </div>
           <p className="mt-1 text-sm text-muted-foreground ml-10">
-            Monitor all live classes — auto-refreshes every 30 seconds
+            Monitor all live sessions — auto-refreshes every 30 seconds
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
         <Radio className="h-5 w-5 text-green-400 animate-pulse" />
         <span className="text-sm">
           <span className="font-bold text-green-400">{live.length}</span>{' '}
-          {live.length === 1 ? 'class' : 'classes'} live right now
+          {live.length === 1 ? 'session' : 'sessions'} live right now
         </span>
         {selectedFilter && (
           <button
@@ -241,9 +241,9 @@ export default function GhostMonitorClient({ userName, userEmail, userRole }: Pr
       ) : displayRooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
           <Monitor className="mb-3 h-10 w-10 text-muted-foreground/60" />
-          <p className="text-muted-foreground">No live classes{selectedFilter ? ' matching filter' : ' at the moment'}</p>
+          <p className="text-muted-foreground">No live sessions{selectedFilter ? ' matching filter' : ' at the moment'}</p>
           <p className="mt-1 text-sm text-muted-foreground/80">
-            Live classes will appear here automatically
+            Live sessions will appear here automatically
           </p>
         </div>
       ) : groupMode !== 'all' && !selectedFilter ? (

@@ -501,7 +501,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
       <Script src="https://checkout.razorpay.com/v1/checkout.js" onLoad={() => setRazorpayLoaded(true)} strategy="lazyOnload" />
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Parent Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Monitor your child&apos;s classes, progress, and fees</p>
+        <p className="text-sm text-muted-foreground">Monitor your child&apos;s sessions, progress, and fees</p>
       </div>
 
       {/* Tabs */}
@@ -571,7 +571,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
 
           {/* Upcoming */}
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Upcoming Classes
+            Upcoming Sessions
           </h2>
           <div className="space-y-3">
             {loading && rooms.length === 0 ? (
@@ -581,7 +581,7 @@ export default function ParentDashboardClient({ userName, userEmail, userRole, p
             ) : upcoming.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border py-12 text-center">
                 <Calendar className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-                <p className="text-muted-foreground text-sm">No upcoming classes</p>
+                <p className="text-muted-foreground text-sm">No upcoming sessions</p>
               </div>
             ) : (
               upcoming.map((room) => {

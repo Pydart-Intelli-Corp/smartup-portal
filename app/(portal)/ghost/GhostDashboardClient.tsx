@@ -180,7 +180,7 @@ export default function GhostDashboardClient({ userName, userEmail, userRole, pe
           <Monitor className="h-6 w-6 text-muted-foreground" />
           <div className="flex-1">
             <h3 className="text-sm font-medium">Oversight Console</h3>
-            <p className="text-xs text-muted-foreground">Multi-view grid of all classes</p>
+            <p className="text-xs text-muted-foreground">Multi-view grid of all sessions</p>
           </div>
           <span className="rounded-lg bg-accent px-3 py-1.5 text-xs text-foreground/80">Open</span>
         </a>
@@ -192,7 +192,7 @@ export default function GhostDashboardClient({ userName, userEmail, userRole, pe
             <Layers className="h-6 w-6 text-green-400" />
             <div className="flex-1">
               <h3 className="text-sm font-medium text-green-400">Combined Monitor</h3>
-              <p className="text-xs text-muted-foreground">Watch all {live.length} live classes</p>
+              <p className="text-xs text-muted-foreground">Watch all {live.length} live sessions</p>
             </div>
             <span className="rounded-lg bg-green-900 px-3 py-1.5 text-xs text-green-300">Enter</span>
           </a>
@@ -305,12 +305,12 @@ export default function GhostDashboardClient({ userName, userEmail, userRole, pe
           {/* Scheduled */}
           <div>
             <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Scheduled Classes
+              Scheduled Sessions
             </h2>
             {scheduled.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border py-12 text-center">
                 <Calendar className="mx-auto mb-2 h-8 w-8 text-muted-foreground/60" />
-                <p className="text-muted-foreground text-sm">No scheduled classes</p>
+                <p className="text-muted-foreground text-sm">No scheduled sessions</p>
               </div>
             ) : (
               <div className="space-y-3">

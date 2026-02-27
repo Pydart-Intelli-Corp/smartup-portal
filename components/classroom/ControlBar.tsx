@@ -85,7 +85,7 @@ export default function ControlBar({
         onEndClass?.();
       } else {
         const data = await res.json().catch(() => null);
-        setEndError(data?.error || 'Failed to end class — please try again');
+        setEndError(data?.error || 'Failed to end session — please try again');
       }
     } catch {
       setEndError('Network error — please try again');
@@ -153,7 +153,7 @@ export default function ControlBar({
       {role === 'teacher' && (
         <button
           onClick={() => setShowEndConfirm(true)}
-          title="End class for everyone"
+          title="End session for everyone"
           className="flex h-12 items-center gap-2 rounded-full bg-[#ea4335] px-5 text-sm font-medium text-white transition-all hover:bg-[#d33426] hover:shadow-lg hover:shadow-red-900/30 active:scale-95"
         >
           <EndCallIcon className="h-5 w-5" />
@@ -165,7 +165,7 @@ export default function ControlBar({
       {role === 'student' && (
         <button
           onClick={() => setShowLeaveConfirm(true)}
-          title="Leave class"
+          title="Leave session"
           className="flex h-12 items-center gap-2 rounded-full bg-[#ea4335] px-5 text-sm font-medium text-white transition-all hover:bg-[#d33426] hover:shadow-lg hover:shadow-red-900/30 active:scale-95"
         >
           <LeaveIcon className="h-5 w-5" />
@@ -177,7 +177,7 @@ export default function ControlBar({
       {showEndConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
-            <h3 className="mb-2 text-lg font-semibold text-white">End class for everyone?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-white">End session for everyone?</h3>
             <p className="mb-4 text-sm text-muted-foreground">This will disconnect all students.</p>
             {endError && <p className="mb-3 text-sm text-red-400">{endError}</p>}
             <div className="flex gap-3 justify-center">
@@ -192,7 +192,7 @@ export default function ControlBar({
                 disabled={isEnding}
                 className="rounded-full bg-[#ea4335] px-5 py-2 text-sm font-medium text-white hover:bg-[#d33426] disabled:opacity-50 transition-colors"
               >
-                {isEnding ? 'Ending...' : 'End Class'}
+                {isEnding ? 'Ending...' : 'End Session'}
               </button>
             </div>
           </div>
@@ -203,8 +203,8 @@ export default function ControlBar({
       {showLeaveConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-2xl bg-[#2d2e30] p-6 text-center shadow-2xl ring-1 ring-white/10">
-            <h3 className="mb-2 text-lg font-semibold text-white">Leave this class?</h3>
-            <p className="mb-4 text-sm text-muted-foreground">You can rejoin while the class is active.</p>
+            <h3 className="mb-2 text-lg font-semibold text-white">Leave this session?</h3>
+            <p className="mb-4 text-sm text-muted-foreground">You can rejoin while the session is active.</p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowLeaveConfirm(false)}

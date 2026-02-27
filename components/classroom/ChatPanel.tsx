@@ -214,7 +214,7 @@ export default function ChatPanel({
     <div className={cn('flex h-full flex-col bg-card', className)}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <span className="text-sm font-medium text-foreground">Class Chat</span>
+        <span className="text-sm font-medium text-foreground">Session Chat</span>
         {onClose && (
           <button
             onClick={onClose}
