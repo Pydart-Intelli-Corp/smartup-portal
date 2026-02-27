@@ -52,13 +52,12 @@ export async function GET(req: NextRequest) {
       const teachersResult = await db.query(
         `SELECT
            bt.subject,
-           bt.is_primary,
            t.full_name AS teacher_name,
            t.email AS teacher_email
          FROM batch_teachers bt
          JOIN portal_users t ON t.email = bt.teacher_email
          WHERE bt.batch_id = $1
-         ORDER BY bt.subject, bt.is_primary DESC`,
+         ORDER BY bt.subject`,
         [batch.id]
       );
 
