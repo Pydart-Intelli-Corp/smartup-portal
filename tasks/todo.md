@@ -1,5 +1,47 @@
 ﻿# SmartUp Portal — Task Tracker
 
+## Phase: Comprehensive Endpoint Testing & Bug Fix Sweep (Feb 28, 2026)
+
+### Full Endpoint Testing — All 8 Roles
+- [x] Owner: 28/28 GET endpoints PASS (monitoring/events = POST-only, expected 405)
+- [x] Teacher: 6/6 PASS
+- [x] Student: 6/6 PASS (3 previously failing fixed)
+- [x] Parent: 5/5 PASS
+- [x] Coordinator: 2/2 PASS (student-performance previously failing, fixed)
+- [x] Academic Operator: 4/4 PASS
+- [x] HR: 5/5 PASS (students/performance previously failing, fixed)
+- [x] Ghost: 1/1 PASS
+
+### Column Name Bug Sweep
+- [x] Fix student/sessions: is_late→late_join, time_in_class_seconds→total_duration_sec, student_email→participant_email
+- [x] Fix student/attendance: is_late→late_join, late_by_seconds→late_by_sec, time_in_class_seconds→total_duration_sec
+- [x] Fix student/batches: b.id→b.batch_id, b.name→b.batch_name, b.type→b.batch_type, is_late→late_join
+- [x] Fix lib/reports.ts: is_late→late_join, time_in_class_seconds→total_duration_sec (2 locations)
+- [x] Fix parent/attendance: is_late→late_join, late_by_seconds→late_by_sec, time_in_class_seconds→total_duration_sec
+- [x] Fix hr/students/performance: b.id→b.batch_id, participant_type→participant_role, total_questions removed
+- [x] Fix coordinator/student-performance: b.id→b.batch_id, b.name→b.batch_name, u.name→u.full_name, exams.batch_id removed, bs.is_active removed
+- [x] Fix batches/[batchId]: participant_type→participant_role in attendance_sessions
+- [x] Fix monitoring-reports.ts: b.name→b.batch_name, b.id→b.batch_id, student_email→participant_email, session_date→created_at, left_at/joined_at→total_duration_sec
+
+### Real Workflow Tests
+- [x] Admission creation (POST /api/v1/admissions action=create): 201 ✅
+- [x] Batch creation (POST /api/v1/batches): 201 ✅
+- [x] Session scheduling (POST /api/v1/batch-sessions): 201 ✅
+- [x] Exam creation (POST /api/v1/exams): 400 expected without questions array ✅
+
+### UI Page Load Verification
+- [x] All 31 page routes load: 200 OK
+- [x] Owner sub-pages (12): all PASS
+- [x] Role dashboards (8): all PASS
+- [x] Coordinator sub-pages (3): all PASS
+
+### Deployment
+- [x] 5 commits deployed to production
+- [x] All fixes verified on live server
+- [x] tasks/lessons.md updated with new patterns
+
+---
+
 ## Phase: Full System Audit & Schema Alignment (Feb 27, 2026)
 
 ### System Health Audit

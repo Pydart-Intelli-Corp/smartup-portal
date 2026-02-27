@@ -49,4 +49,52 @@
 
 ## Test After Every Deploy
 
+**Pattern:** Always test the specific endpoints affected by your changes after deploying.
+
+---
+
+## Batch-Related Column Names
+
+**Pattern:** The `batches` table uses `batch_id`, `batch_name`, `batch_type` — NOT `id`, `name`, `type`. Many route files were written with the shorter names, causing 500 errors.
+
+**Rule:** When querying the `batches` table, ALWAYS use the prefixed column names: `batch_id`, `batch_name`, `batch_type`. If you need shorter names in the response object, use SQL aliases: `b.batch_id AS id, b.batch_name AS name`.
+
+---
+
+## attendance_sessions Column Names
+
+**Pattern:** Multiple inconsistencies between code and DB:
+- `is_late` → actual column is `late_join`
+- `time_in_class_seconds` → actual column is `total_duration_sec`
+- `late_by_seconds` → actual column is `late_by_sec`
+- `student_email` → actual column is `participant_email`
+- `participant_type` → actual column is `participant_role`
+- `left_at` / `joined_at` / `session_date` → don't exist; use `last_leave_at`, `first_join_at`, filter via JOIN to `rooms.scheduled_start`
+
+**Rule:** Before writing any query on `attendance_sessions`, always check these correct column names. Use SQL aliases if the frontend expects the old names.
+
+---
+
+## batch_students Has No is_active Column
+
+**Pattern:** `batch_students` table only has: `id`, `batch_id`, `student_email`, `parent_email`, `added_at`. There is no `is_active` column.
+
+**Rule:** Don't filter on `bs.is_active` when querying `batch_students`. All enrolled students are assumed active.
+
+---
+
+## exam_attempts Has No total_questions Column
+
+**Pattern:** `exam_attempts` table has: `id`, `exam_id`, `student_email`, `student_name`, `started_at`, `submitted_at`, `score`, `total_marks`, `percentage`, `grade_letter`, `status`, `created_at`. No `total_questions` column.
+
+**Rule:** Use `ea.percentage` directly instead of calculating from `total_questions`.
+
+---
+
+## exams Has No batch_id Column
+
+**Pattern:** `exams` table has no `batch_id` — only `grade`, `subject`, and other metadata. Cannot filter exams by batch.
+
+**Rule:** Filter exams by `grade` only, not by `batch_id`.
+
 **Rule:** After any production deploy, run the full endpoint test suite (29 endpoints) to catch regressions immediately. Don't assume green locally means green in production.
