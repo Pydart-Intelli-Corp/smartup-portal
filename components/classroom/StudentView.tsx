@@ -1154,6 +1154,8 @@ export default function StudentView({
           studentName={participantName}
           onComplete={() => {
             setShowFeedback(false);
+            // Mark feedback as done so /ended page skips the rating form
+            try { sessionStorage.setItem(`feedback_submitted_${roomId}`, 'true'); } catch {}
             onLeave();
           }}
         />

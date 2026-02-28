@@ -188,6 +188,9 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
     }
   }, [roomId]);
 
+  // Guard: set to true when handleLeave fires, prevents handleDisconnected from double-navigating
+  const leftRef = useRef(false);
+
   // Handle room disconnection — only redirect for intentional/server-side disconnects
   const handleDisconnected = useCallback(
     (reason?: DisconnectReason) => {
@@ -206,6 +209,8 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
       ];
 
       if (endReasons.includes(reason)) {
+        // Skip if handleLeave already navigated (prevents double navigation)
+        if (leftRef.current) return;
         router.push(`/classroom/${roomId}/ended`);
         return;
       }
@@ -225,8 +230,8 @@ export default function ClassroomWrapper({ roomId }: ClassroomWrapperProps) {
 
   // Handle leave (student) — navigate directly, suppress the onDisconnected handler
   const handleLeave = useCallback(() => {
-    // Navigate first, then disconnect. The onDisconnected callback will fire
-    // with CLIENT_INITIATED but router.push is already called, so it's safe.
+    if (leftRef.current) return; // prevent double-fire
+    leftRef.current = true;
     router.push(`/classroom/${roomId}/ended`);
     room.disconnect();
   }, [room, router, roomId]);

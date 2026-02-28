@@ -67,6 +67,7 @@ export default function FeedbackDialog({
           rating,
           feedback_text: comment.trim(),
           tags: selectedTags.join(','),
+          attendance_confirmed: true,
         }),
       });
       setSubmitted(true);
