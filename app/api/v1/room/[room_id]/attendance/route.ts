@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/types';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
+import { resolveRoomId } from '@/lib/db';
 import { getAttendance, getJoinLogs, type AttendanceRecord, type JoinLogEntry } from '@/lib/attendance';
 
 /**
@@ -17,6 +18,7 @@ export async function GET(
 ) {
   try {
     const { room_id } = await params;
+    const actualRoomId = await resolveRoomId(room_id);
 
     // Auth
     const token = request.cookies.get(COOKIE_NAME)?.value;
@@ -45,8 +47,8 @@ export async function GET(
     }
 
     const [attendance, logs] = await Promise.all([
-      getAttendance(room_id),
-      getJoinLogs(room_id),
+      getAttendance(actualRoomId),
+      getJoinLogs(actualRoomId),
     ]);
 
     // Students only see their own record + limited logs

@@ -75,6 +75,29 @@ export default function TeacherView({
   const [goLiveError, setGoLiveError] = useState('');
   const [goLiveAt, setGoLiveAt] = useState<string | null>(null); // actual go-live timestamp
 
+  // ── Check server for room status on mount (handles page refresh after go-live) ──
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/room/${roomId}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.success && data.data?.status === 'live') {
+          setIsLive(true);
+          sessionStorage.setItem('room_status', 'live');
+          if (data.data.go_live_at) {
+            setGoLiveAt(data.data.go_live_at);
+          }
+        }
+      } catch {
+        // Non-critical — fall back to sessionStorage value
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [roomId]);
+
   // ── AI toast notifications ──
   interface AIToast { id: string; message: string; severity: 'warning' | 'danger'; time: number; }
   const [aiToasts, setAiToasts] = useState<AIToast[]>([]);
@@ -577,6 +600,7 @@ export default function TeacherView({
         return;
       }
       setIsLive(true);
+      sessionStorage.setItem('room_status', 'live');
       // Capture actual go-live timestamp for accurate timer
       if (data.data?.go_live_at) {
         setGoLiveAt(data.data.go_live_at);
@@ -659,6 +683,7 @@ export default function TeacherView({
         scheduledStart={goLiveAt || scheduledStart}
         durationMinutes={durationMinutes}
         sidebarOpen={sidebarOpen}
+        isLive={isLive}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onTimeExpired={onTimeExpired}
       />

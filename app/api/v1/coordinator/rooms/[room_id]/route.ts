@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, resolveRoomId } from '@/lib/db';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
 
 async function getCoordinator(req: NextRequest) {
@@ -23,10 +23,11 @@ export async function GET(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-  const roomResult = await db.query('SELECT * FROM rooms WHERE room_id = $1', [room_id]);
+  const roomResult = await db.query('SELECT * FROM rooms WHERE room_id = $1', [actualRoomId]);
   if (roomResult.rows.length === 0) {
     return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
   }
@@ -37,14 +38,14 @@ export async function GET(
             joined_at, left_at, payment_status, created_at
      FROM room_assignments WHERE room_id = $1
      ORDER BY participant_type, participant_email`,
-    [room_id]
+    [actualRoomId]
   );
 
   const eventsResult = await db.query(
     `SELECT event_type, participant_email, participant_role, payload, created_at
      FROM room_events WHERE room_id = $1
      ORDER BY created_at DESC LIMIT 20`,
-    [room_id]
+    [actualRoomId]
   );
 
   return NextResponse.json({
@@ -63,11 +64,12 @@ export async function PATCH(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
   // Verify room exists and is editable
-  const roomCheck = await db.query('SELECT status, teacher_email FROM rooms WHERE room_id = $1', [room_id]);
+  const roomCheck = await db.query('SELECT status, teacher_email FROM rooms WHERE room_id = $1', [actualRoomId]);
   if (roomCheck.rows.length === 0) {
     return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
   }
@@ -124,7 +126,7 @@ export async function PATCH(
   // If teacher_email changed, sync room_assignments
   const teacherChanged = 'teacher_email' in body && body.teacher_email !== currentRoom.teacher_email;
 
-  vals.push(room_id);
+  vals.push(actualRoomId);
   const sql = `UPDATE rooms SET ${sets.join(', ')} WHERE room_id = $${i} RETURNING *`;
 
   try {
@@ -137,7 +139,7 @@ export async function PATCH(
         if (currentRoom.teacher_email) {
           await client.query(
             `DELETE FROM room_assignments WHERE room_id = $1 AND participant_email = $2 AND participant_type = 'teacher'`,
-            [room_id, currentRoom.teacher_email]
+            [actualRoomId, currentRoom.teacher_email]
           );
         }
 
@@ -152,7 +154,7 @@ export async function PATCH(
             `INSERT INTO room_assignments (room_id, participant_type, participant_email, participant_name, payment_status)
              VALUES ($1, 'teacher', $2, $3, 'exempt')
              ON CONFLICT (room_id, participant_email) DO UPDATE SET participant_name = $3`,
-            [room_id, body.teacher_email, teacherName]
+            [actualRoomId, body.teacher_email, teacherName]
           );
         }
 
@@ -175,11 +177,12 @@ export async function DELETE(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
   // Verify room exists and check current status
-  const roomCheck = await db.query('SELECT status FROM rooms WHERE room_id = $1', [room_id]);
+  const roomCheck = await db.query('SELECT status FROM rooms WHERE room_id = $1', [actualRoomId]);
   if (roomCheck.rows.length === 0) {
     return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
   }
@@ -194,12 +197,12 @@ export async function DELETE(
   await db.withTransaction(async (client) => {
     await client.query(
       `UPDATE rooms SET status = 'cancelled' WHERE room_id = $1`,
-      [room_id]
+      [actualRoomId]
     );
     await client.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
        VALUES ($1, 'room_cancelled', $2, 'batch_coordinator', '{}')`,
-      [room_id, user.id]
+      [actualRoomId, user.id]
     );
   });
 

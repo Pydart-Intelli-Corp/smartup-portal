@@ -7,6 +7,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveRoomId } from '@/lib/db';
 import { getNotifyStatus } from '@/lib/email-queue';
 
 export async function GET(
@@ -23,7 +24,8 @@ export async function GET(
       );
     }
 
-    const status = await getNotifyStatus(room_id);
+    const actualRoomId = await resolveRoomId(room_id);
+    const status = await getNotifyStatus(actualRoomId);
 
     return NextResponse.json({
       success: true,

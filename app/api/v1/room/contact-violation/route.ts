@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, resolveRoomId } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 
 /**
@@ -30,11 +30,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const actualRoomId = await resolveRoomId(room_id);
+
     await db.query(
       `INSERT INTO contact_violations
          (room_id, sender_email, sender_name, sender_role, message_text, detected_pattern, severity, detected_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-      [room_id, sender_email, sender_name || '', sender_role || '', message_text, detected_pattern, severity || 'warning'],
+      [actualRoomId, sender_email, sender_name || '', sender_role || '', message_text, detected_pattern, severity || 'warning'],
     );
 
     // Also log as a room_event for the audit trail
@@ -43,7 +45,7 @@ export async function POST(req: Request) {
         `INSERT INTO room_events (room_id, event_type, payload)
          VALUES ($1, 'contact_violation', $2::jsonb)`,
         [
-          room_id,
+          actualRoomId,
           JSON.stringify({
             sender_email,
             sender_name,
@@ -63,9 +65,9 @@ export async function POST(req: Request) {
       // Get room name for the alert
       const roomRes = await db.query(
         `SELECT room_name FROM rooms WHERE room_id = $1 LIMIT 1`,
-        [room_id],
+        [actualRoomId],
       );
-      const roomName = roomRes.rows[0]?.room_name || room_id;
+      const roomName = roomRes.rows[0]?.room_name || actualRoomId;
 
       // Get all coordinators and academic operators
       const alertRes = await db.query(
@@ -109,7 +111,7 @@ export async function POST(req: Request) {
            WHERE room_id = $1 AND sender_email = $2 AND detected_at = (
              SELECT MAX(detected_at) FROM contact_violations WHERE room_id = $1 AND sender_email = $2
            )`,
-          [room_id, sender_email],
+          [actualRoomId, sender_email],
         );
       }
     } catch {

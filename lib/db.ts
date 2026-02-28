@@ -82,3 +82,15 @@ export const db = {
 
   pool,
 };
+
+/**
+ * Resolve a room identifier (room_id OR batch_session_id) to the canonical room_id.
+ * Many routes receive batch_session_id from URLs but DB data uses the LiveKit room_id.
+ */
+export async function resolveRoomId(idOrSessionId: string): Promise<string> {
+  const r = await db.query<{ room_id: string }>(
+    'SELECT room_id FROM rooms WHERE room_id = $1 OR batch_session_id = $1 LIMIT 1',
+    [idOrSessionId],
+  );
+  return r.rows[0]?.room_id ?? idOrSessionId;
+}

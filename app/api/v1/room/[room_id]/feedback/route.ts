@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, resolveRoomId } from '@/lib/db';
 
 /**
  * POST /api/v1/room/[room_id]/feedback
@@ -15,6 +15,7 @@ export async function POST(
 ) {
   try {
     const { room_id } = await params;
+    const actualRoomId = await resolveRoomId(room_id);
     const body = await req.json();
     const { student_email, student_name, rating, feedback_text, tags, attendance_confirmed } = body;
 
@@ -32,7 +33,7 @@ export async function POST(
          tags = EXCLUDED.tags,
          attendance_confirmed = EXCLUDED.attendance_confirmed,
          created_at = NOW()`,
-      [room_id, student_email, student_name || '', rating, feedback_text || '', tags || '', attendance_confirmed ?? false],
+      [actualRoomId, student_email, student_name || '', rating, feedback_text || '', tags || '', attendance_confirmed ?? false],
     );
 
     return NextResponse.json({ ok: true });
@@ -54,13 +55,14 @@ export async function GET(
 ) {
   try {
     const { room_id } = await params;
+    const actualRoomId = await resolveRoomId(room_id);
 
     const result = await db.query(
       `SELECT student_email, student_name, rating, feedback_text, tags, attendance_confirmed, created_at
        FROM student_feedback
        WHERE room_id = $1
        ORDER BY created_at DESC`,
-      [room_id],
+      [actualRoomId],
     );
 
     // Compute summary

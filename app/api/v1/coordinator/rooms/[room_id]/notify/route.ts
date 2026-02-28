@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, resolveRoomId } from '@/lib/db';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
 import { createLiveKitToken } from '@/lib/livekit';
 import { sendEmail } from '@/lib/email';
@@ -19,6 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
 
   // Auth check
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -30,7 +31,7 @@ export async function POST(
   // Get room
   const roomResult = await db.query(
     'SELECT * FROM rooms WHERE room_id = $1',
-    [room_id]
+    [actualRoomId]
   );
   if (roomResult.rows.length === 0) {
     return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
@@ -47,7 +48,7 @@ export async function POST(
   // Get all assignments
   const assignResult = await db.query(
     `SELECT * FROM room_assignments WHERE room_id = $1`,
-    [room_id]
+    [actualRoomId]
   );
   const assignments = assignResult.rows as Array<Record<string, unknown>>;
 
@@ -70,19 +71,19 @@ export async function POST(
     try {
       // Generate real LiveKit join token
       const livekitToken = await createLiveKitToken({
-        roomName: room_id,
+        roomName: actualRoomId,
         participantIdentity: participantEmail,
         participantName: participantName,
         role,
         metadata: JSON.stringify({
-          room_id,
+          room_id: actualRoomId,
           room_name: room.room_name,
           role: participantType,
         }),
       });
 
       // Build join link
-      const joinLink = `${BASE_URL}/join/${room_id}?token=${livekitToken}`;
+      const joinLink = `${BASE_URL}/join/${actualRoomId}?token=${livekitToken}`;
 
       // Store token in assignment
       await db.query(
@@ -147,7 +148,7 @@ export async function POST(
     `INSERT INTO room_events (room_id, event_type, participant_email, participant_role, payload)
      VALUES ($1, 'notification_sent', $2, 'batch_coordinator', $3)`,
     [
-      room_id,
+      actualRoomId,
       user.id,
       JSON.stringify({ sent: emailsSent, failed: errors }),
     ]
@@ -156,7 +157,7 @@ export async function POST(
   // Update room reminder_sent_at
   await db.query(
     `UPDATE rooms SET reminder_sent_at = NOW() WHERE room_id = $1`,
-    [room_id]
+    [actualRoomId]
   );
 
   return NextResponse.json({

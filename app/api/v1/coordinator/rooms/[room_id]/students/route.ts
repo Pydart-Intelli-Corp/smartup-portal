@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, resolveRoomId } from '@/lib/db';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
 
 async function getCoordinator(req: NextRequest) {
@@ -22,6 +22,7 @@ export async function GET(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -31,7 +32,7 @@ export async function GET(
      FROM room_assignments
      WHERE room_id = $1 AND participant_type = 'student'
      ORDER BY participant_name`,
-    [room_id]
+    [actualRoomId]
   );
 
   return NextResponse.json({ success: true, data: { students: result.rows } });
@@ -43,6 +44,7 @@ export async function POST(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -60,7 +62,7 @@ export async function POST(
   // Verify room exists and is in an appropriate status
   const roomCheck = await db.query(
     'SELECT room_id, status, max_participants FROM rooms WHERE room_id = $1',
-    [room_id]
+    [actualRoomId]
   );
   if (roomCheck.rows.length === 0) {
     return NextResponse.json({ success: false, error: 'Room not found' }, { status: 404 });
@@ -76,7 +78,7 @@ export async function POST(
   // Check max_participants limit
   const countResult = await db.query(
     `SELECT COUNT(*)::int AS cnt FROM room_assignments WHERE room_id = $1 AND participant_type = 'student'`,
-    [room_id]
+    [actualRoomId]
   );
   const currentCount = Number(countResult.rows[0]?.cnt ?? 0);
   const maxParticipants = Number(room.max_participants) || 500;
@@ -100,7 +102,7 @@ export async function POST(
         `INSERT INTO room_assignments (room_id, participant_type, participant_email, participant_name, payment_status)
          VALUES ($1, 'student', $2, $3, $4)
          ON CONFLICT (room_id, participant_email) DO UPDATE SET participant_name = $3`,
-        [room_id, s.email, s.name, s.payment_status || 'unknown']
+        [actualRoomId, s.email, s.name, s.payment_status || 'unknown']
       );
       added++;
     } catch (err) {
@@ -120,6 +122,7 @@ export async function DELETE(
   { params }: { params: Promise<{ room_id: string }> }
 ) {
   const { room_id } = await params;
+  const actualRoomId = await resolveRoomId(room_id);
   const user = await getCoordinator(req);
   if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -134,7 +137,7 @@ export async function DELETE(
     `DELETE FROM room_assignments
      WHERE room_id = $1 AND participant_email = $2 AND participant_type = 'student'
      RETURNING id`,
-    [room_id, email]
+    [actualRoomId, email]
   );
 
   if (result.rowCount === 0) {

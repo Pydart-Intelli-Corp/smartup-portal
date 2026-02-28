@@ -24,6 +24,8 @@ export interface HeaderBarProps {
   onToggleSidebar?: () => void;
   /** Fires once when the class timer reaches 0:00 */
   onTimeExpired?: () => void;
+  /** When false, the LIVE badge is hidden (teacher pre-live state) */
+  isLive?: boolean;
   className?: string;
 }
 
@@ -46,6 +48,7 @@ export default function HeaderBar({
   sidebarOpen = true,
   onToggleSidebar,
   onTimeExpired,
+  isLive = true,
   className,
 }: HeaderBarProps) {
   const [now, setNow] = useState(() => Date.now());
@@ -127,6 +130,7 @@ export default function HeaderBar({
         {/* Center: Live badge + countdown + elapsed + participants */}
         <div className="flex items-center gap-4">
           {/* Live badge */}
+          {isLive && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2.5 w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
@@ -134,6 +138,7 @@ export default function HeaderBar({
             </span>
             <span className="text-xs font-semibold uppercase text-red-400">Live</span>
           </div>
+          )}
 
           {/* Countdown timer */}
           {remainingSeconds !== null ? (

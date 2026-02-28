@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
+import { resolveRoomId } from '@/lib/db';
 import { getSessionMonitoringSummary, getTeacherAlerts } from '@/lib/monitoring';
 
 const ALLOWED_ROLES = ['batch_coordinator', 'academic_operator', 'owner', 'teacher', 'ghost'];
@@ -23,15 +24,16 @@ export async function GET(
 
   try {
     const { roomId } = await params;
-    const summary = await getSessionMonitoringSummary(roomId);
+    const actualRoomId = await resolveRoomId(roomId);
+    const summary = await getSessionMonitoringSummary(actualRoomId);
 
     // Teachers only see their own alerts, not full student details
     if (user.role === 'teacher') {
-      const teacherAlerts = await getTeacherAlerts(roomId);
+      const teacherAlerts = await getTeacherAlerts(actualRoomId);
       return NextResponse.json({
         success: true,
         data: {
-          room_id: roomId,
+          room_id: actualRoomId,
           class_engagement_score: summary.class_engagement_score,
           student_count: summary.students.length,
           alerts: teacherAlerts,

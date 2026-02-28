@@ -1,8 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ApiResponse } from '@/types';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
-import { db } from '@/lib/db';
+import { db, resolveRoomId } from '@/lib/db';
 import { deleteRoom as deleteLiveKitRoom } from '@/lib/livekit';
+
+/**
+ * GET /api/v1/room/[room_id]
+ * Returns room status + go_live_at. Lightweight check used by the classroom
+ * to detect if the session is already live (e.g. after a page refresh).
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ room_id: string }> }
+) {
+  try {
+    const { room_id } = await params;
+    const token = request.cookies.get(COOKIE_NAME)?.value;
+    if (!token) {
+      return NextResponse.json<ApiResponse>({ success: false, error: 'Auth required' }, { status: 401 });
+    }
+    const user = await verifySession(token);
+    if (!user) {
+      return NextResponse.json<ApiResponse>({ success: false, error: 'Invalid session' }, { status: 401 });
+    }
+
+    const actualRoomId = await resolveRoomId(room_id);
+    const result = await db.query(
+      'SELECT room_id, status, go_live_at, room_name FROM rooms WHERE room_id = $1',
+      [actualRoomId],
+    );
+    if (result.rows.length === 0) {
+      return NextResponse.json<ApiResponse>({ success: false, error: 'Room not found' }, { status: 404 });
+    }
+    const room = result.rows[0] as Record<string, unknown>;
+    return NextResponse.json<ApiResponse>({
+      success: true,
+      data: { room_id: room.room_id, status: room.status, go_live_at: room.go_live_at, room_name: room.room_name },
+    });
+  } catch (err) {
+    console.error('[room/get] Error:', err);
+    return NextResponse.json<ApiResponse>({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
 
 /**
  * PATCH /api/v1/room/[room_id]
@@ -15,6 +54,7 @@ export async function PATCH(
 ) {
   try {
     const { room_id } = await params;
+    const actualRoomId = await resolveRoomId(room_id);
 
     const sessionToken = request.cookies.get(COOKIE_NAME)?.value;
     if (!sessionToken) {
@@ -35,7 +75,7 @@ export async function PATCH(
     // Verify room exists
     const roomResult = await db.query(
       'SELECT room_id, teacher_email FROM rooms WHERE room_id = $1',
-      [room_id]
+      [actualRoomId]
     );
     if (roomResult.rows.length === 0) {
       return NextResponse.json<ApiResponse>(
@@ -82,7 +122,7 @@ export async function PATCH(
     }
 
     updates.push('updated_at = NOW()');
-    values.push(room_id);
+    values.push(actualRoomId);
 
     await db.query(
       `UPDATE rooms SET ${updates.join(', ')} WHERE room_id = $${values.length}`,
@@ -93,7 +133,7 @@ export async function PATCH(
     await db.query(
       `INSERT INTO room_events (room_id, event_type, participant_email, payload)
        VALUES ($1, 'class_portion_updated', $2, $3)`,
-      [room_id, user.id, JSON.stringify({ class_portion, class_remarks, updated_by: user.name })]
+      [actualRoomId, user.id, JSON.stringify({ class_portion, class_remarks, updated_by: user.name })]
     );
 
     return NextResponse.json<ApiResponse>(

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, COOKIE_NAME } from '@/lib/session';
+import { resolveRoomId } from '@/lib/db';
 import { ingestMonitoringEvents, type MonitoringEvent } from '@/lib/monitoring';
 
 export async function POST(req: NextRequest) {
@@ -31,8 +32,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing events or room_id' }, { status: 400 });
     }
 
+    const actualRoomId = await resolveRoomId(room_id);
+
     const monitoringEvents: MonitoringEvent[] = events.map((e) => ({
-      room_id,
+      room_id: actualRoomId,
       session_id: session_id || undefined,
       student_email: user.id,
       student_name: user.name,
