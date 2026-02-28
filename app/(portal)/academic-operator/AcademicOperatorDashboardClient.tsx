@@ -312,14 +312,14 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
   const [loadingLeave, setLoadingLeave] = useState(false);
   const toast = useToast();
 
-  const fetchMonitorAlerts = useCallback(async () => {
-    setLoadingMonitor(true);
+  const fetchMonitorAlerts = useCallback(async (background = false) => {
+    if (!background) setLoadingMonitor(true);
     try {
       const res = await fetch('/api/v1/monitoring/alerts');
       const data = await res.json();
       if (data.success) setMonitorAlerts(data.data?.alerts || []);
     } catch { /* ignore */ }
-    finally { setLoadingMonitor(false); }
+    finally { if (!background) setLoadingMonitor(false); }
   }, []);
 
   const fetchBatches = useCallback(async (q = '', isSearch = false) => {
@@ -333,14 +333,14 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
     finally { if (!isSearch) setLoading(false); }
   }, [toast]);
 
-  const fetchSessions = useCallback(async () => {
-    setLoadingSessions(true);
+  const fetchSessions = useCallback(async (background = false) => {
+    if (!background) setLoadingSessions(true);
     try {
       const res = await fetch('/api/v1/batch-sessions');
       const data = await res.json();
       if (data.success) setSessions(data.data?.sessions || []);
-    } catch { toast.error('Failed to load sessions'); }
-    finally { setLoadingSessions(false); }
+    } catch { if (!background) toast.error('Failed to load sessions'); }
+    finally { if (!background) setLoadingSessions(false); }
   }, [toast]);
 
   const fetchSessionRequests = useCallback(async () => {
@@ -365,15 +365,15 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
 
   useEffect(() => { fetchBatches(); fetchSessions(); fetchMonitorAlerts(); }, [fetchBatches, fetchSessions, fetchMonitorAlerts]);
 
-  // Auto-refresh monitoring alerts every 30s
+  // Auto-refresh monitoring alerts every 30s (background — no loading spinner)
   useEffect(() => {
-    const iv = setInterval(fetchMonitorAlerts, 30_000);
+    const iv = setInterval(() => fetchMonitorAlerts(true), 30_000);
     return () => clearInterval(iv);
   }, [fetchMonitorAlerts]);
 
-  // Auto-refresh sessions every 30s so live/ended status stays current
+  // Auto-refresh sessions every 30s (background — no loading spinner)
   useEffect(() => {
-    const iv = setInterval(fetchSessions, 30_000);
+    const iv = setInterval(() => fetchSessions(true), 30_000);
     return () => clearInterval(iv);
   }, [fetchSessions]);
 
@@ -387,7 +387,7 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
         if (!mounted) return;
         if (data.success && data.data?.started > 0) {
           toast.success(`Auto-started ${data.data.started} session${data.data.started > 1 ? 's' : ''} (prep time open)`);
-          fetchSessions();
+          fetchSessions(true);
         }
       } catch { /* silent */ }
     };

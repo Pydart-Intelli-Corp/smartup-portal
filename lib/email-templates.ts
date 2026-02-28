@@ -1506,3 +1506,35 @@ export function paymentReminderTemplate(data: PaymentReminderData) {
   const text = `Payment ${isOverdue ? 'Overdue' : 'Reminder'} — ${data.invoiceNumber}\n\nDear ${data.recipientName},\nAmount: ${data.amount}\nDue Date: ${data.dueDate}${isOverdue ? `\nOverdue: ${data.daysOverdue} days` : ''}\n\nPay at: ${data.payLink}\n\n— SmartUp Classes`;
   return { subject, html: masterLayout(body, data.recipientEmail), text };
 }
+
+// ── Password Reset OTP ──────────────────────────────────────
+
+export interface PasswordResetOtpData {
+  recipientName: string;
+  recipientEmail: string;
+  otp: string;
+}
+
+export function passwordResetOtpTemplate(data: PasswordResetOtpData): { subject: string; html: string; text: string } {
+  const subject = `🔐 Your Password Reset Code — ${data.otp}`;
+  const body = `
+    <p style="color:#374151; font-size:15px; margin:0 0 16px;">Hi <strong>${data.recipientName}</strong>,</p>
+    <p style="color:#4b5563; font-size:14px; margin:0 0 24px; line-height:1.6;">
+      We received a request to reset your SmartUp account password. Use the code below to verify your identity:
+    </p>
+
+    <div style="text-align:center; margin:28px 0;">
+      <div style="display:inline-block; background:linear-gradient(135deg, #059669 0%, #0d9488 100%); padding:20px 40px; border-radius:12px; box-shadow:0 4px 16px rgba(5,150,105,0.2);">
+        <span style="font-size:36px; font-weight:800; color:#ffffff; letter-spacing:8px; font-family:monospace;">${data.otp}</span>
+      </div>
+    </div>
+
+    ${alertBox('This code expires in 10 minutes. Do not share it with anyone.', '#b45309', '#fffbeb')}
+
+    <p style="color:#6b7280; font-size:13px; margin:20px 0 0; line-height:1.5;">
+      If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+    </p>
+  `;
+  const text = `SmartUp Password Reset\n\nHi ${data.recipientName},\n\nYour password reset code is: ${data.otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\n— SmartUp Classes`;
+  return { subject, html: masterLayout(body, data.recipientEmail), text };
+}
