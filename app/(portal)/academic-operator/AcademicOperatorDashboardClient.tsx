@@ -371,6 +371,12 @@ export default function AcademicOperatorDashboardClient({ userName, userEmail, u
     return () => clearInterval(iv);
   }, [fetchMonitorAlerts]);
 
+  // Auto-refresh sessions every 30s so live/ended status stays current
+  useEffect(() => {
+    const iv = setInterval(fetchSessions, 30_000);
+    return () => clearInterval(iv);
+  }, [fetchSessions]);
+
   // ── Auto-start polling: check every 60s for sessions whose prep window opened ──
   useEffect(() => {
     let mounted = true;

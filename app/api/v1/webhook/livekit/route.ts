@@ -60,6 +60,15 @@ export async function POST(request: NextRequest) {
         [room.name]
       );
 
+      // Sync batch_sessions status → 'ended'
+      await db.query(
+        `UPDATE batch_sessions SET status = 'ended', ended_at = COALESCE(ended_at, NOW())
+         WHERE session_id = (
+           SELECT batch_session_id FROM rooms WHERE room_id = $1 LIMIT 1
+         ) AND status IN ('live', 'scheduled')`,
+        [room.name]
+      ).catch(e => console.warn('[webhook/livekit] batch_session sync warning:', e));
+
       await db.query(
         `INSERT INTO room_events (room_id, event_type, payload)
          VALUES ($1, 'room_ended_by_teacher', $2)`,

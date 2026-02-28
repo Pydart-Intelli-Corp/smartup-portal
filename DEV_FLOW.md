@@ -7,7 +7,7 @@
 **Spec Guide:** `G:\smartup\portal_dev` (build plan)  
 **Server Build:** `G:\smartup\server_build` (2 servers — media + portal)  
 **Last Updated:** February 28, 2026  
-**Latest Commit:** `fe6e270` — Fix feedback double-show, end-session 500, coordinator+AO theme rewrite, razorpay live mode, iOS fullscreen.
+**Latest Commit:** `bdde3b4` — Fix batch_session_id→room_id mismatch in 10 API routes, fix teacher isLive state + HeaderBar badge.
 
 ---
 
